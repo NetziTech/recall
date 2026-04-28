@@ -16,15 +16,16 @@
 |---|---|
 | **Fecha del handoff** | 2026-04-28 (Fase 6 RELEASE — MVP v0.1.0 publicado, ver §6.10) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.mcp-memoria/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **MVP v0.1.0 APROBADO. Listo para release.** Architect review final emitio APROBADO CON OBSERVACIONES (3 doc-edits aplicadas, cero codigo de produccion bloqueante). |
+| **Fase actual** | **MVP v0.1.0 PUBLICADO Y VALIDADO.** Workflow multi-agente CERRADO (Fases 0-6). Paquete vivo en npm + GitHub release + smoke test E2E confirmado. Proxima fase: **mantenimiento + roadmap v0.1.1 / v0.5+** (ver §8). |
 | **Lineas de codigo** | ~58,400 en `code/src/` + ~33,000 LOC de tests en 199 archivos test. 8 modulos + shared + composition + bootstrap. |
-| **Migraciones** | 7 en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table). |
+| **Migraciones** | **8** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope). |
 | **Lineas de documentacion** | ~7,200 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, convencion `.port.ts` §3.1). |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
 | **Reportes de validacion** | 71 en `.claude/validations/` (Fase 5 agrego 5 ciclos qa-sonarqube + 1 architect-final-review). |
-| **Tooling materializado** | `code/package.json`, `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict), `code/vitest.config.ts` (thresholds 95%/100%/100%/90%), `code/scripts/validate-modules.ts`, `code/sonar-project.properties`. |
-| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** (ciclo 5): coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. |
-| **Tests** | **2421 passing** en 199 archivos test. **Coverage 96.4%** (domain 100%, application 100%, infrastructure ≥90%). |
+| **Tooling materializado** | `code/package.json`, `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict), `code/vitest.config.ts` (thresholds 95%/100%/100%/90%), `code/scripts/validate-modules.ts`, `code/sonar-project.properties`, `code/tsup.config.ts`. |
+| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** (ciclo 5 de 5): coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. |
+| **Tests** | **2421 passing** en 199 archivos test. **Coverage 96.4%** (domain ~99%, application ~99%, infrastructure ~92%). 23 E2E + 52 integration + 6 benchmarks + ~2340 unit. |
+| **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@2.x` → `tar@6.x` (path-traversal en extraccion de tarball; vector real bajo). Documentadas en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. Plan de fix en v0.1.1. SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo (escanea source, no deps transitivas). |
 | **Paquete npm** | `@netzi/mcp-memoria` (scope publico). `publishConfig.access=public`. Bins `mcp-memoria` y `mcp-memoria-server`. |
@@ -1013,77 +1014,50 @@ sobre el commit final.
 ```bash
 cd /Users/h2devx/proyects/netzi-tech/mcp/memoria
 claude
-> lee HANDOFF.md §0 + §6.9 (cierre Fase 5). El MVP v0.1.0 esta
-  APROBADO. La accion siguiente es liberar (tag + build + GitHub
-  release). NO se invoca al mcp-orchestrator: el workflow termino.
+> lee HANDOFF.md §0 + §6.10 (Fase 6 release). El MVP v0.1.0 esta
+  PUBLICADO en npm + GitHub. El workflow multi-agente esta CERRADO.
+  Para nuevas features (v0.1.1 / v0.5+), lanza al mcp-orchestrator
+  con scope acotado a una sola tarea (no abrir nueva fase entera).
+  NUNCA usar git worktrees — trabajar siempre directo en el repo
+  principal (regla durable; ver memoria de feedback).
 ```
 
 ### Si es otro dev humano
 
 ```bash
-git clone <repo>          # cuando exista en git
-cd mcp-memoria
-cat HANDOFF.md            # empezar aqui — §6.5/§6.6/§6.7/§6.8/§6.9 (Fases 1-5)
-cat .claude/workflow-state.json   # estado actual: phase-6-release
-cat docs/README.md        # producto
-cat docs/12-lineamientos-arquitectura.md   # ADR-001/ADR-002/ADR-003 + port convention
+git clone git@github.com:NetziTech/mcp-memoria-inteligente.git
+cd mcp-memoria-inteligente
+git checkout v0.1.0          # release inicial publico
+cat HANDOFF.md               # §0 + §6.5..§6.10 (historial fases 1-6)
+cat .claude/workflow-state.json   # estado: phase-6-release done
+cat docs/README.md           # producto
+cat docs/12-lineamientos-arquitectura.md   # ADR-001/ADR-002/ADR-003
 cat docs/13-workflow-agentes.md            # quien hace que
 cd code && npm install && npm run typecheck && npm run lint && \
   npm run validate:modules && npm run build && npm run test
 # Los 5 EXIT=0.
 ```
 
-### Comando exacto para LIBERAR MVP v0.1.0
+### Estado del repo git (post-release v0.1.0)
 
-El workflow esta CERRADO. La accion siguiente es manual (humano):
+- **Commit del release**: `7da553a` — `fix(release): drop leading ./ from package.json bin paths` (commit final tras dos rondas de re-tag por temas de coherencia release engineering — ver §6.10).
+- **Tag**: `v0.1.0` annotated apuntando a `7da553a`.
+- **Branch principal**: `main` (sincronizado con `origin/main`).
+- **Remoto**: `git@github.com:NetziTech/mcp-memoria-inteligente.git`.
+- **Paquete npm**: https://registry.npmjs.org/@netzi/mcp-memoria → `@netzi/mcp-memoria@0.1.0` (publicado por `h2devx`, owner de org `netzi`, via WebAuthn passkey).
+- **GitHub release**: https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0 (notes desde `docs/RELEASE-NOTES-v0.1.0.md`).
+- **Archivos tracked**: ~700 (8 docs, 13 agents, 71 validations, 8 migrations, ~570 .ts source, ~210 tests, configs, LICENSE).
+- **`.gitignore`** (raiz): excluye `.DS_Store`, IDE files, secrets locales, **`.claude/worktrees/`** (auto-worktree del harness — el usuario quiere trabajar siempre en el repo principal, NO en worktrees).
+- **`code/.gitignore`**: excluye `node_modules/`, `dist/`, `coverage/`, etc.
+
+### Smoke test del release (cualquier maquina con Node 20+)
 
 ```bash
-# Paso 0 — verificar que todo esta verde (last sanity check)
-cd /Users/h2devx/proyects/netzi-tech/mcp/memoria/code
-npx tsc --noEmit && npm run lint && npm run validate:modules && \
-  npm run build && npm run test
-# Esperado: EXIT=0 en los 5.
-
-# Paso 1 — commit final con doc-edits del cierre de Fase 5
-cd /Users/h2devx/proyects/netzi-tech/mcp/memoria
-git add HANDOFF.md docs/01-arquitectura.md docs/02-protocolo-mcp.md \
-        docs/03-modelo-datos.md docs/11-seguridad-modos.md \
-        docs/12-lineamientos-arquitectura.md \
-        .claude/workflow-state.json
-git commit -m "release: MVP v0.1.0 — Fase 5 closed, ADR-002+ADR-003 added"
-
-# Paso 2 — tag v0.1.0
-git tag -a v0.1.0 -m "MVP v0.1.0 — primer release publico
-
-- 6 tools MVP: mem.init, mem.context, mem.recall, mem.remember,
-  mem.task, mem.health
-- 3 modos privacidad: shared / encrypted (Argon2id OWASP 2024) /
-  private
-- Hybrid search (FTS5 + sqlite-vec) desde dia 1
-- 2421 tests passing, coverage 96.4%
-- Quality gate SonarQube PASSED
-- 0 bugs / 0 vulnerabilities / 0 blockers"
-
-# Paso 3 — push tag (cuando exista remoto)
-git push origin main
-git push origin v0.1.0
-
-# Paso 4 — build de binarios multi-plataforma
-cd code
-npm run build:binaries  # genera dist/mcp-memoria-{darwin,linux,win}.tar.gz
-                        # (si el script no existe, primero crearlo)
-
-# Paso 5 — GitHub release con binarios adjuntos
-gh release create v0.1.0 \
-  --title "v0.1.0 — MVP MCP Memoria Inteligente" \
-  --notes-file docs/RELEASE-NOTES-v0.1.0.md \
-  --target main \
-  dist/mcp-memoria-darwin-v0.1.0.tar.gz \
-  dist/mcp-memoria-linux-v0.1.0.tar.gz \
-  dist/mcp-memoria-win-v0.1.0.tar.gz
+npx --yes @netzi/mcp-memoria@0.1.0 --help
+# Esperado: imprime el help completo del CLI con sus 20 comandos.
 ```
 
-### Roadmap v0.5+ (resumen)
+### Roadmap v0.5+ (resumen — detalle en §8)
 
 1. **Multi-key envelope flow**: ExportKey, Rekey, AddKey (3 stubs
    `Pending*` deferidos).
@@ -1106,7 +1080,8 @@ gh release create v0.1.0 \
 ### Bloqueadores activos
 
 **Ninguno.** Todos los bloqueadores resueltos o documentados como
-wontfix-con-workaround. MVP v0.1.0 listo para release.
+wontfix-con-workaround. **MVP v0.1.0 PUBLICADO** (npm + GitHub
+release + smoke test E2E confirmado, ver §6.10).
 
 ### Bloqueadores resueltos en Fase 5
 

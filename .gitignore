@@ -27,3 +27,4 @@ Desktop.ini
 
 # Claude Code transient runtime state
 .claude/scheduled_tasks.lock
+.claude/worktrees/
