@@ -35,8 +35,8 @@
     "access": "public"
   },
   "bin": {
-    "mcp-memoria-server": "./dist/server.js",
-    "mcp-memoria": "./dist/cli.js"
+    "mcp-memoria-server": "dist/server.js",
+    "mcp-memoria": "dist/cli.js"
   },
   "files": [
     "dist/",
