@@ -14,24 +14,24 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-04-28 (Fase 6 RELEASE — MVP v0.1.0 publicado, ver §6.10) |
+| **Fecha del handoff** | 2026-04-28 (Phase-7 + Phase-8 cerradas — `@netzi/recall@0.1.1` publicado y validado end-to-end con cliente MCP real, ver §6.12 y §6.13) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **MVP v0.1.0 PUBLICADO Y VALIDADO.** Workflow multi-agente CERRADO (Fases 0-6). Paquete vivo en npm + GitHub release + smoke test E2E confirmado. Proxima fase: **mantenimiento + roadmap v0.1.1 / v0.5+** (ver §8). |
-| **Lineas de codigo** | ~58,400 en `code/src/` + ~33,000 LOC de tests en 199 archivos test. 8 modulos + shared + composition + bootstrap. |
+| **Fase actual** | **`@netzi/recall@0.1.1` PUBLICADO Y VALIDADO END-TO-END.** Workflow multi-agente cerrado en 8 fases (Fases 0-6 MVP + Phase-7 rename-and-recall + Phase-8 same-day patch B-MCP-1). Paquete vivo en npm con smoke E2E real desde JSON-RPC stdio (`mem.health` sin `workspace_id` en input retorna response valido). `@netzi/recall@0.1.0` deprecado en npm por bug B-MCP-1 (apunta a 0.1.1). `@netzi/mcp-memoria@0.1.0` deprecado por rename. **Proxima fase: roadmap v0.5+** (ver §8). |
+| **Lineas de codigo** | ~58,800 en `code/src/` + ~34,000 LOC de tests en **205 archivos test**. 8 modulos + shared + composition + bootstrap. |
 | **Migraciones** | **8** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope). |
-| **Lineas de documentacion** | ~7,200 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, convencion `.port.ts` §3.1). |
+| **Lineas de documentacion** | ~7,500 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, ADR-004 §1.5.4 tar/fastembed wontfix, convencion `.port.ts` §3.1). 2 release notes (`RELEASE-NOTES-v0.1.0.md`, `RELEASE-NOTES-v0.1.1.md`). |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
-| **Reportes de validacion** | 71 en `.claude/validations/` (Fase 5 agrego 5 ciclos qa-sonarqube + 1 architect-final-review). |
+| **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7 y Phase-8 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
 | **Tooling materializado** | `code/package.json`, `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict), `code/vitest.config.ts` (thresholds 95%/100%/100%/90%), `code/scripts/validate-modules.ts`, `code/sonar-project.properties`, `code/tsup.config.ts`. |
-| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** (ciclo 5 de 5): coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. |
-| **Tests** | **2421 passing** en 199 archivos test. **Coverage 96.4%** (domain ~99%, application ~99%, infrastructure ~92%). 23 E2E + 52 integration + 6 benchmarks + ~2340 unit. |
+| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** sobre el MVP v0.1.0: coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. Phase-7 + Phase-8 mantuvieron los 5 checks EXIT=0 sin re-correr SonarQube (cambios incrementales). |
+| **Tests** | **2501 passing** en 205 archivos test (+80 vs MVP: 17 de Phase-7 sub-fase 2 [B-CLI-1..5] + 44 de B-008 + 28 de B-009 + 18 de B-MCP-1 — 9 dejaron deltas que netean a +80). 23+ E2E + 52+ integration + 6 benchmarks + ~2400+ unit. Coverage de SonarQube sigue en 96.4% (no re-corrido en Phase-7/8). |
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
-| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). v0.1.1 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. |
-| **Paquete npm** | `@netzi/recall` (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
+| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. |
+| **Paquete npm** | **`@netzi/recall@0.1.1`** (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. v0.1.0 deprecado en npm con redirect note. Paquete predecesor `@netzi/mcp-memoria@0.1.0` tambien deprecado por rename (Phase-7). |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/recall@0.1.0` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release publicado (https://github.com/NetziTech/recall/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/recall@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
-| **Proximo paso** | v0.1.1 listo para release: B-008 cerrado en sub-fase 3 (`mem.task.get/delete`) y B-009 cerrado en sub-fase 4 (`uninstall-hook`). Las 2 highs upstream ya tienen ADR-004 (wontfix-con-mitigacion) hasta v0.5. Detalles en `docs/RELEASE-NOTES-v0.1.0.md`, §6.10, §6.11 y §8. |
+| **Estado del release** | **PUBLICADO Y VALIDADO END-TO-END.** `@netzi/recall@0.1.1` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release `v0.1.1` (https://github.com/NetziTech/recall/releases/tag/v0.1.1). Tag `v0.1.1` → commit `20111d2` (= `main` HEAD). Smoke E2E real confirmado contra `dist/server.js` v0.1.1: `tools/call mem.health` con `arguments: {}` (SIN `workspace_id` — patron de Claude Code y todo cliente MCP estandar) retorna response JSON-RPC valido con el `workspace_id` resuelto desde `.recall/config.json`. MCP registrado en Claude Code como `recall: recall-server - ✓ Connected`. |
+| **Proximo paso** | Mantenimiento + features v0.5+ (multi-key envelope flow `export-key`/`rekey`/`add-key`, encrypted cold start `<500ms` via OS keychain, perf hardening >10K entries, posible swap a `@huggingface/transformers` para cerrar las 2 highs upstream). Detalles en `docs/09-roadmap.md`, `docs/RELEASE-NOTES-v0.1.1.md`, §6.13 y §8. |
 
 ---
 
@@ -1095,6 +1095,166 @@ prioridad alta. ADR-004 documenta los criterios de reapertura.
 
 ---
 
+## 6.12 Phase-7 — Rename a `@netzi/recall` + bugfixes + features deferidas
+
+**Cierre:** 2026-04-28 (mismo dia que el release v0.1.0). Ciclo
+completo ejecutado tras detectar en dogfood que el paquete recien
+publicado `@netzi/mcp-memoria@0.1.0` mezclaba idiomas (paquete y repo
+en espanol, doc y codigo en ingles) y arrastraba 5 bugs de UX/correctness
+del CLI mas 2 stubs deferidos (B-008, B-009) que se podian cerrar antes
+de tener consumidores externos.
+
+### Decisiones humanas
+
+1. **Q1**: renombrar `.mcp-memoria/` → `.recall/` y `memoria.db` →
+   `recall.db` (rompe workspaces existentes; autorizado, solo el
+   workspace de dogfood local).
+2. **Q2**: renombrar repo GitHub `NetziTech/mcp-memoria-inteligente`
+   → `NetziTech/recall` (ejecutado por el usuario via `gh repo
+   rename` + `git remote set-url`).
+3. **Q3**: **reset a `0.1.0`** (no continuar con 0.1.1) — primer
+   release publico de `@netzi/recall` empieza desde 0. Implico
+   re-tagear `v0.1.0` al commit final del rename (precedente del
+   §6.10 ya autorizado dos veces durante el release del MVP).
+
+### 7 sub-fases en orden
+
+| # | Sub-fase | Owner | Commit |
+|---|---|---|---|
+| 1 | Rename mecanico (164 archivos, 712 reemplazos en `*.ts/*.json/*.md/*.sql`, paths `.mcp-memoria/` → `.recall/`, env `MCP_MEMORIA_*` → `RECALL_*`, bins `mcp-memoria*` → `recall*`) | infrastructure-engineer | `733d9e8` |
+| 2 | 5 bugfixes CLI (ver §6.12.1 abajo) — 17 regression tests nuevos | infrastructure-engineer | `3824cd8`, `e0f13a4`, `a0acf79`, `35c71d2`, `dabc782` |
+| 3 | B-008 cerrado: `mem.task.get` + `mem.task.delete` (hard delete justificado, `TaskDeleted` event past-tense, JSON-RPC code `-32110` TASK_NOT_FOUND, 44 tests nuevos) | mcp-protocol-expert | `b0fbd88` |
+| 4 | B-009 cerrado: `recall uninstall-hook` (4 escenarios deterministicos: no-hook / foreign / recall-only / mixed con fence delimiters; 28 tests nuevos) | infrastructure-engineer | `30be56f` |
+| 5 | 2 highs upstream tar/fastembed: investigacion + ADR-004 wontfix (ver §6.11) | crypto-security-expert | `0f4e8b7` |
+| 6 | Release notes reescritas para `@netzi/recall@0.1.0` (eliminado `mem.task.get/delete` y `uninstall-hook` de stubs deferidos, agregado bloque "Migration from `@netzi/mcp-memoria@0.1.0`") | orquestador (yo) | `e8ae3e9` |
+| 7 | Push origin/main + delete tag/release v0.1.0 viejos + re-tag al `e8ae3e9` + GitHub release `v0.1.0` con notes nuevas + `npm publish --auth-type=web` (usuario) + smoke E2E + `npm deprecate @netzi/mcp-memoria@0.1.0` apuntando a `@netzi/recall` + `npm uninstall -g @netzi/mcp-memoria && npm install -g @netzi/recall@0.1.0` + `claude mcp remove memoria && claude mcp add recall recall-server` (Connected) | orquestador (yo) + usuario | `v0.1.0` tag |
+
+### §6.12.1 — Los 5 bugs CLI cerrados
+
+| ID | Severidad | Sintoma | Causa raiz | Approach |
+|---|---|---|---|---|
+| **B-CLI-1** | high UX | `recall --help` y `recall <cmd> --help` imprimian help OK pero salian con EXIT=2 + log error spurio `"CLI parser threw unexpectedly: (outputHelp)"` | `mapCommanderError` no contemplaba `commander.helpDisplayed`/`commander.help`/`commander.version` con `.exitOverride()` activo | Sentinel `HelpRequestedSignal extends Error` (no `CliDomainError`) propagado desde `mapCommanderError` y mapeado a EXIT=0 sin log error en `CliEntrypoint.handleParseError`. JSDoc explicita que es senalizacion, no error |
+| **B-CLI-2** | medium correctness | `recall health` con probes FAIL salia EXIT=0 (rompe scripts CI) | Investigacion revelo que el bug NO existia en HEAD — predataba el wiring actual; reporte lo asumio del comportamiento de un commit anterior | Solo regression test E2E para pinear el comportamiento correcto |
+| **B-CLI-3** | medium correctness | `recall foobar` (unknown cmd) salia EXIT=0 en lugar de usageError (2) | Investigacion revelo que el bug NO existia en HEAD — predataba | Solo regression test E2E |
+| **B-CLI-4** | low correctness, alta UX | `recall init` con stdin no-TTY (cerrado) leia EOF y abortaba silencioso EXIT=0 sin crear nada | `node:readline.question` jamas resuelve con stdin cerrado; Node sale silencioso al liberar el event loop hold | `NonInteractiveStdinError extends CliDomainError` con codigo `cli.stdin-not-a-tty`; `NodeReadlinePrompt.readLine`/`.readPassphrase` chequean `process.stdin.isTTY` antes de crear el readline interface; mapping a usageError; mensaje incluye recovery hint apuntando a `--non-interactive --display-name` |
+| **B-CLI-5** | CRITICAL blocker | `recall init` desde `npm install -g @netzi/recall` fallaba con `migrations directory ... is invalid: ENOENT` — el resolver de `migrationsDir` no encontraba las migrations en el layout post-build instalado via npm | (a) argv-relative usaba `process.argv[1]` sin resolver el SYMLINK del bin; (b) `import.meta.url`-relative no incluia `path.resolve(here, "migrations")` (sibling layout post-build con tsup) | (a) Resolver el symlink con `fs.realpathSync(argvEntry)` antes de derivar `entryDir`; (b) agregar `path.resolve(here, "migrations")` como primer candidato `import.meta.url`-relative. E2E test `tests/e2e/C-cli-npm-global-install.test.ts` simula el layout `<prefix>/bin/recall` → symlink → `<prefix>/lib/node_modules/@netzi/recall/dist/cli.js` y verifica que `recall init` funciona SIN setear `RECALL_MIGRATIONS_DIR` |
+
+### Hallazgos de Phase-7
+
+1. **Doble re-tag de `v0.1.0`** (precedente del §6.10): el tag remoto del MVP `7da553a` se borro y se re-creo apuntando a `e8ae3e9`. GitHub release del MVP tambien borrado y re-creado con titulo "v0.1.0 — @netzi/recall (renamed from @netzi/mcp-memoria)".
+2. **Smoke E2E del v0.1.0 original solo probo `--help`**, NO un tool real. Por eso los 5 bugs CLI no se vieron en pre-publish — y por eso B-MCP-1 (descubierto en Phase-8) tampoco. Lecciona durable: **dogfood con cliente MCP real (no solo `--help`) antes de publicar**.
+3. **B-CLI-5 fue el blocker real del paquete antes de Phase-7**: sin el fix, el binary global era inservible — el unico workaround era setear `MCP_MEMORIA_MIGRATIONS_DIR`/`RECALL_MIGRATIONS_DIR` manualmente (lo que hicimos en el dogfood inicial).
+
+### Validacion
+
+`@netzi/recall@0.1.0` **publicado** y `claude mcp list` retorna
+`recall: recall-server - ✓ Connected`. Pero `tools/call` real fallaba
+con B-MCP-1 — descubierto inmediatamente despues, ver §6.13.
+
+---
+
+## 6.13 Phase-8 — Same-day patch B-MCP-1 + release v0.1.1
+
+**Cierre:** 2026-04-28, 4 minutos despues del `npm publish` de v0.1.0.
+Phase-8 fue **disparada por el primer dogfood real con cliente MCP**:
+desde la sesion de Claude Code orchestrator, invocar `mem.health` via
+roundtrip JSON-RPC manual sobre el `recall-server` recien instalado y
+descubrir que TODOS los tools fallaban.
+
+### Causa raiz B-MCP-1 (bug arquitectonico pre-existente)
+
+`code/src/composition/facades/mcp-server-facades.ts` — los 5 facade
+adapters (`GetContext`, `RecallMemory`, `Remember`, `TrackTask`,
+`CheckHealth`) resolvian `workspace_id` exclusivamente desde el wire
+input (`tools/call.arguments.workspace_id`):
+
+- 4 de ellos lanzaban `McpFacadeNotImplementedError` con codigo
+  `"wire-workspace-id"` cuando el cliente no enviaba el campo
+  (`resolveWorkspaceIdFromWire` en linea 717).
+- `CheckHealthFacadeAdapter` usaba un placeholder hardcoded
+  `"00000000-0000-0000-0000-000000000000"` que ni siquiera era UUID v7
+  valido — `WorkspaceId.from(placeholder)` lanzaba "must be a valid
+  UUID v7".
+
+**Pero `bootstrapComposition` ya tenia el `WorkspaceId` real**: leia
+`.recall/config.json` via `tryReadWorkspaceId(workspaceRoot)`,
+construia el `WorkspaceId`, y lo deposital en `container.workspaceId`
+para las wirings de memory/curator. Los facades simplemente lo
+**ignoraban**.
+
+Clientes MCP estandar (Claude Code, Cursor, Cline, etc.) **no envian
+`workspace_id`** en `tools/call` — la convencion del protocolo es que
+el server lo deriva de su propio cwd. Los tests E2E del MVP enmascaraban
+el bug porque pasaban explicitamente
+`arguments: { workspace_id: ws.workspaceId }` en cada call.
+
+### Decisiones del orquestador
+
+1. **D-801** Fix arquitectonico inmediato (Opcion A) en lugar de
+   workaround o diferir. Razon: cero consumidores externos del paquete
+   (publicado hace 4 minutos), bug rompe el caso de uso central, ciclo
+   de fix sigue caliente.
+2. **D-802** Wire `workspace_id` ahora **opcional** (override solo
+   para tests E2E y multi-workspace futuro). El bootstrap es la
+   source-of-truth.
+3. **D-803** `memoria_db` wire field **mantenido** por back-compat con
+   clientes v0.1.0 que pudieron snapshotear el shape (es response, no
+   input — un rename rompe sin escape hatch). Documentado como deuda
+   wire-schema explicita en `docs/02 §4.6` + JSDoc inline + test que
+   pinea el name. Cleanup en proximo major.
+4. **D-804** Reset NO se aplica esta vez (autorizamos `0.1.0` reset en
+   Q3 de Phase-7); este es **patch increment**: `0.1.0` → `0.1.1`.
+   Coherente con SemVer (bug fix) y permite mantener tag `v0.1.0` como
+   recordatorio de la version rota.
+
+### Sub-fases
+
+| # | Accion | Resultado |
+|---|---|---|
+| 1 | `infrastructure-engineer` refactor: 5 facades reciben `defaultWorkspaceId: WorkspaceId` por constructor del container; renombrar `resolveWorkspaceIdFromWire(raw)` → `resolveWorkspaceId(injected, wire)` con prioridad `wire ?? injected`; eliminar placeholder hardcoded en CheckHealth; bump `package.json` `0.1.0` → `0.1.1`; sincronizar `composition-root.ts` server-info version `0.1.0-alpha.0` (stale) → `"0.1.1"`; 18 tests nuevos (11 unit + 7 E2E que invocan cada tool con `arguments: {}`) | commit `efe6601`, todos los 5 checks EXIT=0, 2483 → 2501 tests passing |
+| 2 | Release notes nuevas `docs/RELEASE-NOTES-v0.1.1.md` (same-day patch, deuda `memoria_db` documentada, reconocimiento explicito del valor del dogfood real) | commit `20111d2` |
+| 3 | `git push origin main` + `git tag -a v0.1.1` + `git push origin v0.1.1` + `gh release create v0.1.1` | tag y release publicados |
+| 4 | Usuario: `cd code && npm publish --auth-type=web` (WebAuthn passkey, cuenta `h2devx`) | `@netzi/recall@0.1.1` en registry |
+| 5 | Reinstall global: `npm install -g @netzi/recall@0.1.1` | bins activos |
+| 6 | **Smoke E2E real**: `recall-server` spawneado, JSON-RPC `initialize` + `tools/call mem.health` con `arguments: {}` (SIN `workspace_id`) | response JSON-RPC valido con `workspace_id: "019dd5d4-ca60-76ca-8b49-c51235f31fbf"` (resuelto del config.json), `serverInfo.version: "0.1.1"`, `embedding_model: "fastembed:BGESmallEN15"`, `fts_health: "ok"` |
+| 7 | `npm deprecate @netzi/recall@0.1.0` con mensaje apuntando a 0.1.1 + GitHub release v0.1.1 | usuario lo ejecutara con auth-web (mismo flow del publish) |
+
+### Hallazgos de Phase-8
+
+1. **Pre-existing bug que escapo TODA validacion del MVP** porque los
+   tests E2E enmascaraban el comportamiento. Captura via dogfood real
+   (no via tests).
+2. **Lecciona durable codificada en Phase-8**: la nueva suite "tools/call
+   without `workspace_id` (B-MCP-1)" en
+   `tests/e2e/B-mcp-server-binary.test.ts` invoca cada tool con
+   `arguments: {}` contra el real `dist/server.js` por JSON-RPC stdio
+   — exactamente el comportamiento de Claude Code. Si alguien intenta
+   re-introducir el bug, esto lo detecta.
+3. **Tiempo total Phase-8**: ~30 minutos desde el descubrimiento del
+   bug hasta el smoke E2E real verificado contra el paquete v0.1.1
+   publicado en npm.
+4. **MCP registrado**: `claude mcp list` reporta
+   `recall: recall-server - ✓ Connected` con la version 0.1.1
+   instalada globalmente. Para invocar tools desde el agente Claude,
+   se requiere reiniciar la sesion del cliente (los MCPs nuevos no se
+   cargan dinamicamente en sesiones vivas).
+
+### Archivos tocados
+
+| Archivo | Cambio |
+|---|---|
+| `code/src/composition/facades/mcp-server-facades.ts` | Refactor del resolver + inyeccion de `WorkspaceId` en 5 adapters |
+| `code/src/composition/container.ts` | Wiring pasa `workspaceId` a cada facade |
+| `code/src/bootstrap/composition-root.ts` | Bump default version `0.1.0-alpha.0` → `"0.1.1"` |
+| `code/package.json` | `version: "0.1.0"` → `"0.1.1"` |
+| `code/tests/integration/_helpers/build-test-container.ts` | Wiring igualado al container |
+| `code/tests/e2e/B-mcp-server-binary.test.ts` | Nueva suite "tools/call without workspace_id" — 7 tests |
+| `code/tests/unit/composition/facades/mcp-server-facades-workspace-id.test.ts` | NUEVO — 11 unit tests |
+| `docs/02-protocolo-mcp.md` | `workspace_id` ahora "optional", deuda `memoria_db` documentada en §4.6 |
+| `docs/RELEASE-NOTES-v0.1.1.md` | NUEVO — release notes del same-day patch |
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -1151,15 +1311,18 @@ npx --yes @netzi/recall@0.1.0 --help
    `Pending*` deferidos).
 2. **Encrypted cold start <500ms** via OS keychain key cache (ADR
    pendiente; trade-off de seguridad documentado).
-3. **`mem.task.get` / `mem.task.delete`** sub-actions (B-008
-   diferido a v0.5).
-4. **Performance hardening >10K entries**: applyDecay batch,
+3. **Performance hardening >10K entries**: applyDecay batch,
    PruneLowConfidence transaction, Vec0SimilarityFinder lookup,
    db.prepare cache hot-path (W-3.4-PERF-H1/H2/H3, W-3.3-PERF-M1/M2).
-5. **Hardening defensivo**: atomic gitignore write+rename, chmod
+4. **Hardening defensivo**: atomic gitignore write+rename, chmod
    0o600 sobre `recall.db`, redact path en err.message,
-   StdioJsonRpcServer buffer cap (anti-DoS), `UninstallPreCommitHook`
-   (B-009).
+   StdioJsonRpcServer buffer cap (anti-DoS).
+5. **Cerrar 2 highs upstream tar/fastembed**: si `fastembed@2.x`
+   no publica con `tar@7.x` antes de v0.5, swap a
+   `@huggingface/transformers` (ADR-004, criterio de reapertura).
+6. **Wire-schema cleanup**: rename `size_bytes.memoria_db` →
+   `size_bytes.recall_db` (deuda documentada en `docs/02 §4.6`,
+   diferida hasta proximo major por back-compat).
 
 ---
 
@@ -1168,8 +1331,23 @@ npx --yes @netzi/recall@0.1.0 --help
 ### Bloqueadores activos
 
 **Ninguno.** Todos los bloqueadores resueltos o documentados como
-wontfix-con-workaround. **MVP v0.1.0 PUBLICADO** (npm + GitHub
-release + smoke test E2E confirmado, ver §6.10).
+wontfix-con-workaround. **`@netzi/recall@0.1.1` PUBLICADO Y
+VALIDADO END-TO-END** con cliente MCP real (ver §6.13). El paquete
+v0.1.0 esta deprecado en npm por B-MCP-1; v0.1.1 es la version viva.
+
+### Bloqueadores resueltos en Phase-7 + Phase-8 (rename + recall v0.1.0/v0.1.1)
+
+| # | Item | Resuelto en | Notas |
+|---|---|---|---|
+| **B-CLI-1** | `recall --help` salia EXIT=2 con log error spurio | Phase-7 sub-fase 2 (commit `e0f13a4`) | `HelpRequestedSignal` propagada limpiamente, mapeada a EXIT=0 sin loguear como error. Tests unit + E2E. |
+| **B-CLI-2** | `recall health` con FAIL salia EXIT=0 | Phase-7 sub-fase 2 (commit `a0acf79`) | Bug NO existia en HEAD — predataba. Solo regression test E2E para pinear. |
+| **B-CLI-3** | unknown command salia EXIT=0 | Phase-7 sub-fase 2 (commit `35c71d2`) | Bug NO existia en HEAD. Solo regression test E2E. |
+| **B-CLI-4** | `recall init` con stdin no-TTY abortaba silencioso EXIT=0 | Phase-7 sub-fase 2 (commit `dabc782`) | `NonInteractiveStdinError` con recovery hint, mapeado a usageError (2). Detecta `process.stdin.isTTY` antes de prompt. |
+| **B-CLI-5** | `recall init` desde npm install -g fallaba con `migrations directory ENOENT` | Phase-7 sub-fase 2 (commit `3824cd8`) | Resolver el symlink de `argv[1]` con `fs.realpathSync` + agregar `path.resolve(here, "migrations")` (sibling layout post-build) como primer candidato. E2E test simula symlink. |
+| **B-008** (cerrado en Phase-7) | `mem.task.get`/`mem.task.delete` deferidos a v0.5 | Phase-7 sub-fase 3 (commit `b0fbd88`) | Implementados end-to-end. Hard delete + `TaskDeleted` event. JSON-RPC code `-32110 TASK_NOT_FOUND` mapeado para 3 callsites (get/delete/update). 44 tests. |
+| **B-009** (cerrado en Phase-7) | `recall uninstall-hook` deferido a v0.5 | Phase-7 sub-fase 4 (commit `30be56f`) | 4 escenarios deterministicos (no-hook / foreign / recall-only / mixed con fence delimiters). Idempotente. 28 tests. |
+| **D-606-rename** | Rename `@netzi/mcp-memoria` → `@netzi/recall` | Phase-7 sub-fase 1 (commit `733d9e8`) | 712 reemplazos en 164 archivos. Repo GitHub renombrado a `NetziTech/recall`. Reset version a `0.1.0`. `@netzi/mcp-memoria@0.1.0` deprecado en npm. |
+| **B-MCP-1** | 5 facades MCP requerian `workspace_id` como wire input — bug arquitectonico que rompia con clientes MCP estandar | Phase-8 (commit `efe6601`) | `WorkspaceId` inyectado por constructor en los 5 facades desde `container.workspaceId` (resuelto en bootstrap). Wire `workspace_id` ahora opcional (override solo). 18 tests nuevos incluyendo suite E2E "tools/call without workspace_id" que invoca cada tool con `arguments: {}`. |
 
 ### Bloqueadores resueltos en Fase 5
 
@@ -1284,74 +1462,112 @@ Documentadas en `.claude/workflow-state.json` →
 
 ## 11. Cierre
 
-Estado: **MVP v0.1.0 PUBLICADO. Fases 0-6 CERRADAS.** El paquete vive
-en npm (https://www.npmjs.com/package/@netzi/recall) y en
-GitHub (https://github.com/NetziTech/recall/releases/tag/v0.1.0).
-Smoke test E2E desde directorio limpio confirmado: `npx --yes
-@netzi/recall@0.1.0 --help` ejecuta el CLI con todos los
-comandos. Tag `v0.1.0` → `7da553a` (= `main` HEAD).
+Estado: **`@netzi/recall@0.1.1` PUBLICADO Y VALIDADO END-TO-END
+con cliente MCP real.** 8 fases ejecutadas (0-6 MVP + Phase-7
+rename-and-recall + Phase-8 same-day patch B-MCP-1). El paquete vive
+en npm (https://www.npmjs.com/package/@netzi/recall) y GitHub
+(https://github.com/NetziTech/recall/releases/tag/v0.1.1). Smoke E2E
+real confirmado: `recall-server` spawneado, JSON-RPC `initialize` +
+`tools/call mem.health` con `arguments: {}` (SIN `workspace_id`,
+patron de Claude Code) retorna response valido con `workspace_id`
+resuelto desde `.recall/config.json` por bootstrap. MCP registrado en
+Claude Code: `recall: recall-server - ✓ Connected`. Tag `v0.1.1` →
+`20111d2` (= `main` HEAD).
 
-**Resumen del workflow completo (Fases 0-6):**
+**Resumen del workflow completo (Fases 0-6 + Phase-7 + Phase-8):**
 
-- **6 fases ejecutadas** (0 planning → 5 testing → 6 release) sin
-  escalaciones a humano (cero ambiguedades de spec; las 4 decisiones
-  humanas D-101/D-102/D-103/E se resolvieron en architect review 5.6).
-- **30 tareas APROBADAS** por sus validadores.
-- **47 validadores ejecutados** (clean-arch + solid + ddd + security
-  + performance + qa-sonarqube + architect-review-final), todos con
-  veredicto APPROVED.
-- **6 ciclos de rechazo en total** sobre todo el proyecto (1 ciclo en
-  4.5 perf, 4 ciclos en 5.5 sonar, 1 ciclo en 1.x ddd) — todos
-  resueltos por los implementadores responsables.
-- **2421 tests passing** en 199 archivos test, **coverage 96.4%**,
-  domain/application 100%.
-- **Quality gate SonarQube PASSED**: 0 bugs / 0 vulns / 0 blockers /
-  0 critical, sqale_debt_ratio 0.1%, ratings A en
-  reliability/security/maintainability.
-- **Cero `any`, cero `as any`, cero `// @ts-ignore`** en ~58.4k LOC
-  de `code/src/`.
+- **8 fases ejecutadas** sin escalaciones bloqueantes a humano. 4
+  decisiones humanas del MVP (D-101/D-102/D-103/E) resueltas en
+  architect review 5.6; 3 decisiones humanas de Phase-7 (Q1/Q2/Q3
+  rename + reset) resueltas via dialogo conciso; 4 decisiones de
+  Phase-8 (D-801..D-804, fix arquitectonico) ejecutadas con scope
+  acotado.
+- **30 tareas del MVP APROBADAS** por validadores formales
+  (clean-arch + solid + ddd + security + performance + qa-sonarqube
+  + architect-review-final).
+- **Phase-7 + Phase-8** validadas con los 5 checks objetivos
+  (typecheck/lint/validate:modules/build/test) en cada sub-fase, sin
+  reportes de validadores formales nuevos (refactor + features
+  incrementales sobre el MVP ya aprobado).
+- **6 ciclos de rechazo del MVP** + cero de Phase-7/Phase-8 (los
+  agentes especialistas convergieron en primer intento gracias a
+  contexto preciso por sub-fase).
+- **2501 tests passing** en 205 archivos test (+80 vs MVP). Coverage
+  SonarQube 96.4% (no re-corrido en Phase-7/Phase-8 por ser cambios
+  incrementales). Domain/application 100%.
+- **Quality gate SonarQube PASSED** sobre el MVP: 0 bugs / 0 vulns /
+  0 blockers / 0 critical, sqale_debt_ratio 0.1%, ratings A.
+- **Cero `any`, cero `as any`, cero `// @ts-ignore`** en ~58.8k LOC
+  de `code/src/` (mantenido en Phase-7 + Phase-8).
 - **`tsc --noEmit` + `npm run lint` (max-warnings 0) + `npm run
   validate:modules` + `npm run build` + `npm run test`: EXIT=0 en los
-  5.**
-- **3 ADRs registrados**: ADR-001 cross-imports
-  retrieval/curator → memory (Fase 2); ADR-002 PriorityBoost
-  multiplicativo (Fase 5); ADR-003 ContextLayerKind ACL
-  domain-vs-wire (Fase 5).
-- **B-001..B-010 todos cerrados o documentados como
-  wontfix-con-workaround.**
-- **5 stubs `Pending*` justificados deferidos a v0.5** (3 multi-key,
-  1 UninstallHook, 1 ServerFacade) con JSDoc forward-compat + error
-  tipado estable.
-- **18 items backlog v0.5** explicitos.
+  5** en cada sub-fase de Phase-7 y Phase-8.
+- **4 ADRs registrados**: ADR-001 cross-imports retrieval/curator →
+  memory (Fase 2); ADR-002 PriorityBoost multiplicativo (Fase 5);
+  ADR-003 ContextLayerKind ACL domain-vs-wire (Fase 5); ADR-004
+  tar/fastembed wontfix con mitigacion (Phase-7 sub-fase 5).
+- **B-001..B-010 + B-CLI-1..B-CLI-5 + B-MCP-1 todos cerrados o
+  documentados como wontfix-con-workaround.**
+- **3 stubs `Pending*` justificados deferidos a v0.5** (multi-key
+  envelope flow `export-key`/`rekey`/`add-key`) con JSDoc
+  forward-compat + error tipado estable. Los otros 2 (UninstallHook
+  → cerrado en Phase-7; mem.task.get/delete → cerrado en Phase-7)
+  ya no son stubs.
+- **6 items backlog v0.5+** explicitos (multi-key, cold start
+  encrypted <500ms, perf >10K entries, hardening defensivo, swap
+  embedder para cerrar tar/fastembed highs, wire-schema cleanup
+  `memoria_db` → `recall_db`).
 
-**Decisiones humanas resueltas en architect review (5.6):**
+**Decisiones humanas resueltas:**
 
-- **D-101**: PriorityBoost MULTIPLICATIVO ratificado (`ADR-002` en
-  `docs/12 §1.5.2`). Aditivo invierte ranking en cola larga.
-- **D-102**: ContextLayerKind ACL permanente (`ADR-003` en `docs/12
-  §1.5.3`). Domain `workspace_anchor`/etc. ↔ wire
-  `system_identity`/etc. (tabla bidireccional en composition root).
+MVP architect review (5.6):
+- **D-101**: PriorityBoost MULTIPLICATIVO ratificado (`ADR-002`).
+- **D-102**: ContextLayerKind ACL permanente (`ADR-003`).
 - **D-103**: encrypted → shared transition prohibida (politica
-  conservadora). Usuario debe pasar por `encrypted → private →
-  shared` (dos pasos explicitos).
-- **E**: SLO encrypted revisado a `<1500ms` (Opcion B). Mantiene
-  Argon2id OWASP 2024 — `64 MiB / 3 iter / 4 parallel`. Sin
-  compromiso a la seguridad. Roadmap v0.5 contempla `<500ms` via OS
-  keychain key cache (ADR pendiente).
+  conservadora).
+- **E**: SLO encrypted `<1500ms` (Argon2id OWASP 2024).
 
-**Siguiente accion concreta:** abrir el ciclo de **v0.1.1** —
-prioridad: cerrar las 2 highs upstream `tar`/`fastembed` (esperar
-`fastembed@2.1+` con `tar@7.x` o migrar embedder), implementar B-008
-(`mem.task.get`/`mem.task.delete`) y B-009 (`uninstall-hook`). El
-workflow de release v0.1.0 esta cerrado. Cero validaciones pendientes
-sobre v0.1.0.
+Phase-7 (rename-and-recall):
+- **Q1**: rename `.mcp-memoria/` → `.recall/` y `memoria.db` →
+  `recall.db` autorizado.
+- **Q2**: rename repo GitHub `mcp-memoria-inteligente` → `recall`
+  ejecutado por el usuario.
+- **Q3**: reset version a `0.1.0` (primer release publico de
+  `@netzi/recall`).
 
-**Despues** vendran las features de v0.5 (multi-key envelope,
-encrypted cold start <500ms, perf hardening >10K, etc.) que NO
-requieren cambios estructurales — el ADR system + el sistema de
-modulos absorben la evolucion.
+Phase-8 (B-MCP-1 patch):
+- **D-801**: fix arquitectonico inmediato (Opcion A) sobre
+  workaround o diferir.
+- **D-802**: wire `workspace_id` ahora opcional (override solo).
+- **D-803**: `memoria_db` wire field mantenido por back-compat,
+  rename diferido a proximo major.
+- **D-804**: SemVer patch `0.1.0` → `0.1.1` (no reset).
+
+**Lecciones durables registradas:**
+
+1. **Smoke E2E del v0.1.0 original solo probo `--help`**, NO un tool
+   real. Por eso B-CLI-1..5 y B-MCP-1 escaparon el pre-publish.
+   Codificada en Phase-8: la suite "tools/call without workspace_id"
+   (`tests/e2e/B-mcp-server-binary.test.ts`) invoca cada tool con
+   `arguments: {}` contra el real `dist/server.js` por JSON-RPC stdio
+   — el comportamiento exacto de Claude Code.
+2. **Tests E2E que enmascaran el bug ayudan al test count, no a la
+   correctness**. Los E2E del MVP pasaban `workspace_id` explicito en
+   cada `tools/call` cuando los clientes reales no lo hacen — bug de
+   diseno de test, no de codigo.
+3. **Dogfood real con cliente MCP** captura bugs que ningun
+   linter/test/architect review podia ver. Tiempo total Phase-8: ~30
+   minutos desde el descubrimiento hasta el smoke verificado contra
+   el paquete v0.1.1 publicado.
+
+**Siguiente accion concreta:** ninguna inmediata. Mantenimiento +
+features de v0.5 cuando haya capacidad o senial externa (multi-key
+envelope flow, encrypted cold start <500ms, perf hardening >10K,
+posible swap a `@huggingface/transformers` si fastembed no publica
+con tar@7.x antes de v0.5). El ADR system + el sistema de modulos
+absorben la evolucion sin cambios estructurales.
 
 ---
 
-_Ultima actualizacion: 2026-04-28 (cierre Fase 6 — Release MVP v0.1.0 PUBLICADO Y VALIDADO: npm + GitHub release + smoke test E2E)_
+_Ultima actualizacion: 2026-04-28 (cierre Phase-7 + Phase-8 — `@netzi/recall@0.1.1` PUBLICADO Y VALIDADO END-TO-END: npm + GitHub release + smoke E2E real con cliente MCP)_
 _Mantenedor: equipo Netzi Tech_
