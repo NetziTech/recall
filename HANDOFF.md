@@ -14,7 +14,7 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-04-28 (Fase 5 CERRADA — MVP v0.1.0 APROBADO) |
+| **Fecha del handoff** | 2026-04-28 (Fase 6 RELEASE — MVP v0.1.0 publicado, ver §6.10) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.mcp-memoria/`), con 3 modos: compartido / encriptado / privado |
 | **Fase actual** | **MVP v0.1.0 APROBADO. Listo para release.** Architect review final emitio APROBADO CON OBSERVACIONES (3 doc-edits aplicadas, cero codigo de produccion bloqueante). |
 | **Lineas de codigo** | ~58,400 en `code/src/` + ~33,000 LOC de tests en 199 archivos test. 8 modulos + shared + composition + bootstrap. |
@@ -26,7 +26,10 @@
 | **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** (ciclo 5): coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. |
 | **Tests** | **2421 passing** en 199 archivos test. **Coverage 96.4%** (domain 100%, application 100%, infrastructure ≥90%). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
-| **Proximo paso unico** | **Liberar MVP v0.1.0**: tag `v0.1.0`, build de binarios, GitHub release. Comando exacto en §7. Cero validaciones pendientes. |
+| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@2.x` → `tar@6.x` (path-traversal en extraccion de tarball; vector real bajo). Documentadas en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. Plan de fix en v0.1.1. SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo (escanea source, no deps transitivas). |
+| **Paquete npm** | `@netzi/mcp-memoria` (scope publico). `publishConfig.access=public`. Bins `mcp-memoria` y `mcp-memoria-server`. |
+| **Licencia** | MIT (`code/LICENSE`). |
+| **Proximo paso unico** | `npm publish` (manual: requiere `npm login` del usuario; el CI de tu maquina no esta autenticado). Resto del flujo (tag + push + GitHub release) ya ejecutado en §6.10. |
 
 ---
 
@@ -904,6 +907,86 @@ phase-5-task-6-architect-final-review.md         (APPROVED CON OBSERVACIONES)
 
 ---
 
+## 6.10 Fase 6 — Release MVP v0.1.0
+
+**Cierre:** 2026-04-28 (sesion de release). Tag y branch pusheados al
+remoto `git@github.com:NetziTech/mcp-memoria-inteligente.git`. GitHub
+release publicado. `npm publish` queda pendiente como accion manual del
+usuario (requiere `npm login` interactivo).
+
+### Hallazgos al inicio de la sesion
+
+1. **Tag `v0.1.0` ya existia en remoto** apuntando a un commit
+   pre-release con `package.json.version = "0.1.0-alpha.0"`,
+   `name = "mcp-memoria"` (sin scope), `private: true`, y `uuid@^11`
+   (vulnerable). Sin GitHub release publicado. Tag fantasma creado
+   prematuramente, autorizado por el usuario para reescritura
+   (decision A+C: borrar local + remoto, re-tagear).
+2. **`npm audit` reporto 3 vulns** que SonarQube no detecto (escanea
+   source, no deps): `uuid` moderate (cerrable), `fastembed` + `tar`
+   highs (upstream-locked).
+3. **`code/README.md` obsoleto** (decia "esta vacio").
+4. **`code/LICENSE` no existia.**
+5. **`build:binaries` no existia** — decision: publicar a npm en vez de
+   intentar binarios standalone (decision C1).
+
+### Acciones ejecutadas
+
+| # | Accion | Resultado |
+|---|---|---|
+| 1 | `git tag -d v0.1.0` + `git push origin :refs/tags/v0.1.0` | tag fantasma eliminado |
+| 2 | `uuid` bumpeado a `^14.0.0` en `code/package.json` | 1 vuln cerrada, sin regresiones (199/199 archivos test verde) |
+| 3 | Override `tar@^7.5.11` aplicado y revertido | rompe `import tar from "tar"` en `fastembed@2.x`. Las 2 highs quedan como **known upstream issue** (decision B1). |
+| 4 | `code/package.json` reescrito | `name=@netzi/mcp-memoria`, `version=0.1.0`, `license=MIT`, `publishConfig.access=public`, `repository.url=git+https://github.com/NetziTech/mcp-memoria-inteligente.git`, `directory=code`, `keywords`, `homepage`, `bugs`, `prepublishOnly` script. `private:true` removido. |
+| 5 | `code/LICENSE` creado | MIT, Copyright (c) 2026 Netzi Tech |
+| 6 | `code/README.md` reescrito | install via `npm i -g @netzi/mcp-memoria`, quick start, modos, known issues (CVEs upstream), dev setup |
+| 7 | `docs/RELEASE-NOTES-v0.1.0.md` creado | engineering metrics, CVEs upstream con CVSS y mitigacion, stubs deferidos, SLO note |
+| 8 | HANDOFF.md actualizado | §0 + §6.10 (esta seccion) |
+| 9 | Sanity check final | `npm run typecheck + lint + validate:modules + build + test` → EXIT=0 en los 5 |
+| 10 | Commit unico `release: v0.1.0` | en branch `claude/magical-elbakyan-fca193` |
+| 11 | Branch fast-forwarded a `main` y pusheado | `git push origin claude/magical-elbakyan-fca193:main` |
+| 12 | Tag annotated `v0.1.0` re-creado y pusheado | apunta al commit con todos los fixes |
+| 13 | `gh release create v0.1.0` | con notes desde `docs/RELEASE-NOTES-v0.1.0.md` |
+| 14 | `npm publish --dry-run` | verificado contenido del paquete (dist/ + README + LICENSE + migrations) |
+| 15 | `npm publish` real | **PENDIENTE — accion manual del usuario** (requiere `npm login` con cuenta del scope `@netzi`) |
+
+### Decisiones del orquestador (D-601..D-606)
+
+1. **D-601** Tag fantasma `v0.1.0` borrado y re-creado sobre commit
+   corregido (decision A+C autorizada por el usuario). Force-push de
+   tag justificado: no habia GitHub release ni consumidores.
+2. **D-602** `uuid` bumpeado a 14.x (cerrar 1 vuln moderate). Cero
+   regresiones porque solo se usa `v7()` sin buf argument.
+3. **D-603** `tar` override **NO aplicado** porque rompe `fastembed@2.x`.
+   2 highs upstream documentadas como known issue con vector real bajo
+   (modelo HuggingFace adversarial). Plan de fix en v0.1.1.
+4. **D-604** Empaquetado via npm registry bajo scope `@netzi/mcp-memoria`
+   (decision C1). NO se intentaron binarios standalone (SEA, pkg) por
+   complicacion con `better-sqlite3-multiple-ciphers` y
+   `sqlite-vec` native bindings.
+5. **D-605** LICENSE MIT, copyright Netzi Tech. Default razonable;
+   ajustable si el usuario decide otra licencia.
+6. **D-606** `npm publish` queda como accion manual del usuario porque
+   `npm whoami` reporta `ENEEDAUTH` y no se debe almacenar token en el
+   repo. Comando exacto en §7.
+
+### Reportes de validacion
+
+Esta fase no ejecuta validadores formales (es release, no implementacion).
+Los chequeos automaticos son los de `prepublishOnly`:
+`typecheck + lint + validate:modules + build + test`. Todos EXIT=0
+sobre el commit final.
+
+### Cero deuda heredada de Fase 6 a v0.1.1
+
+- 2 vulns highs documentadas en `docs/RELEASE-NOTES-v0.1.0.md` con
+  vector real, mitigacion y plan de fix.
+- 5 stubs `Pending*` siguen justificados (tracking en §6.9).
+- 18 items backlog v0.5 catalogados (tracking en §6.9).
+- Repo sincronizado: `main` remoto = tag `v0.1.0` = HEAD del worktree.
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -1181,5 +1264,5 @@ modulos absorben la evolucion.
 
 ---
 
-_Ultima actualizacion: 2026-04-28 (cierre Fase 5 — Testing + Architect Review FINAL — MVP v0.1.0 APROBADO)_
+_Ultima actualizacion: 2026-04-28 (cierre Fase 6 — Release MVP v0.1.0 publicado en GitHub; npm publish pendiente manual)_
 _Mantenedor: equipo Netzi Tech_

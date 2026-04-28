@@ -24,3 +24,6 @@ ehthumbs.db
 Desktop.ini
 
 # Build artifacts (per-project gitignore handles dist/, node_modules/)
+
+# Claude Code transient runtime state
+.claude/scheduled_tasks.lock
