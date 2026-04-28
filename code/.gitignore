@@ -1,0 +1,33 @@
+# Build artefacts
+dist/
+build/
+*.tsbuildinfo
+
+# Dependencies
+node_modules/
+
+# Coverage / reports
+coverage/
+.nyc_output/
+.scannerwork/
+
+# Editor & OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local logs / runtime data
+*.log
+.cache/
+.tmp/
+
+# Env & local overrides
+.env
+.env.local
+.env.*.local
+
+# SonarQube tokens (defensive — never commit)
+sonar-token.txt
+.sonarqube/.token

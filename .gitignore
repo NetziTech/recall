@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Local env / secrets (never commit)
+.env
+.env.local
+*.pem
+*.key
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Build artifacts (per-project gitignore handles dist/, node_modules/)
