@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { HelpRequestedSignal } from "../../domain/errors/help-requested-signal.ts";
 import { InvalidCommandArgsError } from "../../domain/errors/invalid-command-args-error.ts";
 import { UnknownCommandError } from "../../domain/errors/unknown-command-error.ts";
 import type { CliInvocation } from "../../application/dtos/cli-invocation.dto.ts";
@@ -342,6 +343,32 @@ function parsePositiveIntegerOrNull(
 function mapCommanderError(err: unknown, argv: readonly string[]): Error {
   if (typeof err === "object" && err !== null) {
     const candidate = err as { readonly code?: unknown; readonly message?: unknown };
+    // Help / version exit codes from Commander.
+    //
+    // When `.exitOverride()` is active, Commander's help / version
+    // helpers DO write the requested output (to stdout for help, also
+    // to stdout for version) and THEN throw a `CommanderError` to
+    // abort the dispatch. The thrown shape carries one of three
+    // codes — `commander.helpDisplayed` (after `--help`),
+    // `commander.help` (after the implicit help on `recall` with no
+    // args), and `commander.version` (after `--version`).
+    //
+    // We translate every one of these into a `HelpRequestedSignal`
+    // so the entrypoint adapter can short-circuit to exit 0 without
+    // logging a misleading "CLI parser threw unexpectedly" ERROR
+    // record (B-CLI-1). The signal is NOT a `CliDomainError`; the
+    // entrypoint's signal check sits before the domain-error branch.
+    if (
+      candidate.code === "commander.helpDisplayed" ||
+      candidate.code === "commander.help" ||
+      candidate.code === "commander.version"
+    ) {
+      const message =
+        typeof candidate.message === "string"
+          ? candidate.message
+          : "(outputHelp)";
+      return new HelpRequestedSignal(message);
+    }
     if (candidate.code === "commander.unknownCommand") {
       return new UnknownCommandError(argv.join(" "));
     }

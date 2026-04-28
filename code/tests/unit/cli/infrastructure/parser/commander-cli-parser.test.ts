@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 import { CommanderCliParser } from "../../../../../src/modules/cli/infrastructure/parser/commander-cli-parser.ts";
+import { HelpRequestedSignal } from "../../../../../src/modules/cli/domain/errors/help-requested-signal.ts";
 import { UnknownCommandError } from "../../../../../src/modules/cli/domain/errors/unknown-command-error.ts";
 import { InvalidCommandArgsError } from "../../../../../src/modules/cli/domain/errors/invalid-command-args-error.ts";
 
@@ -173,12 +174,46 @@ describe("CommanderCliParser — error mapping", () => {
     expect(() => p.parse(["mode"])).toThrow(InvalidCommandArgsError);
   });
 
-  it("no command + no flags → throws (commander.help)", () => {
-    // commander emits a CommanderError(`commander.help`) on []`. The
-    // parser re-throws it untouched (it isn't `commander.unknownCommand`
-    // nor a missing-arg code), so we only assert that *something* is
-    // thrown. The CliEntrypoint downstream maps any parser throw to
-    // `usageError`.
-    expect(() => p.parse([])).toThrow();
+  it("no command + no flags → throws HelpRequestedSignal (B-CLI-1)", () => {
+    // Commander emits `commander.help` on []. After the B-CLI-1 fix
+    // the parser maps that to `HelpRequestedSignal` so the entrypoint
+    // can short-circuit to exit 0 without a spurious error log.
+    // Suppress stderr so the help dump does not pollute the vitest
+    // reporter (Commander writes to stderr in this branch).
+    const stderrSpy = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
+    try {
+      expect(() => p.parse([])).toThrow(HelpRequestedSignal);
+    } finally {
+      stderrSpy.mockRestore();
+    }
+  });
+});
+
+describe("CommanderCliParser — help / version exit codes (B-CLI-1)", () => {
+  // Commander dumps the help text to `process.stdout` directly,
+  // bypassing our `Stdout` port. Suppress it so the vitest reporter
+  // does not interleave 30 lines of usage banner with each `it`.
+  let writeSpy: ReturnType<typeof vi.spyOn> | null = null;
+  beforeEach(() => {
+    writeSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+  });
+  afterEach(() => {
+    writeSpy?.mockRestore();
+  });
+
+  it("--help on the program throws HelpRequestedSignal", () => {
+    expect(() => p.parse(["--help"])).toThrow(HelpRequestedSignal);
+  });
+
+  it("--help on a subcommand throws HelpRequestedSignal", () => {
+    expect(() => p.parse(["init", "--help"])).toThrow(HelpRequestedSignal);
+  });
+
+  it("-h short flag also throws HelpRequestedSignal", () => {
+    expect(() => p.parse(["-h"])).toThrow(HelpRequestedSignal);
   });
 });

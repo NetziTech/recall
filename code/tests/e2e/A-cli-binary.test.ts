@@ -68,19 +68,32 @@ function newWorkspace(): WorkspaceHandle {
 }
 
 describe("e2e / A / dist/cli.js — smoke", () => {
-  it("`--help` prints the program description", async () => {
+  it("`--help` prints the program description and exits 0 (B-CLI-1)", async () => {
     const result = await runCli(cliPath, ["--help"]);
-    // BUG B-010: Commander throws `(outputHelp)` after writing the
-    // help text; the entrypoint maps it to `usageError` (exit 2). The
-    // expected behaviour is a clean exit 0, but for now we accept
-    // either while the bug is open. Verify the help output landed
-    // (either stdout or stderr — Commander writes to stdout, the
-    // entrypoint may also echo to stderr via the logger).
-    const combined = result.stdout + result.stderr;
-    expect(combined).toContain("Usage: recall");
-    expect(combined).toContain("init");
-    expect(combined).toContain("health");
-    expect([0, 2]).toContain(result.exitCode);
+    // B-CLI-1 fix: Commander throws `(outputHelp)` after writing the
+    // help text; the parser now maps that throw to a
+    // `HelpRequestedSignal` and the entrypoint short-circuits to exit
+    // 0 without logging an error. Help text must land on stdout (the
+    // user is asking for it; treating it as an error stream would
+    // pollute pipelines like `recall --help | less`).
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Usage: recall");
+    expect(result.stdout).toContain("init");
+    expect(result.stdout).toContain("health");
+    // The error-channel fingerprint we used to emit (`Error de uso:`
+    // + `(outputHelp)`) must be GONE — that string is the regression
+    // signature.
+    expect(result.stderr).not.toContain("Error de uso");
+    expect(result.stderr).not.toContain("(outputHelp)");
+    // No ERROR-level pino frame either.
+    expect(result.stderr).not.toContain("CLI parser threw unexpectedly");
+  });
+
+  it("`init --help` (subcommand) also exits 0 (B-CLI-1)", async () => {
+    const result = await runCli(cliPath, ["init", "--help"]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("init");
+    expect(result.stderr).not.toContain("Error de uso");
   });
 
   it("rejects unknown commands with non-zero exit", async () => {

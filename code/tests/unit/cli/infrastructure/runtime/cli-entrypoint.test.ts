@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { CliEntrypoint } from "../../../../../src/modules/cli/infrastructure/runtime/cli-entrypoint.ts";
 import { CommanderCliParser } from "../../../../../src/modules/cli/infrastructure/parser/commander-cli-parser.ts";
@@ -6,7 +6,9 @@ import type { RunCliCommand } from "../../../../../src/modules/cli/application/p
 import { CommandOutput } from "../../../../../src/modules/cli/domain/value-objects/command-output.ts";
 import { ExitCode } from "../../../../../src/modules/cli/domain/value-objects/exit-code.ts";
 import type { CliInvocation } from "../../../../../src/modules/cli/application/dtos/cli-invocation.dto.ts";
+import { HelpRequestedSignal } from "../../../../../src/modules/cli/domain/errors/help-requested-signal.ts";
 import { UnknownCommandError } from "../../../../../src/modules/cli/domain/errors/unknown-command-error.ts";
+import type { Logger } from "../../../../../src/shared/application/ports/logger.port.ts";
 import {
   RecordingStderr,
   RecordingStdout,
@@ -118,6 +120,132 @@ describe("CliEntrypoint.run — parser errors", () => {
     const code = await entry.run(["stats"]);
     expect(code).toBe(2);
     expect(stderr.buffer()).toContain("string-throw");
+  });
+});
+
+describe("CliEntrypoint.run — help / version signal (B-CLI-1)", () => {
+  /**
+   * Recording logger so the test can assert the help path NEVER
+   * touches the error-level sink. Before B-CLI-1 the entrypoint
+   * logged `CLI parser threw unexpectedly` at error level after every
+   * `--help`, polluting the log even on a clean help request.
+   */
+  class CountingLogger implements Logger {
+    public traceCount = 0;
+    public debugCount = 0;
+    public infoCount = 0;
+    public warnCount = 0;
+    public errorCount = 0;
+    public fatalCount = 0;
+    public trace(): void {
+      this.traceCount += 1;
+    }
+    public debug(): void {
+      this.debugCount += 1;
+    }
+    public info(): void {
+      this.infoCount += 1;
+    }
+    public warn(): void {
+      this.warnCount += 1;
+    }
+    public error(): void {
+      this.errorCount += 1;
+    }
+    public fatal(): void {
+      this.fatalCount += 1;
+    }
+    public child(): Logger {
+      return this;
+    }
+  }
+
+  it("HelpRequestedSignal → exit 0, no log, no stderr", async () => {
+    const parser = new FakeParser();
+    parser.throws = new HelpRequestedSignal("(outputHelp)");
+    const stdout = new RecordingStdout();
+    const stderr = new RecordingStderr();
+    const logger = new CountingLogger();
+    const entry = new CliEntrypoint(
+      new CommanderCliParser(),
+      new FakeRunner(),
+      stdout,
+      stderr,
+      logger,
+    );
+    // Inject the FakeParser via a private cast — the entrypoint
+    // narrows on its CommanderCliParser dependency, but the real
+    // parser would not synthesise the signal in this test path.
+    (entry as unknown as { parser: FakeParser }).parser = parser;
+
+    const code = await entry.run(["--help"]);
+    expect(code).toBe(0);
+    expect(stderr.buffer()).toBe("");
+    // Critical: the entrypoint must NOT log the signal as an error.
+    expect(logger.errorCount).toBe(0);
+    expect(logger.warnCount).toBe(0);
+  });
+
+  it("end-to-end: real CommanderCliParser + --help → exit 0 + Usage in stdout", async () => {
+    // This test exercises the real parser to guard against the parser
+    // being changed to throw a different shape in the future.
+    // Commander writes the help text directly to stdout via
+    // `process.stdout.write` (it does NOT route through our `Stdout`
+    // port), so we hijack the write call with a vi spy and assert the
+    // help banner landed there before the entrypoint exits.
+    const writeSpy = vi
+      .spyOn(process.stdout, "write")
+      // Suppress the help dump so vitest's reporter does not mix CLI
+      // banner text with its own progress output. Returns `true` to
+      // mimic `process.stdout.write`'s back-pressure flag.
+      .mockImplementation(() => true);
+    try {
+      const stdout = new RecordingStdout();
+      const stderr = new RecordingStderr();
+      const logger = new CountingLogger();
+      const entry = new CliEntrypoint(
+        new CommanderCliParser(),
+        new FakeRunner(),
+        stdout,
+        stderr,
+        logger,
+      );
+      const code = await entry.run(["--help"]);
+      expect(code).toBe(0);
+      expect(stderr.buffer()).toBe("");
+      expect(logger.errorCount).toBe(0);
+
+      const captured = writeSpy.mock.calls
+        .map((call) => String(call[0]))
+        .join("");
+      expect(captured).toContain("Usage: recall");
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
+  it("subcommand --help also exits 0 cleanly", async () => {
+    const writeSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    try {
+      const logger = new CountingLogger();
+      const stdout = new RecordingStdout();
+      const stderr = new RecordingStderr();
+      const entry = new CliEntrypoint(
+        new CommanderCliParser(),
+        new FakeRunner(),
+        stdout,
+        stderr,
+        logger,
+      );
+      const code = await entry.run(["init", "--help"]);
+      expect(code).toBe(0);
+      expect(stderr.buffer()).toBe("");
+      expect(logger.errorCount).toBe(0);
+    } finally {
+      writeSpy.mockRestore();
+    }
   });
 });
 

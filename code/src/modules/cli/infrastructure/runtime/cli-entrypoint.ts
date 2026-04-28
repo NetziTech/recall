@@ -5,6 +5,7 @@ import type {
 } from "../../application/ports/out/tty.port.ts";
 import type { RunCliCommand } from "../../application/ports/in/run-cli-command.port.ts";
 import { CliDomainError } from "../../domain/errors/cli-domain-error.ts";
+import { HelpRequestedSignal } from "../../domain/errors/help-requested-signal.ts";
 import { ExitCode } from "../../domain/value-objects/exit-code.ts";
 import type { CommanderCliParser } from "../parser/commander-cli-parser.ts";
 
@@ -76,6 +77,17 @@ export class CliEntrypoint {
   }
 
   private handleParseError(err: unknown): number {
+    // B-CLI-1: `--help`, `--version`, and the implicit help on
+    // `recall` with no arguments come back from Commander as a thrown
+    // `CommanderError`. The parser remaps them to a
+    // `HelpRequestedSignal`. We treat the signal as a clean exit 0
+    // without logging anything — the user got what they asked for.
+    // This branch sits BEFORE the `CliDomainError` check so the
+    // signal (which is intentionally NOT a `CliDomainError`) does not
+    // fall through to the warn / usageError path.
+    if (err instanceof HelpRequestedSignal) {
+      return ExitCode.from("success").toNumber();
+    }
     if (err instanceof CliDomainError) {
       this.logger.warn(
         { code: err.code, err: err.message },
