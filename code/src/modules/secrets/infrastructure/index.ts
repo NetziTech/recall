@@ -15,6 +15,7 @@ export type { DefaultSecretsScannerOptions } from "./scanner/default-secrets-sca
 export { SqliteSecretAuditRepository } from "./persistence/sqlite-secret-audit-repository.ts";
 
 export { FilesystemPreCommitHookInstaller } from "./hook/filesystem-pre-commit-hook-installer.ts";
+export { FilesystemPreCommitHookUninstaller } from "./hook/filesystem-pre-commit-hook-uninstaller.ts";
 
 export { SecretsInfrastructureError } from "./errors/secrets-infrastructure-error.ts";
 export { ForeignHookExistsError } from "./errors/foreign-hook-exists-error.ts";

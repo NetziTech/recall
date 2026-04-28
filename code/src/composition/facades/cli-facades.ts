@@ -62,6 +62,7 @@ import type { InitializeWorkspace } from "../../modules/workspace/application/po
 import type { LockWorkspace } from "../../modules/workspace/application/ports/in/lock-workspace.port.ts";
 import type { UnlockWorkspace } from "../../modules/workspace/application/ports/in/unlock-workspace.port.ts";
 import type { InstallPreCommitHook } from "../../modules/secrets/application/ports/in/install-pre-commit-hook.port.ts";
+import type { UninstallPreCommitHook } from "../../modules/secrets/application/ports/in/uninstall-pre-commit-hook.port.ts";
 import type { SanitizePath } from "../../modules/secrets/application/ports/in/sanitize-path.port.ts";
 import { isErr } from "../../shared/domain/types/result.ts";
 
@@ -355,20 +356,59 @@ export class CliInstallHookFacadeAdapter implements InstallHookFacade {
 }
 
 /**
- * Stub for `UninstallHookFacade`. The secrets module does not yet
- * expose an uninstall use case; the `FilesystemPreCommitHookInstaller`
- * adapter could grow one but the work belongs to the secrets module.
+ * Adapter for `UninstallHookFacade`. Forwards to the secrets
+ * module's `UninstallPreCommitHookUseCase` and translates the
+ * uninstall receipt into the CLI's wire shape.
+ *
+ * Wire-shape contract (`UninstallHookFacadeOutput.removedAt`):
+ *   - `null`           — no hook present, or the existing hook was
+ *                        foreign and the adapter refused to touch
+ *                        it. The CLI handler maps the null branch
+ *                        to its idempotent / refusal message.
+ *                        We disambiguate the two cases via the
+ *                        logger and via the use-case status, but
+ *                        the wire shape collapses them into a
+ *                        single "no removal performed" signal so
+ *                        the CLI surface stays small.
+ *   - non-null path    — the hook (or its recall block) was
+ *                        removed. The string carries the SANITISED
+ *                        path of the hook file the adapter acted
+ *                        on, suitable for direct stdout output.
+ *
+ * Errors:
+ *   - `PathSanitizerError` — propagated as a thrown value so the
+ *     `RunCliCommandUseCase` maps it to a typed exit code, mirroring
+ *     the install-side adapter.
  */
-export class PendingUninstallHookFacade implements UninstallHookFacade {
-  public uninstall(
-    _input: UninstallHookFacadeInput,
+export class CliUninstallHookFacadeAdapter implements UninstallHookFacade {
+  public constructor(
+    private readonly useCase: UninstallPreCommitHook,
+    private readonly logger: Logger,
+  ) {}
+
+  public async uninstall(
+    input: UninstallHookFacadeInput,
   ): Promise<UninstallHookFacadeOutput> {
-    return Promise.reject(
-      new CliFacadeNotImplementedError(
-        "UninstallHookFacade",
-        "secrets module needs an uninstall use case",
-      ),
-    );
+    const result = await this.useCase.uninstall({
+      workspaceRoot: input.rootPath,
+    });
+    if (isErr(result)) {
+      this.logger.warn(
+        { kind: result.error.kind },
+        "uninstall-hook rejected by path sanitizer",
+      );
+      throw result.error;
+    }
+    const status = result.value.status;
+    const hookPath = result.value.hookPath.toString();
+    if (status === "removed" || status === "block-removed") {
+      return { removedAt: hookPath };
+    }
+    // status === "not-installed" || status === "not-managed"
+    // Collapse both to `null` on the wire — the handler prints a
+    // single idempotent message and the logger preserves the
+    // distinction for operators inspecting the audit trail.
+    return { removedAt: null };
   }
 }
 

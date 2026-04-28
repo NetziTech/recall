@@ -49,10 +49,12 @@ export default defineConfig({
         // metric without hiding any real gap (every executable adapter
         // implementing the port is still measured).
         "src/**/*.port.ts",
-        // Exception: this port file ships an executable type-guard
-        // helper (`isPreCommitHookInstallStatus`) alongside the
-        // interface, so it must remain measurable.
+        // Exception: these port files ship an executable type-guard
+        // helper (`isPreCommitHookInstallStatus`,
+        // `isPreCommitHookUninstallStatus`) alongside the interface,
+        // so they must remain measurable.
         "!src/modules/secrets/application/ports/out/pre-commit-hook-installer.port.ts",
+        "!src/modules/secrets/application/ports/out/pre-commit-hook-uninstaller.port.ts",
         // Pure repository contracts (driven ports, modular convention).
         // Same reasoning as `*.port.ts` — every file here is a single
         // `export interface XRepository { ... }`.

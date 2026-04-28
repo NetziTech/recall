@@ -168,11 +168,11 @@ release with `tar@7.x` or by swapping to `@huggingface/transformers`.
 
 ### Stubs deferred to v0.5
 
-`mem.task.get`, `mem.task.delete`, multi-key envelope flow (`export-key`,
-`rekey`, `add-key`), and `uninstall-hook` raise typed
-`McpFacadeNotImplementedError` errors with stable codes. They are
+The multi-key envelope flow (`export-key`, `rekey`, `add-key`) raises a
+typed `McpFacadeNotImplementedError` with stable codes. The stubs are
 forward-compatible: existing call sites will not break when the v0.5
-implementations land.
+implementations land. `uninstall-hook` shipped in v0.1.1 (B-009);
+`mem.task.get` / `mem.task.delete` shipped earlier in v0.1.1 (B-008).
 
 ---
 

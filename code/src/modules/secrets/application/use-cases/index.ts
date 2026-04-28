@@ -9,3 +9,4 @@ export { ScanTextUseCase } from "./scan-text.use-case.ts";
 export { SanitizePathUseCase } from "./sanitize-path.use-case.ts";
 export { RecordSecretEventUseCase } from "./record-secret-event.use-case.ts";
 export { InstallPreCommitHookUseCase } from "./install-pre-commit-hook.use-case.ts";
+export { UninstallPreCommitHookUseCase } from "./uninstall-pre-commit-hook.use-case.ts";

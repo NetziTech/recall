@@ -18,6 +18,7 @@ export type { ScanText } from "./in/scan-text.port.ts";
 export type { SanitizePath } from "./in/sanitize-path.port.ts";
 export type { RecordSecretEvent } from "./in/record-secret-event.port.ts";
 export type { InstallPreCommitHook } from "./in/install-pre-commit-hook.port.ts";
+export type { UninstallPreCommitHook } from "./in/uninstall-pre-commit-hook.port.ts";
 
 export type {
   PreCommitHookInstaller,
@@ -25,3 +26,10 @@ export type {
   PreCommitHookInstallStatus,
 } from "./out/pre-commit-hook-installer.port.ts";
 export { isPreCommitHookInstallStatus } from "./out/pre-commit-hook-installer.port.ts";
+
+export type {
+  PreCommitHookUninstaller,
+  PreCommitHookUninstallReceipt,
+  PreCommitHookUninstallStatus,
+} from "./out/pre-commit-hook-uninstaller.port.ts";
+export { isPreCommitHookUninstallStatus } from "./out/pre-commit-hook-uninstaller.port.ts";

@@ -18,6 +18,7 @@ import type { Clock } from "../../shared/application/ports/clock.port.ts";
 import type { IdGenerator } from "../../shared/application/ports/id-generator.port.ts";
 import type { Logger } from "../../shared/application/ports/logger.port.ts";
 import { InstallPreCommitHookUseCase } from "../../modules/secrets/application/use-cases/install-pre-commit-hook.use-case.ts";
+import { UninstallPreCommitHookUseCase } from "../../modules/secrets/application/use-cases/uninstall-pre-commit-hook.use-case.ts";
 import { RecordSecretEventUseCase } from "../../modules/secrets/application/use-cases/record-secret-event.use-case.ts";
 import { SanitizePathUseCase } from "../../modules/secrets/application/use-cases/sanitize-path.use-case.ts";
 import { ScanTextUseCase } from "../../modules/secrets/application/use-cases/scan-text.use-case.ts";
@@ -27,6 +28,7 @@ import {
   BuiltInPatternRegistry,
   DefaultSecretsScanner,
   FilesystemPreCommitHookInstaller,
+  FilesystemPreCommitHookUninstaller,
   ShannonEntropyCalculator,
   SqliteSecretAuditRepository,
 } from "../../modules/secrets/infrastructure/index.ts";
@@ -37,6 +39,7 @@ import {
  */
 export interface SecretsWiring {
   readonly installPreCommitHook: InstallPreCommitHookUseCase;
+  readonly uninstallPreCommitHook: UninstallPreCommitHookUseCase;
   readonly recordSecretEvent: RecordSecretEventUseCase;
   readonly sanitizePath: SanitizePathUseCase;
   readonly scanText: ScanTextUseCase;
@@ -77,9 +80,16 @@ export function buildSecretsWiring(options: SecretsWiringOptions): SecretsWiring
   const hookInstaller = new FilesystemPreCommitHookInstaller({
     pathSanitizerRule,
   });
+  const hookUninstaller = new FilesystemPreCommitHookUninstaller({
+    pathSanitizerRule,
+  });
 
   const installPreCommitHook = new InstallPreCommitHookUseCase(
     hookInstaller,
+    options.logger,
+  );
+  const uninstallPreCommitHook = new UninstallPreCommitHookUseCase(
+    hookUninstaller,
     options.logger,
   );
   const recordSecretEvent = new RecordSecretEventUseCase(
@@ -93,6 +103,7 @@ export function buildSecretsWiring(options: SecretsWiringOptions): SecretsWiring
 
   return {
     installPreCommitHook,
+    uninstallPreCommitHook,
     recordSecretEvent,
     sanitizePath,
     scanText,

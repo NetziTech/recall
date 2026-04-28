@@ -19,7 +19,31 @@ import { ForeignHookExistsError } from "../errors/foreign-hook-exists-error.ts";
  * verbose so a human inspecting the hook file recognises its
  * provenance.
  */
-const MANAGED_HOOK_MARKER = "# managed-by: recall pre-commit hook v1";
+export const MANAGED_HOOK_MARKER = "# managed-by: recall pre-commit hook v1";
+
+/**
+ * Block-delimiter markers wrapping the recall pre-commit content.
+ *
+ * Why two markers (legacy `MANAGED_HOOK_MARKER` AND the wrapped
+ * delimiters):
+ *
+ *   - `MANAGED_HOOK_MARKER` is preserved for backwards-compatibility
+ *     with hook files written by previous versions of recall that
+ *     did NOT emit the wrapped delimiters. The uninstall adapter
+ *     falls back to "remove the whole file" when only the legacy
+ *     marker is present.
+ *   - The wrapped `>>> ... <<<` delimiters let the uninstall adapter
+ *     surgically remove just the recall block when the hook file
+ *     is shared with other tooling (e.g. another framework's
+ *     pre-commit shim concatenated by hand). The user can install +
+ *     uninstall recall safely without losing their other hook
+ *     contents.
+ *
+ * The literal strings are exported so the symmetric uninstaller
+ * adapter consumes the SAME marker text without duplication.
+ */
+export const HOOK_BLOCK_BEGIN_MARKER = "# >>> recall pre-commit >>>";
+export const HOOK_BLOCK_END_MARKER = "# <<< recall pre-commit <<<";
 
 /**
  * Hook script content. Runs `recall` in `audit --check-secrets
@@ -34,8 +58,17 @@ const MANAGED_HOOK_MARKER = "# managed-by: recall pre-commit hook v1";
  * The shebang uses `/usr/bin/env bash` for portability across
  * Linux/macOS. Windows users either install Git for Windows (which
  * bundles bash) or use `recall audit` manually pre-commit.
+ *
+ * Layout (top → bottom):
+ *   1. shebang line (must be first byte; the wrapped delimiters go
+ *      AFTER it so the file remains a valid bash script).
+ *   2. `HOOK_BLOCK_BEGIN_MARKER` — opening fence.
+ *   3. `MANAGED_HOOK_MARKER` — legacy provenance marker.
+ *   4. body (set -euo pipefail + the recall audit invocation).
+ *   5. `HOOK_BLOCK_END_MARKER` — closing fence.
  */
 const HOOK_SCRIPT = `#!/usr/bin/env bash
+${HOOK_BLOCK_BEGIN_MARKER}
 ${MANAGED_HOOK_MARKER}
 set -euo pipefail
 
@@ -50,6 +83,7 @@ if ! recall audit --check-secrets --strict --workspace .; then
 fi
 
 exit 0
+${HOOK_BLOCK_END_MARKER}
 `;
 
 /**

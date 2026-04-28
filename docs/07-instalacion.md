@@ -347,7 +347,7 @@ recall wipe --workspace <path> --confirm
 
 # Hooks
 recall install-hook --workspace <path>     # pre-commit hook git
-recall uninstall-hook --workspace <path>
+recall uninstall-hook --workspace <path>   # remueve el hook (idempotente)
 
 # Stats / health
 recall stats --workspace <path>

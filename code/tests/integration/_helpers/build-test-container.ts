@@ -63,13 +63,13 @@ import {
   CliLockWorkspaceFacadeAdapter,
   CliSanitizeFacadeAdapter,
   CliStatsFacadeAdapter,
+  CliUninstallHookFacadeAdapter,
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
   PendingAddKeyFacade,
   PendingExportKeyFacade,
   PendingRekeyFacade,
   PendingServerFacade,
-  PendingUninstallHookFacade,
 } from "../../../src/composition/facades/cli-facades.ts";
 import {
   DestroyEncryptionFacadeAdapter,
@@ -376,7 +376,10 @@ export async function buildTestContainer(
       secrets.installPreCommitHook,
       logger,
     ),
-    uninstallHook: new PendingUninstallHookFacade(),
+    uninstallHook: new CliUninstallHookFacadeAdapter(
+      secrets.uninstallPreCommitHook,
+      logger,
+    ),
 
     curatorRun: new CliCuratorRunFacadeAdapter(
       curator.runCurator,

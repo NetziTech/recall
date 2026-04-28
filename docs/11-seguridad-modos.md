@@ -351,6 +351,29 @@ Instala un git pre-commit hook que, antes de cada commit:
 5. Si encuentra problemas → bloquea el commit con mensaje claro: archivo,
    linea, patron detectado, como permitirlo si es falso positivo.
 
+#### Desinstalacion
+
+```bash
+recall uninstall-hook --workspace .
+```
+
+Comportamiento (idempotente, exit 0 en los cuatro escenarios):
+
+- **Sin hook** → mensaje informativo (`No habia hook pre-commit instalado.`).
+- **Hook ajeno** (sin marcador `managed-by: recall`) → no se modifica el
+  archivo (politica conservadora). Mensaje colapsado al mismo "no habia
+  hook" en stdout; el log preserva la distincion en `status=not-managed`
+  para auditoria.
+- **Hook gestionado por recall** (delimitadores
+  `# >>> recall pre-commit >>>` ... `# <<< recall pre-commit <<<` o solo
+  el marcador `managed-by:` legacy de versiones anteriores) → archivo
+  eliminado.
+- **Hook mixto** (delimitadores recall + contenido de otra herramienta) →
+  solo se excisa el bloque entre los marcadores; el resto del archivo
+  sobrevive verbatim y conserva su bit de ejecucion.
+- **Re-ejecucion despues de uninstall** → idempotente, exit 0 con el
+  mensaje de "no habia hook".
+
 ### Capa 5 — Auditoria on-demand
 
 ```bash
