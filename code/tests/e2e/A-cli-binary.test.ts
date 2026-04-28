@@ -101,6 +101,26 @@ describe("e2e / A / dist/cli.js — smoke", () => {
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr.length).toBeGreaterThan(0);
   });
+
+  it("`health` on an UNINITIALISED workspace exits non-zero (B-CLI-2)", async () => {
+    // B-CLI-2: an early version of the handler was reported to print
+    // "[FAIL] ... Resultado: con fallos" and STILL return EXIT=0,
+    // breaking `if recall health; then ...` shell pipelines. The
+    // current handler returns `genericError` (1) when any probe is
+    // FAIL; this test pins that contract end-to-end against the
+    // shipped binary so a future refactor that swallows the failure
+    // is caught immediately.
+    const ws = newWorkspace();
+    const result = await runCli(cliPath, ["health", "--workspace", ws.path]);
+    expect(result.exitCode).not.toBe(0);
+    // The probe markers must still print to stdout — the failure is
+    // signalled via exit code, not by suppressing output.
+    expect(result.stdout).toContain("[FAIL]");
+    expect(result.stdout).toContain("con fallos");
+    // The failure must NOT log at error level — health "with FAILs"
+    // is a recoverable user-visible state, not an internal crash.
+    expect(result.stderr).not.toContain("CLI command threw");
+  });
 });
 
 describe("e2e / A / dist/cli.js — init + health", () => {
