@@ -1,6 +1,7 @@
 import * as readline from "node:readline/promises";
 import process from "node:process";
 
+import { NonInteractiveStdinError } from "../../domain/errors/non-interactive-stdin-error.ts";
 import type {
   Prompt,
   Stderr,
@@ -56,6 +57,17 @@ export class NodeReadlinePrompt implements Prompt {
   }
 
   public async readLine(prompt: string): Promise<string> {
+    // B-CLI-4: when stdin is not a TTY (piped from `/dev/null`, a
+    // wrapper that closed stdin, etc.) `rl.question` never settles
+    // — readline sees no data and the closed stdin releases its
+    // hold on the event loop, so Node exits 0 with the promise
+    // still pending. The user observes a partial prompt banner and
+    // a clean exit, with no workspace created (worst possible
+    // failure mode: silent, looks-like-success). We refuse upfront
+    // with a typed error that the entrypoint maps to `usageError`.
+    if (!process.stdin.isTTY) {
+      throw new NonInteractiveStdinError(prompt);
+    }
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -68,6 +80,13 @@ export class NodeReadlinePrompt implements Prompt {
   }
 
   public async readPassphrase(prompt: string): Promise<string> {
+    // B-CLI-4: same TTY guard as `readLine`. Without it, the raw-mode
+    // setup below is a no-op (stdin.setRawMode requires a TTY) and
+    // the data callback never fires, so the promise hangs forever
+    // and Node exits silently.
+    if (!process.stdin.isTTY) {
+      throw new NonInteractiveStdinError(prompt);
+    }
     process.stdout.write(prompt);
 
     const stdin = process.stdin;

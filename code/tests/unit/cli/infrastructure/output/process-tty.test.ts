@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
+import { NonInteractiveStdinError } from "../../../../../src/modules/cli/domain/errors/non-interactive-stdin-error.ts";
 import {
   NodeReadlinePrompt,
   ProcessStderr,
@@ -103,5 +104,59 @@ describe("NodeReadlinePrompt — confirm parses Spanish + English affirmatives",
       configurable: true,
     });
     expect(await prompt.confirm("?")).toBe(expected);
+  });
+});
+
+describe("NodeReadlinePrompt — non-TTY guard (B-CLI-4)", () => {
+  // The vitest worker process has `process.stdin.isTTY === undefined`
+  // (stdin is piped from the parent), which is exactly the condition
+  // we want to refuse upfront. We assert the guard fires WITHOUT
+  // hitting `readline`, which would otherwise hang.
+  //
+  // Why we don't bother stubbing `process.stdin.isTTY = true`:
+  //   - Even if we set the flag, `readline.createInterface` would
+  //     still observe the underlying piped stream and might block on
+  //     a non-existent TTY. The test would either hang or assert
+  //     against a different code path. The two assertions we care
+  //     about (refuses on non-TTY, message guides the caller) are
+  //     fully exercised against the real piped stdin.
+  it("readLine throws NonInteractiveStdinError when stdin is not a TTY", async () => {
+    const prompt = new NodeReadlinePrompt();
+    expect(process.stdin.isTTY).not.toBe(true); // sanity check
+    await expect(prompt.readLine("Q: ")).rejects.toBeInstanceOf(
+      NonInteractiveStdinError,
+    );
+  });
+
+  it("readPassphrase throws NonInteractiveStdinError when stdin is not a TTY", async () => {
+    const prompt = new NodeReadlinePrompt();
+    await expect(prompt.readPassphrase("Pass: ")).rejects.toBeInstanceOf(
+      NonInteractiveStdinError,
+    );
+  });
+
+  it("the error message tells the caller how to recover", async () => {
+    const prompt = new NodeReadlinePrompt();
+    try {
+      await prompt.readLine("Workspace: ");
+      expect.fail("expected readLine to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(NonInteractiveStdinError);
+      const message = (err as Error).message;
+      // The message should reference both --non-interactive and
+      // suggest the user can also re-run from a real terminal. The
+      // exact wording can change; the structural cues should not.
+      expect(message).toMatch(/--non-interactive/);
+      expect(message).toMatch(/terminal interactiva/);
+      // The original prompt text should be quoted so a user piping
+      // through a wrapper can identify which prompt aborted.
+      expect(message).toContain("Workspace:");
+    }
+  });
+
+  it("NonInteractiveStdinError exposes the stable code", () => {
+    const e = new NonInteractiveStdinError("Q:");
+    expect(e.code).toBe("cli.stdin-not-a-tty");
+    expect(e.jsonRpcCode).toBeNull();
   });
 });

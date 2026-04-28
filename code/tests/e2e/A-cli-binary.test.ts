@@ -172,6 +172,59 @@ describe("e2e / A / dist/cli.js — init + health", () => {
     expect(id.length).toBeGreaterThan(0);
   });
 
+  it("`init` without --non-interactive and stdin closed exits != 0 (B-CLI-4)", async () => {
+    // B-CLI-4: a wrapper that closes stdin (e.g. `recall init < /dev/null`)
+    // used to read EOF, default the display name silently, then have
+    // `rl.question` hang forever. Node would exit 0 with the prompt
+    // promise pending, leaving no `.recall/` on disk and no error
+    // message. The non-TTY guard now refuses upfront.
+    const ws = newWorkspace();
+    const result = await runCli(
+      cliPath,
+      // No `--non-interactive`. The test harness's `runCli` already
+      // closes stdin (`child.stdin.end()` in `_helpers/binary-harness.ts`),
+      // so this is the exact dogfood scenario from the bug report.
+      ["init", "--workspace", ws.path, "--mode", "private"],
+      { timeoutMs: 10_000 },
+    );
+    expect(result.exitCode).not.toBe(0);
+    // Stderr must guide the caller: mention --non-interactive and
+    // the option to re-run from a real terminal. Either the typed
+    // message ("stdin no es un TTY") or the recovery hint must
+    // surface so the user can fix the invocation immediately.
+    expect(result.stderr).toMatch(/(?:no es un TTY|--non-interactive)/);
+    // Workspace must NOT be partially created — the failure mode we
+    // are guarding against is "looks like success, .recall/ never
+    // appeared". Rejecting before any side effect is the contract.
+    expect(fs.existsSync(path.join(ws.path, ".recall"))).toBe(false);
+  });
+
+  it("`init --non-interactive --display-name foo` works with stdin closed (B-CLI-4 happy path)", async () => {
+    // Companion to the test above: explicit `--non-interactive` +
+    // every flag pre-supplied must keep working with stdin closed,
+    // because that is the canonical CI invocation. A regression
+    // here would break every CI pipeline that calls `recall init`.
+    const ws = newWorkspace();
+    const result = await runCli(
+      cliPath,
+      [
+        "--non-interactive",
+        "init",
+        "--workspace",
+        ws.path,
+        "--mode",
+        "private",
+        "--display-name",
+        "ci-test",
+      ],
+      { timeoutMs: 10_000 },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(fs.existsSync(path.join(ws.path, ".recall", "config.json"))).toBe(
+      true,
+    );
+  });
+
   it("`init --mode private` writes a workspace and a `.recall/.gitignore` entry", async () => {
     const ws = newWorkspace();
     const result = await runCli(cliPath, [

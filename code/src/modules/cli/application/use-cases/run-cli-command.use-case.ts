@@ -142,7 +142,14 @@ function classifyErrorAsExitCode(err: unknown): ExitCode {
   if (code === "secrets.detected" || code === "secret.detected") {
     return ExitCode.from("secretDetected");
   }
-  if (code === "cli.invalid-command-args" || code === "cli.unknown-command") {
+  if (
+    code === "cli.invalid-command-args" ||
+    code === "cli.unknown-command" ||
+    // B-CLI-4: prompt was requested but stdin is not a TTY. The user
+    // needs to either run from a terminal or pass `--non-interactive`
+    // plus the missing flags, both of which are usage problems.
+    code === "cli.stdin-not-a-tty"
+  ) {
     return ExitCode.from("usageError");
   }
   return ExitCode.from("genericError");
