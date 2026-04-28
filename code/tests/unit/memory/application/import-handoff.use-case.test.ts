@@ -81,6 +81,9 @@ class RecTaskRepo implements TaskRepository {
     this.saved.push(t);
     return Promise.resolve();
   }
+  public delete(): Promise<boolean> {
+    return Promise.resolve(false);
+  }
   public findOpenByWorkspace(): Promise<readonly Task[]> {
     return Promise.resolve([]);
   }

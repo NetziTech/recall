@@ -157,4 +157,76 @@ describe("integration / F / mem.task — task lifecycle", () => {
     });
     expect(update.action).toBe("update");
   });
+
+  it("via wire facade — get + delete round-trip (closes B-008)", async () => {
+    const create = await ctx.mcpServer.useCases.task.task({
+      workspace_id: ctx.workspaceId.toString(),
+      action: "create",
+      title: "Wire-get-delete",
+      description: "Round-trip get/delete via the wire facade.",
+    });
+    expect(create.action).toBe("create");
+    if (create.action !== "create") return; // type narrowing
+
+    // get → returns the task envelope
+    const got = await ctx.mcpServer.useCases.task.task({
+      workspace_id: ctx.workspaceId.toString(),
+      action: "get",
+      task_id: create.task_id,
+    });
+    expect(got.action).toBe("get");
+    if (got.action === "get") {
+      expect(got.task.id).toBe(create.task_id);
+      expect(got.task.title).toBe("Wire-get-delete");
+      expect(got.task.status).toBe("pending");
+    }
+
+    // delete → returns { deleted: true }
+    const removed = await ctx.mcpServer.useCases.task.task({
+      workspace_id: ctx.workspaceId.toString(),
+      action: "delete",
+      task_id: create.task_id,
+    });
+    expect(removed.action).toBe("delete");
+    if (removed.action === "delete") {
+      expect(removed.deleted).toBe(true);
+    }
+
+    // get after delete → memory.task-not-found surfaces.
+    await expect(
+      ctx.mcpServer.useCases.task.task({
+        workspace_id: ctx.workspaceId.toString(),
+        action: "get",
+        task_id: create.task_id,
+      }),
+    ).rejects.toMatchObject({ code: "memory.task-not-found" });
+
+    // Domain event emitted on delete.
+    const eventNames = collected.map((e) => e.eventName);
+    expect(eventNames).toContain("memory.task-deleted");
+  });
+
+  it("via wire facade — delete on unknown task surfaces taskNotFound", async () => {
+    // Create a task to learn a real UUID, delete it, then re-attempt
+    // the delete (now stale) so the second call hits the not-found
+    // branch with a known-shape id.
+    const create = await ctx.mcpServer.useCases.task.task({
+      workspace_id: ctx.workspaceId.toString(),
+      action: "create",
+      title: "ghost",
+    });
+    if (create.action !== "create") return;
+    await ctx.mcpServer.useCases.task.task({
+      workspace_id: ctx.workspaceId.toString(),
+      action: "delete",
+      task_id: create.task_id,
+    });
+    await expect(
+      ctx.mcpServer.useCases.task.task({
+        workspace_id: ctx.workspaceId.toString(),
+        action: "delete",
+        task_id: create.task_id,
+      }),
+    ).rejects.toMatchObject({ code: "memory.task-not-found" });
+  });
 });

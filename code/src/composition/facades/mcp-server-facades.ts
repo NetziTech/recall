@@ -598,23 +598,34 @@ export class TrackTaskFacadeAdapter implements TrackTaskFacade {
         };
       }
       case "get": {
-        // The `TrackTask` port does not currently expose a `findById`
-        // path. Surface a typed not-implemented error so the caller
-        // gets a clean failure (the wire schema lists `get` but the
-        // memory module does not yet ship a per-task fetch use case).
-        throw new McpFacadeNotImplementedError(
-          "TrackTaskFacade.get",
-          "memory module does not expose a per-task fetch use case yet",
-        );
+        const taskIdRaw = input.task_id;
+        if (taskIdRaw === undefined || taskIdRaw.length === 0) {
+          throw new McpFacadeNotImplementedError(
+            "TrackTaskFacade.get",
+            "wire input is missing `task_id`",
+          );
+        }
+        const taskId = TaskId.from(taskIdRaw);
+        const task = await this.useCase.get({ workspaceId, taskId });
+        return {
+          action: "get",
+          task: taskToWire(task),
+        };
       }
       case "delete": {
-        // `TrackTask` does not currently expose a `delete` action.
-        // The aggregate's lifecycle relies on `complete` instead;
-        // surface a typed not-implemented error.
-        throw new McpFacadeNotImplementedError(
-          "TrackTaskFacade.delete",
-          "memory module does not expose a task-delete use case yet",
-        );
+        const taskIdRaw = input.task_id;
+        if (taskIdRaw === undefined || taskIdRaw.length === 0) {
+          throw new McpFacadeNotImplementedError(
+            "TrackTaskFacade.delete",
+            "wire input is missing `task_id`",
+          );
+        }
+        const taskId = TaskId.from(taskIdRaw);
+        const result = await this.useCase.delete({ workspaceId, taskId });
+        return {
+          action: "delete",
+          deleted: result.deleted,
+        };
       }
       default: {
         const exhaustive: never = input.action;

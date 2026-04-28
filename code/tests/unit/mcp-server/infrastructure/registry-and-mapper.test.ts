@@ -162,6 +162,7 @@ describe("mapErrorToJsonRpc", () => {
       ["curator.rate-limited", JsonRpcErrorCodes.RATE_LIMITED],
       ["encryption.locked", JsonRpcErrorCodes.ENCRYPTED_LOCKED],
       ["encryption.key-revoked", JsonRpcErrorCodes.KEY_REVOKED],
+      ["memory.task-not-found", JsonRpcErrorCodes.TASK_NOT_FOUND],
     ];
     for (const [code, expected] of cases) {
       class C extends DomainError {
@@ -170,5 +171,30 @@ describe("mapErrorToJsonRpc", () => {
       const out = mapErrorToJsonRpc(new C("x"));
       expect(out.code).toBe(expected);
     }
+  });
+
+  it("maps coded application errors (Error subclass with `.code: string`)", () => {
+    // `MemoryApplicationError` and `CuratorApplicationError`
+    // intentionally extend `Error` (not `DomainError`) per their
+    // class JSDoc; the mapper still routes their stable `code` onto
+    // a wire code via duck typing.
+    class CodedAppError extends Error {
+      public readonly code = "memory.task-not-found";
+      public constructor(message: string) {
+        super(message);
+        this.name = "CodedAppError";
+      }
+    }
+    const out = mapErrorToJsonRpc(new CodedAppError("not found"));
+    expect(out.code).toBe(JsonRpcErrorCodes.TASK_NOT_FOUND);
+    expect(out.message).toContain("not found");
+  });
+
+  it("falls back to -32602 for coded Error with unknown prefix", () => {
+    class WeirdAppError extends Error {
+      public readonly code = "weird.app.thing";
+    }
+    const out = mapErrorToJsonRpc(new WeirdAppError("weird"));
+    expect(out.code).toBe(-32602);
   });
 });

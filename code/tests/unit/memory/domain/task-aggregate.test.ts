@@ -9,6 +9,7 @@ import { TaskStarted } from "../../../../src/modules/memory/domain/events/task-s
 import { TaskBlocked } from "../../../../src/modules/memory/domain/events/task-blocked.ts";
 import { TaskUnblocked } from "../../../../src/modules/memory/domain/events/task-unblocked.ts";
 import { TaskCompleted } from "../../../../src/modules/memory/domain/events/task-completed.ts";
+import { TaskDeleted } from "../../../../src/modules/memory/domain/events/task-deleted.ts";
 import { InvalidTaskTransitionError } from "../../../../src/modules/memory/domain/errors/invalid-task-transition-error.ts";
 import {
   ANCHOR_TIME_MS,
@@ -151,6 +152,61 @@ describe("Task (aggregate)", () => {
       t.start({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 100) });
       t.block({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 200) });
       expect(t.getStatus().isBlocked()).toBe(true);
+    });
+  });
+
+  describe("delete", () => {
+    it("emits TaskDeleted from todo", () => {
+      const t = makeTask();
+      t.pullEvents();
+      t.delete({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 100) });
+      const events = t.pullEvents();
+      expect(events.length).toBe(1);
+      expect(events[0]).toBeInstanceOf(TaskDeleted);
+      expect(t.getUpdatedAt().toEpochMs()).toBe(ANCHOR_TIME_MS + 100);
+    });
+
+    it("emits TaskDeleted from in_progress (any status is legal)", () => {
+      const t = makeTask();
+      t.start({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 100) });
+      t.pullEvents();
+      t.delete({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 200) });
+      const events = t.pullEvents();
+      expect(events.length).toBe(1);
+      expect(events[0]).toBeInstanceOf(TaskDeleted);
+    });
+
+    it("emits TaskDeleted from blocked", () => {
+      const t = makeTask();
+      t.block({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 100) });
+      t.pullEvents();
+      t.delete({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 200) });
+      const events = t.pullEvents();
+      expect(events.length).toBe(1);
+      expect(events[0]).toBeInstanceOf(TaskDeleted);
+    });
+
+    it("emits TaskDeleted from done (terminal but still deletable)", () => {
+      const t = makeTask();
+      t.start({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 100) });
+      t.complete({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 200) });
+      t.pullEvents();
+      t.delete({ occurredAt: makeTimestamp(ANCHOR_TIME_MS + 300) });
+      const events = t.pullEvents();
+      expect(events.length).toBe(1);
+      expect(events[0]).toBeInstanceOf(TaskDeleted);
+    });
+
+    it("preserves the workspaceId and taskId on the event", () => {
+      const t = makeTask();
+      const occurredAt = makeTimestamp(ANCHOR_TIME_MS + 100);
+      t.delete({ occurredAt });
+      const event = t
+        .pullEvents()
+        .find((e): e is TaskDeleted => e instanceof TaskDeleted);
+      expect(event).toBeDefined();
+      expect(event?.taskId.toString()).toBe(FIXED_TASK_UUID);
+      expect(event?.occurredAt.toEpochMs()).toBe(ANCHOR_TIME_MS + 100);
     });
   });
 

@@ -140,6 +140,7 @@ function makeTaskRepo(): TaskRepository {
   return {
     findById: () => Promise.resolve(null),
     save: () => Promise.resolve(),
+    delete: () => Promise.resolve(false),
     findOpenByWorkspace: () => Promise.resolve([]),
     findByStatus: () => Promise.resolve([]),
     findByPriority: () => Promise.resolve([]),

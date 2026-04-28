@@ -7,7 +7,7 @@ import type { SessionRepository } from "../../../../src/modules/memory/domain/re
 import { Task } from "../../../../src/modules/memory/domain/aggregates/task.ts";
 import { Session } from "../../../../src/modules/memory/domain/aggregates/session.ts";
 import { SessionId } from "../../../../src/modules/memory/domain/value-objects/session-id.ts";
-import type { TaskId } from "../../../../src/modules/memory/domain/value-objects/task-id.ts";
+import { TaskId } from "../../../../src/modules/memory/domain/value-objects/task-id.ts";
 import { TaskPriority } from "../../../../src/modules/memory/domain/value-objects/task-priority.ts";
 import { TaskStatus } from "../../../../src/modules/memory/domain/value-objects/task-status.ts";
 import type { WorkspaceId } from "../../../../src/shared/domain/value-objects/workspace-id.ts";
@@ -27,6 +27,7 @@ import { TaskStarted } from "../../../../src/modules/memory/domain/events/task-s
 import { TaskBlocked } from "../../../../src/modules/memory/domain/events/task-blocked.ts";
 import { TaskUnblocked } from "../../../../src/modules/memory/domain/events/task-unblocked.ts";
 import { TaskCompleted } from "../../../../src/modules/memory/domain/events/task-completed.ts";
+import { TaskDeleted } from "../../../../src/modules/memory/domain/events/task-deleted.ts";
 
 class InMemoryTaskRepo implements TaskRepository {
   public readonly byId = new Map<string, Task>();
@@ -38,6 +39,10 @@ class InMemoryTaskRepo implements TaskRepository {
   public save(task: Task): Promise<void> {
     this.byId.set(task.getId().toString(), task);
     return Promise.resolve();
+  }
+
+  public delete(id: TaskId): Promise<boolean> {
+    return Promise.resolve(this.byId.delete(id.toString()));
   }
 
   public findOpenByWorkspace(): Promise<readonly Task[]> {
@@ -327,6 +332,115 @@ describe("TrackTaskUseCase.list", () => {
       status: TaskStatus.todo(),
     });
     expect(todos.length).toBe(1);
+  });
+});
+
+describe("TrackTaskUseCase.get", () => {
+  it("returns the task when the id exists", async () => {
+    const { useCase } = makeUseCase();
+    const ws = makeWorkspaceId();
+    const created = await useCase.create({
+      workspaceId: ws,
+      title: "fetch me",
+      description: null,
+      priority: TaskPriority.medium(),
+      tags: makeTags(),
+      dueAtMs: null,
+    });
+    const task = await useCase.get({
+      workspaceId: ws,
+      taskId: created.taskId,
+    });
+    expect(task.getId().toString()).toBe(created.taskId.toString());
+    expect(task.getTitle().toString()).toBe("fetch me");
+  });
+
+  it("throws taskNotFound when the id is unknown", async () => {
+    const { useCase } = makeUseCase();
+    await expect(
+      useCase.get({
+        workspaceId: makeWorkspaceId(),
+        taskId: TaskId.from(FIXED_TASK_UUID),
+      }),
+    ).rejects.toMatchObject({ code: "memory.task-not-found" });
+  });
+
+  it("emits no event on a successful read", async () => {
+    const { useCase, events } = makeUseCase();
+    const ws = makeWorkspaceId();
+    const created = await useCase.create({
+      workspaceId: ws,
+      title: "read-only",
+      description: null,
+      priority: TaskPriority.low(),
+      tags: makeTags(),
+      dueAtMs: null,
+    });
+    events.clear();
+    await useCase.get({ workspaceId: ws, taskId: created.taskId });
+    expect(events.published()).toHaveLength(0);
+  });
+});
+
+describe("TrackTaskUseCase.delete", () => {
+  it("removes the task and publishes TaskDeleted", async () => {
+    const { useCase, taskRepo, events } = makeUseCase();
+    const ws = makeWorkspaceId();
+    const created = await useCase.create({
+      workspaceId: ws,
+      title: "delete me",
+      description: null,
+      priority: TaskPriority.low(),
+      tags: makeTags(),
+      dueAtMs: null,
+    });
+    events.clear();
+    const result = await useCase.delete({
+      workspaceId: ws,
+      taskId: created.taskId,
+    });
+    expect(result.deleted).toBe(true);
+    expect(result.taskId.toString()).toBe(created.taskId.toString());
+    expect(taskRepo.byId.has(created.taskId.toString())).toBe(false);
+    const published = events.published();
+    expect(published).toHaveLength(1);
+    expect(published[0]).toBeInstanceOf(TaskDeleted);
+  });
+
+  it("can delete a `done` task (no lifecycle restriction)", async () => {
+    const { useCase, taskRepo } = makeUseCase();
+    const ws = makeWorkspaceId();
+    const created = await useCase.create({
+      workspaceId: ws,
+      title: "done then deleted",
+      description: null,
+      priority: TaskPriority.medium(),
+      tags: makeTags(),
+      dueAtMs: null,
+    });
+    await useCase.start({ workspaceId: ws, taskId: created.taskId });
+    await useCase.complete({ workspaceId: ws, taskId: created.taskId });
+    expect(
+      taskRepo.byId.get(created.taskId.toString())?.getStatus().isDone(),
+    ).toBe(true);
+    const result = await useCase.delete({
+      workspaceId: ws,
+      taskId: created.taskId,
+    });
+    expect(result.deleted).toBe(true);
+    expect(taskRepo.byId.has(created.taskId.toString())).toBe(false);
+  });
+
+  it("throws taskNotFound when the id is unknown", async () => {
+    const { useCase, events } = makeUseCase();
+    await expect(
+      useCase.delete({
+        workspaceId: makeWorkspaceId(),
+        taskId: TaskId.from(FIXED_TASK_UUID),
+      }),
+    ).rejects.toMatchObject({ code: "memory.task-not-found" });
+    // No event emitted on the missing-id branch.
+    expect(events.published()).toHaveLength(0);
   });
 });
 

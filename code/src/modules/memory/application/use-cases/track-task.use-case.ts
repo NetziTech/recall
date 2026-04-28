@@ -15,6 +15,7 @@ import { TaskTitle } from "../../domain/value-objects/task-title.ts";
 import { MemoryApplicationError } from "../errors/memory-application-error.ts";
 import type {
   CreateTaskResult,
+  DeleteTaskResult,
   TrackTask,
   UpdateTaskStatusResult,
 } from "../ports/in/track-task.port.ts";
@@ -135,6 +136,50 @@ export class TrackTaskUseCase implements TrackTask {
       return this.tasks.findOpenByWorkspace(input.workspaceId);
     }
     return this.tasks.findByStatus(input.workspaceId, input.status);
+  }
+
+  public async get(input: {
+    workspaceId: WorkspaceId;
+    taskId: TaskId;
+  }): Promise<Task> {
+    // The `workspaceId` is unused at this layer — the repository is
+    // already pinned to a single workspace via composition (see
+    // `composition/wiring/memory-wiring.ts`). The parameter stays in
+    // the port signature so cross-workspace defenses can be enforced
+    // here in the future without a breaking change to callers.
+    void input.workspaceId;
+    const task = await this.tasks.findById(input.taskId);
+    if (task === null) {
+      throw MemoryApplicationError.taskNotFound(input.taskId.toString());
+    }
+    return task;
+  }
+
+  public async delete(input: {
+    workspaceId: WorkspaceId;
+    taskId: TaskId;
+  }): Promise<DeleteTaskResult> {
+    void input.workspaceId;
+    // Load first so we can emit the domain event with full context
+    // (workspace id, occurredAt, etc.) BEFORE the row is gone. The
+    // repository's `delete(...)` returns `false` for a missing row,
+    // but `findById` already covers the "id does not exist" branch
+    // with a typed `taskNotFound` failure.
+    const task = await this.tasks.findById(input.taskId);
+    if (task === null) {
+      throw MemoryApplicationError.taskNotFound(input.taskId.toString());
+    }
+    const occurredAt = this.clock.now();
+    task.delete({ occurredAt });
+    const rowDeleted = await this.tasks.delete(input.taskId);
+    if (!rowDeleted) {
+      // Race: the row was removed between `findById` and `delete`.
+      // Surface the same typed failure so the caller never sees a
+      // silent no-op.
+      throw MemoryApplicationError.taskNotFound(input.taskId.toString());
+    }
+    await this.events.publishAll(task.pullEvents());
+    return { taskId: input.taskId, deleted: true };
   }
 
   public async currentSessionId(

@@ -620,6 +620,7 @@ Auditoria on-demand.
 | `-32107` | ENCRYPTED_LOCKED — sin clave | Cliente pide al usuario `recall unlock` |
 | `-32108` | INVALID_KEY | Verificar clave |
 | `-32109` | KEY_REVOKED — clave invalidada por rekey | Pedir clave nueva |
+| `-32110` | TASK_NOT_FOUND — `task_id` desconocido en `mem.task.get` / `mem.task.delete` (y `update`) | Refrescar `mem.task.list` y reintentar con un id valido |
 
 ---
 

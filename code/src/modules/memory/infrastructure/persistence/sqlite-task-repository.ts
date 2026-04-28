@@ -76,6 +76,11 @@ WHERE priority = ?
 ORDER BY created_at_ms DESC, id DESC
 `.trim();
 
+const SQL_DELETE_BY_ID = `
+DELETE FROM tasks
+WHERE id = ?
+`.trim();
+
 /**
  * SQLite-backed adapter for `TaskRepository`.
  *
@@ -128,6 +133,21 @@ export class SqliteTaskRepository implements TaskRepository {
       throw MemoryInfrastructureError.upsertFailed("tasks", cause);
     }
     return Promise.resolve();
+  }
+
+  public async delete(id: TaskId): Promise<boolean> {
+    const stmt = this.db.prepare(SQL_DELETE_BY_ID);
+    let changes: number;
+    try {
+      const result = stmt.run(id.toString());
+      changes = result.changes;
+    } catch (cause: unknown) {
+      // A failing DELETE is fundamentally a query failure (the row
+      // scan failed) rather than an upsert failure (no
+      // `INSERT ... ON CONFLICT` semantics involved).
+      throw MemoryInfrastructureError.queryFailed("tasks", cause);
+    }
+    return Promise.resolve(changes > 0);
   }
 
   public async findOpenByWorkspace(

@@ -74,6 +74,33 @@ describe("SqliteTaskRepository CRUD", () => {
   it("findById returns null on miss", async () => {
     expect(await ctx.repo.findById(TaskId.from(FIXED_TASK_UUID))).toBe(null);
   });
+
+  it("delete removes the row and returns true", async () => {
+    const t = buildTask({ id: FIXED_TASK_UUID });
+    await ctx.repo.save(t);
+    const before = await ctx.repo.findById(TaskId.from(FIXED_TASK_UUID));
+    expect(before).not.toBe(null);
+    const removed = await ctx.repo.delete(TaskId.from(FIXED_TASK_UUID));
+    expect(removed).toBe(true);
+    const after = await ctx.repo.findById(TaskId.from(FIXED_TASK_UUID));
+    expect(after).toBe(null);
+  });
+
+  it("delete returns false when no row exists (idempotent)", async () => {
+    const removed = await ctx.repo.delete(TaskId.from(FIXED_TASK_UUID));
+    expect(removed).toBe(false);
+  });
+
+  it("delete leaves other rows untouched", async () => {
+    await ctx.repo.save(buildTask({ id: FIXED_TASK_UUID }));
+    await ctx.repo.save(
+      buildTask({ id: SECOND_TASK_UUID, occurredAtMs: ANCHOR_TIME_MS + 100 }),
+    );
+    await ctx.repo.delete(TaskId.from(FIXED_TASK_UUID));
+    const survivor = await ctx.repo.findById(TaskId.from(SECOND_TASK_UUID));
+    expect(survivor).not.toBe(null);
+    expect(survivor?.getId().toString()).toBe(SECOND_TASK_UUID);
+  });
 });
 
 describe("SqliteTaskRepository queries", () => {

@@ -6,6 +6,7 @@ import { InvalidTaskTransitionError } from "../errors/invalid-task-transition-er
 import { TaskBlocked } from "../events/task-blocked.ts";
 import { TaskCompleted } from "../events/task-completed.ts";
 import { TaskCreated } from "../events/task-created.ts";
+import { TaskDeleted } from "../events/task-deleted.ts";
 import { TaskStarted } from "../events/task-started.ts";
 import { TaskUnblocked } from "../events/task-unblocked.ts";
 import type { SessionId } from "../value-objects/session-id.ts";
@@ -273,6 +274,39 @@ export class Task {
     this.updatedAt = input.occurredAt;
     this.events.push(
       new TaskCompleted({
+        workspaceId: this.workspaceId,
+        taskId: this.id,
+        occurredAt: input.occurredAt,
+      }),
+    );
+  }
+
+  /**
+   * Marks the aggregate for hard deletion and emits `TaskDeleted`.
+   *
+   * Unlike the lifecycle transitions (`start`/`block`/`unblock`/
+   * `complete`), deletion is administrative: it can happen from ANY
+   * status (including `done`) because `mem.task.delete`
+   * (`docs/02-protocolo-mcp.md` §4.5) is used to scrub stale or
+   * accidental tasks without going through the state machine.
+   *
+   * The aggregate stays in memory (the use case still needs to read
+   * its id when calling the repository's `delete(...)`). The
+   * `updatedAt` timestamp is bumped so any subscriber that snapshots
+   * the aggregate after `pullEvents()` sees the latest mutation
+   * instant.
+   *
+   * Emits `TaskDeleted`.
+   *
+   * Why no status field for "deleted":
+   * - Hard delete drops the row outright; there is no "deleted"
+   *   `TaskStatus` because the schema does not store it. The event
+   *   stream is the authoritative trace.
+   */
+  public delete(input: { occurredAt: Timestamp }): void {
+    this.updatedAt = input.occurredAt;
+    this.events.push(
+      new TaskDeleted({
         workspaceId: this.workspaceId,
         taskId: this.id,
         occurredAt: input.occurredAt,

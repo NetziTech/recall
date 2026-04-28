@@ -23,18 +23,34 @@ export interface UpdateTaskStatusResult {
 }
 
 /**
+ * Result of `TrackTask.delete(...)`. The boolean is always `true` for
+ * a successful call (the use case throws `taskNotFound` when no row
+ * existed), but it is named explicitly so the wire facade can surface
+ * the spec's `{ deleted: boolean }` envelope without introspecting
+ * the absence of an exception.
+ */
+export interface DeleteTaskResult {
+  readonly taskId: TaskId;
+  readonly deleted: true;
+}
+
+/**
  * Driving (input) port: orchestrate `mem.task` actions
  * (`docs/02-protocolo-mcp.md` §4.5).
  *
- * The five sub-actions match the lifecycle transitions modelled by
- * the `Task` aggregate (`docs/03-modelo-datos.md` §4.7):
+ * The seven sub-actions match the lifecycle transitions modelled by
+ * the `Task` aggregate (`docs/03-modelo-datos.md` §4.7) plus the two
+ * read/admin endpoints exposed by the wire contract:
  *
- * - `create(...)`           — TaskCreated, status=`todo`.
+ * - `create(...)`            — TaskCreated, status=`todo`.
  * - `start(...)`             — TaskStarted, status -> `in_progress`.
  * - `block(...)`             — TaskBlocked, status -> `blocked`.
  * - `unblock(...)`           — TaskUnblocked, status -> `todo`.
  * - `complete(...)`          — TaskCompleted, status -> `done`.
  * - `list(...)`              — read-only query, no event.
+ * - `get(...)`               — read-only fetch by id, no event.
+ * - `delete(...)`            — TaskDeleted; hard delete, no status
+ *                              transition.
  *
  * Why the unified port (instead of one per action):
  * - SOLID-ISP would split it; SOLID-SRP keeps it together because
@@ -111,6 +127,33 @@ export interface TrackTask {
     workspaceId: WorkspaceId;
     status: TaskStatus | null;
   }): Promise<readonly Task[]>;
+
+  /**
+   * Returns the task identified by `taskId`. Throws
+   * `MemoryApplicationError.taskNotFound` when the id does not exist
+   * in this workspace. Backs the `mem.task.get` wire action
+   * (`docs/02-protocolo-mcp.md` §4.5).
+   *
+   * Read-only: emits no event and does not bump `updatedAt`.
+   */
+  get(input: {
+    workspaceId: WorkspaceId;
+    taskId: TaskId;
+  }): Promise<Task>;
+
+  /**
+   * Hard-deletes the task identified by `taskId` and publishes
+   * `TaskDeleted`. Throws `MemoryApplicationError.taskNotFound` when
+   * the id does not exist (so the caller can surface a typed failure
+   * instead of a silent no-op).
+   *
+   * Backs the `mem.task.delete` wire action
+   * (`docs/02-protocolo-mcp.md` §4.5).
+   */
+  delete(input: {
+    workspaceId: WorkspaceId;
+    taskId: TaskId;
+  }): Promise<DeleteTaskResult>;
 
   /**
    * Returns the active session id at the time of the call (or `null`

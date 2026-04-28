@@ -47,6 +47,17 @@ export const JsonRpcErrorCodes = {
 
   /** Encryption key revoked by rekey. */
   KEY_REVOKED: -32109,
+
+  /**
+   * Task identified by `task_id` was not found in the workspace.
+   *
+   * Surfaced by the `mem.task.get`, `mem.task.delete`, and
+   * (status-changing) `mem.task.update` actions whenever the
+   * persistence tier reports no row for the supplied id. The client
+   * should refresh its task list (`mem.task.list`) and retry with a
+   * valid id.
+   */
+  TASK_NOT_FOUND: -32110,
 } as const;
 
 /**

@@ -31,7 +31,7 @@
 | **Paquete npm** | `@netzi/recall` (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
 | **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/recall@0.1.0` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release publicado (https://github.com/NetziTech/recall/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/recall@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
-| **Proximo paso** | v0.1.1 restante: B-008 (`mem.task.get/delete`) + B-009 (`uninstall-hook`). Las 2 highs upstream ya tienen ADR-004 (wontfix-con-mitigacion) hasta v0.5. Detalles en `docs/RELEASE-NOTES-v0.1.0.md`, §6.10 y §6.11. |
+| **Proximo paso** | v0.1.1 listo para release: B-008 cerrado en sub-fase 3 (`mem.task.get/delete`) y B-009 cerrado en sub-fase 4 (`uninstall-hook`). Las 2 highs upstream ya tienen ADR-004 (wontfix-con-mitigacion) hasta v0.5. Detalles en `docs/RELEASE-NOTES-v0.1.0.md`, §6.10, §6.11 y §8. |
 
 ---
 
@@ -732,7 +732,7 @@ Cada stub tiene JSDoc forward-compatibility y arroja
 | ID | Item | Severidad | Donde |
 |---|---|---|---|
 | **B-007** | `tsup --bundle` flag invalido en `code/package.json` build script. Heredado de Fase 4 inicial. NO bloquea tsc/lint/validate:modules pero impide `npm run build` y E2E binary. **BLOQUEADOR para Fase 5 E2E.** | high | `code/package.json` scripts |
-| **B-008** | `mem.task.get` y `mem.task.delete` use cases inexistentes en memory module. Lanza `McpFacadeNotImplementedError`. | medium | `code/src/modules/memory/application/use-cases/` |
+| ~~**B-008**~~ | ~~`mem.task.get` y `mem.task.delete` use cases inexistentes en memory module. Lanza `McpFacadeNotImplementedError`.~~ **CLOSED en v0.1.0 (recall) sub-fase 3.** Implementado end-to-end: `Task.delete()` en agregado, `TaskDeleted` event, `TaskRepository.delete`, `TrackTaskUseCase.get/delete`, facade routes get/delete, error code `-32110 TASK_NOT_FOUND` cableado al mapper. | medium | `code/src/modules/memory/application/use-cases/`, `code/src/composition/facades/mcp-server-facades.ts` |
 | Mapping defensivo | `EntityKindWire` vs `EntityKind` domain: mapping defensivo activo (`struct→class`, `agent→concept`, `file→module`). Aceptable para MVP, decision arquitectonica en 5.6. | low | `code/src/composition/wiring/entity-kind-mapper.ts` |
 
 ### Decisiones del orquestador (D-401..D-410)
@@ -866,16 +866,14 @@ descubiertos durante 5.x todos arreglados.**
 | **Wontfix justificados** | 4 | LearningsAbsorbedUseCase blueprint, staleRunRecovered crash recovery, schema task fields nullables (Tarea 3.5), Q-006/Q-007 paths/mmap delta <5%. |
 | **Doc-update aplicadas** | 3 | ADR-002 multiplicativo, ADR-003 wire-vs-domain, HANDOFF §0 SLO encrypted |
 
-### 5 stubs `Pending*` justificados deferidos a v0.5
+### 4 stubs `Pending*` justificados deferidos a v0.5
 
 1. **PendingExportKeyFacade** — multi-key envelope flow (v0.5 roadmap).
 2. **PendingRekeyFacade** — multi-key envelope flow (v0.5 roadmap).
 3. **PendingAddKeyFacade** — multi-key envelope flow (v0.5 roadmap).
-4. **UninstallPreCommitHook** — gap secrets module (B-009; workaround: `rm .git/hooks/pre-commit`).
-5. **ServerFacade** — sub-process delegation a `recall-server` binario dedicado (decision arquitectonica del mcp-server module).
+4. **ServerFacade** — sub-process delegation a `recall-server` binario dedicado (decision arquitectonica del mcp-server module).
 
-Cada stub tiene JSDoc forward-compat + error tipado
-`McpFacadeNotImplementedError` con error code estable.
+`UninstallPreCommitHook` (anteriormente #4) **cerrado en v0.1.0 (recall) sub-fase 4 — B-009**: implementado y wired. Cada stub restante tiene JSDoc forward-compat + error tipado `McpFacadeNotImplementedError` con error code estable.
 
 ### 9 bugs descubiertos durante 5.x todos arreglados
 
@@ -1178,8 +1176,8 @@ release + smoke test E2E confirmado, ver §6.10).
 | # | Item | Resuelto en | Notas |
 |---|---|---|---|
 | B-007 | `tsup --bundle` flag invalido | Tarea 5.0 (infrastructure-engineer) | Build script corregido. `npm run build` EXIT=0. |
-| B-008 | `mem.task.get` / `mem.task.delete` gap | Tarea 5.6 architect (D-103/disputes) | **Diferido a v0.5**: las sub-actions no son criticas en MVP (track + list + status update cubren el caso usuario). MVP responde con `McpFacadeNotImplementedError` con error code estable — comportamiento documentado y correcto. |
-| B-009 | `UninstallPreCommitHook` gap | Tarea 5.6 architect | **Diferido a v0.5** con workaround documentado (`rm .git/hooks/pre-commit`). |
+| B-008 | `mem.task.get` / `mem.task.delete` gap | v0.1.0 (recall) sub-fase 3 | **CLOSED en v0.1.0 (recall)**: implementado end-to-end. Hard delete via `Task.delete()` + `TaskDeleted` domain event. Repository `delete()` + use cases `get/delete`. Facade route activa. Error wire `-32110 TASK_NOT_FOUND` mapeado para los 3 callsites (`get`, `delete`, `update`). Cobertura: 19 task-aggregate tests, 18 use-case tests, integration F-mem-task incluye get→delete→get-fails. |
+| B-009 | `UninstallPreCommitHook` gap | v0.1.0 (recall) sub-fase 4 | **CLOSED en v0.1.0 (recall)**: implementado end-to-end. `UninstallPreCommitHookUseCase` + `FilesystemPreCommitHookUninstaller` adapter inyectados en wiring. CLI `recall uninstall-hook` cubre 4 escenarios (no hook / hook ajeno / hook recall completo / hook mixto) + idempotente al re-ejecutar. Markers `# >>> recall pre-commit >>>` ... `# <<< recall pre-commit <<<` agregados al installer para extraccion quirurgica del bloque. Cobertura: 9 infra tests, 5 use-case tests, 5 facade adapter tests, 5 port type-guard tests, 3 E2E flows. |
 | B-010 | Schema `tasks.status` `pending` vs domain `todo` | Tarea 5.6 architect | **Mapping defensivo permanente**. Documentado en `docs/03 §4.7`. Para v0.5+: alinear schema → domain. |
 | D-101 | PriorityBoost multiplicativo vs aditivo | Tarea 5.6 architect | **ADR-002** en `docs/12 §1.5.2`. Domain mantiene multiplicativo. `docs/01 §2.6` actualizado. |
 | D-102 | ContextLayerKind names domain vs wire | Tarea 5.6 architect | **ADR-003** en `docs/12 §1.5.3`. Mapping permanente como Anti-Corruption Layer. `docs/02 §4.2` actualizado con tabla wire-vs-domain. |

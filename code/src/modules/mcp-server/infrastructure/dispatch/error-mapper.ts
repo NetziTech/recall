@@ -92,12 +92,40 @@ export function mapErrorToJsonRpc(error: unknown): JsonRpcErrorPayload {
     };
   }
 
+  // Tier 3.5: foreign-application errors. Use cases throw structured
+  // errors that intentionally extend `Error` (not `DomainError`) so
+  // the categorisation is preserved (per
+  // `memory-application-error.ts` and `curator-application-error.ts`
+  // class JSDoc). The mapper still wants to translate their stable
+  // `code` into a wire code instead of letting them fall through to
+  // `INTERNAL_ERROR`. We duck-type on `error.code: string` to avoid
+  // pulling cross-module imports into this layer.
+  if (isCodedError(error)) {
+    const mapped = mapDomainCodeToJsonRpc(error.code);
+    return {
+      code: mapped,
+      message: truncate(error.message),
+    };
+  }
+
   // Tier 4: anything else. The wire envelope is intentionally
   // generic; the cause is left for the upstream logger to capture.
   return {
     code: FALLBACK_INTERNAL_ERROR,
     message: "internal error",
   };
+}
+
+/**
+ * Type guard for `Error`-shaped values that carry a stable
+ * `code: string` discriminator. Mirrors the
+ * `MemoryApplicationError` / `CuratorApplicationError` shape without
+ * importing those classes (cross-module rule, `docs/12 §1.5`).
+ */
+function isCodedError(error: unknown): error is Error & { code: string; message: string } {
+  if (!(error instanceof Error)) return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && code.length > 0;
 }
 
 /**
@@ -135,6 +163,12 @@ function mapDomainCodeToJsonRpc(domainCode: string): number {
       return JsonRpcErrorCodes.INVALID_KEY;
     case "encryption.key-revoked":
       return JsonRpcErrorCodes.KEY_REVOKED;
+    // Memory-tier: task lookup failures surface a stable wire code
+    // so MCP clients can recover (refresh their task list and retry)
+    // without parsing free-form messages. See
+    // `docs/02-protocolo-mcp.md` §6.
+    case "memory.task-not-found":
+      return JsonRpcErrorCodes.TASK_NOT_FOUND;
     default:
       // Anything unmapped is treated as a bad-input error rather
       // than a server failure: the domain rejected the call but

@@ -17,11 +17,32 @@ import type { TaskStatus } from "../value-objects/task-status.ts";
  * Contract:
  * - `findById` returns `null` on miss.
  * - `save` is atomic.
+ * - `delete` is idempotent: it returns `true` when a row was
+ *   actually removed and `false` when no such row existed (so the
+ *   use case can translate the `false` return into a typed
+ *   `taskNotFound` failure for the caller).
  */
 export interface TaskRepository {
   findById(id: TaskId): Promise<Task | null>;
 
   save(task: Task): Promise<void>;
+
+  /**
+   * Hard-deletes the task row identified by `id`. Returns `true` when
+   * a row was removed, `false` when no row existed.
+   *
+   * Why a hard delete (and not a soft `deleted_at` flag):
+   * - The `tasks` schema (`docs/03-modelo-datos.md` §4.7) does not
+   *   include a tombstone column; adding one is a schema migration
+   *   out of scope for the `mem.task.delete` action.
+   * - The wire contract (`docs/02-protocolo-mcp.md` §4.5) returns
+   *   `{ deleted: boolean }` — a hard delete satisfies the contract
+   *   without leaking storage details.
+   * - Tasks are not embedded (no row in `embedding_queue` or vector
+   *   tables targets a `task` kind), so no downstream cleanup is
+   *   needed beyond the `tasks` row itself.
+   */
+  delete(id: TaskId): Promise<boolean>;
 
   /**
    * Returns every task in `workspaceId` whose status is non-terminal

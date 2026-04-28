@@ -92,6 +92,9 @@ class StubTaskRepo implements TaskRepository {
   public save(): Promise<void> {
     return Promise.resolve();
   }
+  public delete(): Promise<boolean> {
+    return Promise.resolve(false);
+  }
   public findOpenByWorkspace(): Promise<readonly never[]> {
     return Promise.resolve([]);
   }
