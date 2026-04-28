@@ -58,25 +58,39 @@ import { PinoLogger } from "../shared/infrastructure/logger/pino-logger.ts";
  *
  * Resolution order:
  *   1. Explicit env override (`RECALL_MIGRATIONS_DIR`).
- *   2. The entrypoint-relative layout, anchored on `process.argv[1]`.
- *      This is the single value Node guarantees points at the script
- *      that was invoked, regardless of bundling. We try in order:
- *        a. `<entrypoint-dir>/migrations/`     (tsup ships this on
- *           release — see the `onSuccess` hook in `tsup.config.ts`).
- *        b. `<entrypoint-dir>/../migrations/`  (development:
+ *   2. The entrypoint-relative layout, anchored on `process.argv[1]`
+ *      AFTER `fs.realpathSync(...)` so symlinked global installs (the
+ *      typical npm-global layout where `~/.nvm/.../bin/recall` is a
+ *      symlink to `~/.nvm/.../lib/node_modules/@netzi/recall/dist/cli.js`)
+ *      resolve to the real on-disk location of the bundle. Without
+ *      this, `path.dirname(argvEntry)` returns `~/.nvm/.../bin/`,
+ *      which contains no `migrations/` siblings (B-CLI-5). We try
+ *      both the realpath-derived candidates and the literal-argv
+ *      ones — the latter remains as a defensive fallback for hosts
+ *      where `realpath` cannot be resolved (read-only mounts, exotic
+ *      filesystem layouts).
+ *
+ *      For each anchor (`<entry-dir>`) we try, in order:
+ *        a. `<entry-dir>/migrations/`      (tsup ships this on
+ *           release — see the `onSuccess` hook in `tsup.config.ts`,
+ *           and it is also the layout used by `npm install -g`).
+ *        b. `<entry-dir>/../migrations/`   (development:
  *           `code/src/bootstrap/...` → `code/migrations/`).
- *        c. `<entrypoint-dir>/../../migrations/` (legacy / nested
- *           dist trees; preserved as the last resort to keep the
- *           E2E harness's staging layout valid).
- *   3. The `import.meta.url`-relative layout for the dev path when
- *      `argv[1]` is not informative (e.g. unit tests that import the
- *      bootstrap directly).
+ *        c. `<entry-dir>/../../migrations/` (legacy / nested dist
+ *           trees; preserved as the last resort to keep the E2E
+ *           harness's staging layout valid).
+ *   3. The `import.meta.url`-relative layout for the dev / unit-test
+ *      path when `argv[1]` is not informative (e.g. tests that
+ *      import the bootstrap directly via tsx). Tries:
+ *        a. `<here>/migrations/`           (post-build sibling of
+ *           the bundled `cli.js`).
+ *        b. `<here>/../../migrations/`     (dev path:
+ *           `code/src/bootstrap/` → `code/migrations/`).
  *
  * The function returns the FIRST candidate that exists on disk and
- * is a directory. If none match, the entrypoint-relative
- * `<entrypoint-dir>/migrations/` is returned anyway so the
- * `MigrationsRunner` surfaces a clear `cannot read directory` error
- * instead of silently picking a stale path.
+ * is a directory. If none match, the first candidate is returned so
+ * the failure surface is `migrationDirectoryInvalid(<path>)` rather
+ * than a silently-picked stale folder.
  */
 function resolveDefaultMigrationsDir(): string {
   // 1) Env override.
@@ -86,14 +100,47 @@ function resolveDefaultMigrationsDir(): string {
   }
 
   const candidates: string[] = [];
+  // De-duplicates the candidate list when realpath returns a path
+  // identical to the literal-argv fallback (the common case in
+  // development, where the bin is not a symlink). Ensures
+  // `fs.statSync` is called at most once per real directory.
+  const seen = new Set<string>();
+  const pushCandidate = (candidate: string): void => {
+    if (seen.has(candidate)) return;
+    seen.add(candidate);
+    candidates.push(candidate);
+  };
+
+  const pushAnchor = (entryDir: string): void => {
+    pushCandidate(path.join(entryDir, "migrations"));
+    pushCandidate(path.resolve(entryDir, "..", "migrations"));
+    pushCandidate(path.resolve(entryDir, "..", "..", "migrations"));
+  };
 
   // 2) Entrypoint-relative — the path Node was launched with.
   const argvEntry = process.argv[1];
   if (argvEntry !== undefined && argvEntry.length > 0) {
-    const entryDir = path.dirname(path.resolve(argvEntry));
-    candidates.push(path.join(entryDir, "migrations"));
-    candidates.push(path.resolve(entryDir, "..", "migrations"));
-    candidates.push(path.resolve(entryDir, "..", "..", "migrations"));
+    const literalEntry = path.resolve(argvEntry);
+    // Resolve symlinks first so npm global installs (which place a
+    // symlink at `<prefix>/bin/recall` pointing to the real bundle
+    // under `<prefix>/lib/node_modules/.../dist/cli.js`) anchor on
+    // the real bundle directory rather than `<prefix>/bin/`.
+    let realEntry: string | null = null;
+    try {
+      realEntry = fs.realpathSync(literalEntry);
+    } catch {
+      // The argv path does not exist or is not accessible. The
+      // bootstrap caller will see the same failure when it tries to
+      // load the bundle, so swallowing here is safe.
+      realEntry = null;
+    }
+    if (realEntry !== null) {
+      pushAnchor(path.dirname(realEntry));
+    }
+    // Defensive fallback: even when `realpath` succeeded above, the
+    // literal-argv anchor is still considered so a hand-crafted
+    // launcher (which does not symlink) keeps working.
+    pushAnchor(path.dirname(literalEntry));
   }
 
   // 3) `import.meta.url`-relative — useful when the bootstrap is
@@ -101,7 +148,15 @@ function resolveDefaultMigrationsDir(): string {
   //    this module.
   try {
     const here = path.dirname(fileURLToPath(import.meta.url));
-    candidates.push(path.resolve(here, "..", "..", "migrations"));
+    // Sibling layout: post-build, the bundled `cli.js` lives at
+    // `<paquete>/dist/cli.js`, and the `onSuccess` tsup hook places
+    // migrations at `<paquete>/dist/migrations/` — which is `here`
+    // resolved alongside. This candidate was MISSING in the original
+    // resolver (B-CLI-5).
+    pushCandidate(path.resolve(here, "migrations"));
+    // Dev layout: `code/src/bootstrap/` → `code/migrations/` (two
+    // levels up).
+    pushCandidate(path.resolve(here, "..", "..", "migrations"));
   } catch {
     // `fileURLToPath` can throw on exotic schemes. Ignored — the
     // argv-derived candidates are the canonical source.
