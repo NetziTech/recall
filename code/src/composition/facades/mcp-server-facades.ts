@@ -241,14 +241,26 @@ const DOMAIN_TO_WIRE_LAYER_NAME: Readonly<
  * JSON string over the layer's payload value: this keeps the
  * boundary lossless without forcing the composition root to embed
  * the protocol's per-kind text-rendering rules.
+ *
+ * **Workspace id resolution (B-MCP-1).** The constructor takes the
+ * canonical `WorkspaceId` resolved by the bootstrap from the
+ * workspace's `.recall/config.json`. Real MCP clients (Claude Code,
+ * Cursor, ...) do NOT pass `workspace_id` on every `tools/call` —
+ * they expect the server to know its own workspace from the cwd
+ * Node was launched in. The wire field is honoured when present
+ * (useful for E2E tests and future multi-workspace clients) and
+ * defaults to the injected id otherwise.
  */
 export class GetContextFacadeAdapter implements GetContextFacade {
   private static readonly DEFAULT_MAX_TOKENS = 8000;
 
-  public constructor(private readonly useCase: GetContextBundle) {}
+  public constructor(
+    private readonly useCase: GetContextBundle,
+    private readonly defaultWorkspaceId: WorkspaceId,
+  ) {}
 
   public async assemble(input: ContextInputWire): Promise<ContextOutputWire> {
-    const workspaceId = resolveWorkspaceIdFromWire(input.workspace_id);
+    const workspaceId = resolveWorkspaceId(this.defaultWorkspaceId, input.workspace_id);
     const queryText = input.query?.trim();
     const query =
       queryText === undefined || queryText.length === 0
@@ -301,15 +313,22 @@ export class GetContextFacadeAdapter implements GetContextFacade {
  * Adapter for `RecallMemoryFacade`. Translates the wire DTO into
  * `Query`/`RecallFilters`/`TokenBudget` and the resulting
  * `RecallResult` into the `RecallOutputWire` envelope.
+ *
+ * **Workspace id resolution (B-MCP-1).** See
+ * {@link GetContextFacadeAdapter} for the rationale; the same rule
+ * applies here.
  */
 export class RecallMemoryFacadeAdapter implements RecallMemoryFacade {
   private static readonly DEFAULT_TOP_K = 8;
   private static readonly DEFAULT_MAX_TOKENS = 4000;
 
-  public constructor(private readonly useCase: RecallMemory) {}
+  public constructor(
+    private readonly useCase: RecallMemory,
+    private readonly defaultWorkspaceId: WorkspaceId,
+  ) {}
 
   public async recall(input: RecallInputWire): Promise<RecallOutputWire> {
-    const workspaceId = resolveWorkspaceIdFromWire(input.workspace_id);
+    const workspaceId = resolveWorkspaceId(this.defaultWorkspaceId, input.workspace_id);
     const queryText = input.query?.trim();
     const queryKinds = recallKindsFromWire(input.kinds);
     const query =
@@ -402,10 +421,11 @@ export class RememberFacadeAdapter implements RememberFacade {
     private readonly recordEntity: RecordEntity,
     private readonly recordTurn: RecordTurn,
     private readonly trackTask: TrackTask,
+    private readonly defaultWorkspaceId: WorkspaceId,
   ) {}
 
   public async remember(input: RememberInputWire): Promise<RememberOutputWire> {
-    const workspaceId = resolveWorkspaceIdFromWire(input.workspace_id);
+    const workspaceId = resolveWorkspaceId(this.defaultWorkspaceId, input.workspace_id);
     const tags = Tags.create(input.tags ?? []);
     const scope = scopeFromWire(input.scope ?? "project");
 
@@ -525,10 +545,13 @@ export class RememberFacadeAdapter implements RememberFacade {
  *     `critical` from the wire.
  */
 export class TrackTaskFacadeAdapter implements TrackTaskFacade {
-  public constructor(private readonly useCase: TrackTask) {}
+  public constructor(
+    private readonly useCase: TrackTask,
+    private readonly defaultWorkspaceId: WorkspaceId,
+  ) {}
 
   public async task(input: TaskInputWire): Promise<TaskOutputWire> {
-    const workspaceId = resolveWorkspaceIdFromWire(input.workspace_id);
+    const workspaceId = resolveWorkspaceId(this.defaultWorkspaceId, input.workspace_id);
 
     switch (input.action) {
       case "create": {
@@ -644,12 +667,19 @@ export class TrackTaskFacadeAdapter implements TrackTaskFacade {
  * by invoking the workspace's `HealthCheckUseCase` and synthesising
  * placeholder values for the slots the workspace cannot fill alone
  * (memory entry counters, embedding-queue depth, etc.).
+ *
+ * **Workspace id resolution (B-MCP-1).** Real MCP clients omit
+ * `workspace_id` from the wire input; the adapter falls back to the
+ * `WorkspaceId` resolved by the bootstrap from the workspace's
+ * `.recall/config.json`. When the wire field is present (E2E tests,
+ * future multi-workspace clients) it overrides the injected default.
  */
 export class CheckHealthFacadeAdapter implements CheckHealthFacade {
   public constructor(
     private readonly healthCheck: HealthCheckUseCase,
     private readonly schemaVersion: string,
     private readonly embeddingModel: string,
+    private readonly defaultWorkspaceId: WorkspaceId,
   ) {}
 
   public async health(input: HealthInputWire): Promise<HealthOutputWire> {
@@ -665,24 +695,28 @@ export class CheckHealthFacadeAdapter implements CheckHealthFacade {
     const vectorIndexHealthy: HealthOutputWire["vector_index_health"] =
       embedderCheck?.status === "pass" ? "ok" : "rebuild_recommended";
 
-    const workspaceId = input.workspace_id ?? "00000000-0000-0000-0000-000000000000";
-    // Validate the workspace id at the boundary so a bad client value
-    // surfaces as a typed input failure rather than propagating into
-    // the memory layer.
-    WorkspaceId.from(workspaceId);
+    const workspaceId = resolveWorkspaceId(
+      this.defaultWorkspaceId,
+      input.workspace_id,
+    );
 
     const mode: WorkspaceModeWire = "shared";
     const encryption: EncryptionStatusWire = "n/a";
 
     return {
       schema_version: this.schemaVersion,
-      workspace_id: workspaceId,
+      workspace_id: workspaceId.toString(),
       workspace_path: rootPath.toString(),
       mode,
       encryption_status: encryption,
 
       total_entries: 0,
       entries_by_kind: Object.freeze({}),
+      // `memoria_db` (rather than `recall_db`) is preserved as the
+      // wire field name for back-compat with v0.1.0 clients that may
+      // have snapshotted the shape. The wire schema in
+      // `docs/02-protocolo-mcp.md §4.6` documents this name. Tracked
+      // as wire-schema debt: a future major version may rename it.
       size_bytes: { memoria_db: 0, vectors_db: 0 },
 
       active_session: null,
@@ -714,18 +748,38 @@ function modeToWire(mode: WorkspaceMode): WorkspaceModeWire {
   return "private";
 }
 
-function resolveWorkspaceIdFromWire(raw: string | undefined): WorkspaceId {
-  // Wire fields default to a stable placeholder when omitted; the
-  // application layer's defence is to demand a real workspace id when
-  // it actually queries memory. We surface `WorkspaceId.from` errors
-  // to the dispatcher unchanged.
-  if (raw === undefined || raw.length === 0) {
-    throw new McpFacadeNotImplementedError(
-      "wire-workspace-id",
-      "wire input is missing `workspace_id`",
-    );
-  }
-  return WorkspaceId.from(raw);
+/**
+ * Resolves the canonical {@link WorkspaceId} for an MCP `tools/call`
+ * invocation, unifying the bootstrap-injected default with the
+ * (optional) wire override.
+ *
+ * Resolution rules (B-MCP-1):
+ *   - **Wire absent or empty** → return `injected`. This is the
+ *     overwhelmingly common case: real MCP clients (Claude Code,
+ *     Cursor, ...) do not pass `workspace_id` on every call; they
+ *     expect the server to know its own workspace from the cwd it
+ *     was launched in. The bootstrap reads the canonical id from
+ *     `<workspaceRoot>/.recall/config.json` and threads it into
+ *     every facade adapter at construction.
+ *   - **Wire present and valid** → return `WorkspaceId.from(wire)`.
+ *     This permits explicit overrides (E2E tests, future
+ *     multi-workspace clients).
+ *   - **Wire present but malformed** → propagate the
+ *     `InvalidInputError` raised by `WorkspaceId.from`. The
+ *     dispatcher's error mapper translates it into JSON-RPC
+ *     `-32602 INVALID_PARAMS`.
+ *
+ * The previous behaviour — throwing
+ * {@link McpFacadeNotImplementedError} on absent wire input — broke
+ * every standard MCP client and is the regression closed by
+ * B-MCP-1.
+ */
+function resolveWorkspaceId(
+  injected: WorkspaceId,
+  wire: string | undefined,
+): WorkspaceId {
+  if (wire === undefined || wire.length === 0) return injected;
+  return WorkspaceId.from(wire);
 }
 
 function recallKindsFromWire(

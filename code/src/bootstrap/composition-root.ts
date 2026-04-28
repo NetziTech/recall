@@ -323,7 +323,11 @@ export async function bootstrapComposition(
   const logDestination: 1 | 2 = options.logDestination ?? 1;
   const serverInfo = options.serverInfo ?? {
     name: "recall",
-    version: "0.1.0-alpha.0",
+    // Kept in lockstep with `code/package.json` `version`. A future
+    // refactor can read this at build time via tsup; the literal is
+    // adequate for now and avoids a runtime require/import of the
+    // package metadata.
+    version: "0.1.1",
     protocolVersion: "2024-11-05",
   };
 

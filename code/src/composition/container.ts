@@ -318,26 +318,37 @@ export function buildContainer(options: ContainerOptions): Container {
       provider: "fastembed",
       model: "BGESmallEN15",
     });
+  // The mcp-server facade adapters resolve the workspace id from
+  // their constructor-injected default when the wire input omits
+  // `workspace_id` (B-MCP-1). Real MCP clients always omit the
+  // field; the bootstrap reads `<workspaceRoot>/.recall/config.json`
+  // and pins `workspaceId` on the container so the facades can
+  // service those calls without a wire override.
   const mcpServerFacades = {
     init: new InitializeWorkspaceFacadeAdapter(
       workspace.initializeWorkspace,
       defaultEmbedder,
       logger,
     ),
-    context: new GetContextFacadeAdapter(retrieval.getContextBundle),
-    recall: new RecallMemoryFacadeAdapter(retrieval.recallMemory),
+    context: new GetContextFacadeAdapter(
+      retrieval.getContextBundle,
+      workspaceId,
+    ),
+    recall: new RecallMemoryFacadeAdapter(retrieval.recallMemory, workspaceId),
     remember: new RememberFacadeAdapter(
       memory.recordDecision,
       memory.recordLearning,
       memory.recordEntity,
       memory.recordTurn,
       memory.trackTask,
+      workspaceId,
     ),
-    task: new TrackTaskFacadeAdapter(memory.trackTask),
+    task: new TrackTaskFacadeAdapter(memory.trackTask, workspaceId),
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
       options.schemaVersion,
       "fastembed:BGESmallEN15",
+      workspaceId,
     ),
   };
 

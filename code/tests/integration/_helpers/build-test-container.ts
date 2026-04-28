@@ -320,26 +320,33 @@ export async function buildTestContainer(
     provider: "fastembed",
     model: "BGESmallEN15",
   });
+  // Each facade adapter receives the bootstrap-resolved workspaceId
+  // so the wire `workspace_id` field can stay optional (B-MCP-1).
   const mcpServerFacades = {
     init: new InitializeWorkspaceFacadeAdapter(
       workspace.initializeWorkspace,
       defaultEmbedder,
       logger,
     ),
-    context: new GetContextFacadeAdapter(retrieval.getContextBundle),
-    recall: new RecallMemoryFacadeAdapter(retrieval.recallMemory),
+    context: new GetContextFacadeAdapter(
+      retrieval.getContextBundle,
+      workspaceId,
+    ),
+    recall: new RecallMemoryFacadeAdapter(retrieval.recallMemory, workspaceId),
     remember: new RememberFacadeAdapter(
       memory.recordDecision,
       memory.recordLearning,
       memory.recordEntity,
       memory.recordTurn,
       memory.trackTask,
+      workspaceId,
     ),
-    task: new TrackTaskFacadeAdapter(memory.trackTask),
+    task: new TrackTaskFacadeAdapter(memory.trackTask, workspaceId),
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
       "1.0.0",
       "fastembed:BGESmallEN15",
+      workspaceId,
     ),
   };
 

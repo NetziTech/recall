@@ -12,6 +12,12 @@
 - **Workspace**: el MCP auto-detecta caminando hacia arriba desde `cwd`. El
   cliente puede pasar `workspace_path` explicito si quiere override. El
   `workspace_id` se obtiene leyendo `.recall/config.json`.
+- **`workspace_id` en tools/call**: SIEMPRE opcional en el wire (los Zod
+  schemas lo marcan `.optional()`). Los clientes MCP estandar (Claude
+  Code, Cursor, ...) NO lo envian — se auto-resuelve desde el `cwd` con
+  el que el cliente lanzo al servidor. Cuando el cliente lo provee
+  explicitamente, override el default del bootstrap (util para tests
+  E2E y futuros clientes multi-workspace). Wire malformado → `-32602`.
 - **Tokens**: cuando un tool acepta `max_tokens`, el servidor respeta
   garantizadamente ese tope (token counter via tiktoken o heuristica).
 - **Errores**: JSON-RPC standard `code` + `message` + `data`. Codigos custom
@@ -167,7 +173,7 @@ Busqueda flexible. Reemplaza `recall_relevant` + `recall_by_kind` +
 **Input:**
 ```typescript
 {
-  workspace_id?: string;
+  workspace_id?: string;             // si omite, auto-detect desde cwd
   query?: string;                    // si omite, devuelve recientes filtrados
   kinds?: Kind[];                    // filtra por tipo
   top_k?: number;                    // default 8
@@ -227,7 +233,7 @@ Persiste una entry. `kind` decide a que tabla va. Reemplaza
 **Input (forma comun):**
 ```typescript
 {
-  workspace_id?: string;
+  workspace_id?: string;             // si omite, auto-detect desde cwd
   kind: "decision" | "learning" | "entity" | "turn";
   content: string;                   // texto principal
   id?: string;                       // si proveido, upsert
@@ -314,7 +320,7 @@ CRUD unificado de tasks. Reemplaza `record_task` + `update_task` +
 **Input:**
 ```typescript
 {
-  workspace_id?: string;
+  workspace_id?: string;             // si omite, auto-detect desde cwd
   action: "create" | "update" | "list" | "get" | "delete";
 
   // create
@@ -376,7 +382,7 @@ Diagnostico del estado.
 **Input:**
 ```typescript
 {
-  workspace_id?: string;
+  workspace_id?: string;             // si omite, auto-detect desde cwd
   verbose?: boolean;                 // si true, incluye detalle por tabla
 }
 ```
@@ -405,6 +411,15 @@ Diagnostico del estado.
   warnings?: string[];               // ej: ["5 paths stale", "embedder slow"]
 }
 ```
+
+> **Deuda wire-schema (`size_bytes.memoria_db`).** El nombre del paquete
+> migro de `mcp-memoria` a `@netzi/recall` antes del v0.1.0; el campo
+> wire `size_bytes.memoria_db` quedo con el nombre legacy. v0.1.0 ya lo
+> publico con ese nombre, asi que renombrar a `recall_db` ahora seria
+> un break-de-shape para clientes que lo snapshottearon. Se preserva
+> hasta el proximo major; el unit test
+> `mcp-server-facades-workspace-id.test.ts` lo pinea para evitar
+> regresiones accidentales.
 
 ---
 

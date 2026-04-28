@@ -359,6 +359,174 @@ describe("e2e / B / dist/server.js — tools/call happy paths", () => {
   });
 });
 
+describe("e2e / B / dist/server.js — tools/call without `workspace_id` (B-MCP-1)", () => {
+  // Real MCP clients (Claude Code, Cursor, ...) launch the server
+  // with the project root as cwd and DO NOT pass `workspace_id` on
+  // every `tools/call` — they expect the server to know its own
+  // workspace from the cwd alone. Before B-MCP-1 the five facades
+  // (`mem.context`, `mem.recall`, `mem.remember`, `mem.task`,
+  // `mem.health`) hard-required `workspace_id` in the wire input
+  // and threw `McpFacadeNotImplementedError` otherwise — breaking
+  // every standard client.
+  //
+  // These tests pin the contract that each tool SHOULD work without
+  // any wire `workspace_id`, with the bootstrap-resolved id from
+  // `<cwd>/.recall/config.json` filled in transparently.
+
+  it("`mem.health` succeeds without `workspace_id` in arguments", async () => {
+    const ws = await provisionWorkspace("health-no-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 31,
+      method: "tools/call",
+      params: {
+        name: "mem.health",
+        arguments: {},
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as { readonly workspace_id: string };
+    // The bootstrap must have read .recall/config.json and stamped
+    // the canonical id on the response.
+    expect(result.workspace_id).toBe(ws.workspaceId);
+  });
+
+  it("`mem.remember` (kind=decision) succeeds without `workspace_id`", async () => {
+    const ws = await provisionWorkspace("remember-no-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 32,
+      method: "tools/call",
+      params: {
+        name: "mem.remember",
+        arguments: {
+          kind: "decision",
+          content: "Use bootstrap-resolved workspace_id by default.",
+          title: "B-MCP-1",
+          rationale: "Standard MCP clients omit workspace_id on tools/call.",
+        },
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as { readonly id: string; readonly kind: string };
+    expect(typeof result.id).toBe("string");
+    expect(result.id.length).toBeGreaterThan(0);
+    expect(result.kind).toBe("decision");
+  });
+
+  it("`mem.recall` succeeds without `workspace_id`", async () => {
+    const ws = await provisionWorkspace("recall-no-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 33,
+      method: "tools/call",
+      params: {
+        name: "mem.recall",
+        arguments: { query: "anything", top_k: 4 },
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as { readonly results: readonly unknown[] };
+    expect(Array.isArray(result.results)).toBe(true);
+  });
+
+  it("`mem.context` succeeds without `workspace_id`", async () => {
+    const ws = await provisionWorkspace("context-no-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 34,
+      method: "tools/call",
+      params: {
+        name: "mem.context",
+        arguments: { max_tokens: 2_000 },
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as {
+      readonly bundle: { readonly layers: readonly unknown[] };
+    };
+    expect(Array.isArray(result.bundle.layers)).toBe(true);
+    expect(result.bundle.layers.length).toBe(7);
+  });
+
+  it("`mem.task` create succeeds without `workspace_id`", async () => {
+    const ws = await provisionWorkspace("task-no-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 35,
+      method: "tools/call",
+      params: {
+        name: "mem.task",
+        arguments: {
+          action: "create",
+          title: "Validate B-MCP-1 fix",
+          description: "task created without explicit workspace_id.",
+          priority: "medium",
+        },
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as {
+      readonly action: string;
+      readonly task_id: string;
+    };
+    expect(result.action).toBe("create");
+    expect(result.task_id.length).toBeGreaterThan(0);
+  });
+
+  it("explicit wire `workspace_id` still overrides the bootstrap default", async () => {
+    // A client that does pass a wire `workspace_id` continues to
+    // honour it — both the tools/call response and the persisted
+    // record should carry the explicit id. We use the same id the
+    // bootstrap would have resolved so the call succeeds; the test
+    // just exercises the override path so the wire-then-default
+    // resolution rule does not regress.
+    const ws = await provisionWorkspace("override-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 36,
+      method: "tools/call",
+      params: {
+        name: "mem.health",
+        arguments: { workspace_id: ws.workspaceId },
+      },
+    });
+    expect(response.error).toBeUndefined();
+    const result = response.result as { readonly workspace_id: string };
+    expect(result.workspace_id).toBe(ws.workspaceId);
+  });
+
+  it("malformed wire `workspace_id` surfaces a typed -32602 error", async () => {
+    const ws = await provisionWorkspace("bad-wsid");
+    const session = await openSession(ws.path);
+
+    const response = await session.request({
+      jsonrpc: "2.0",
+      id: 37,
+      method: "tools/call",
+      params: {
+        name: "mem.health",
+        // Not a UUID v7 — must surface as -32602 (invalid params).
+        arguments: { workspace_id: "deadbeef-0000-0000-0000-000000000000" },
+      },
+    });
+    expect(response.error).toBeDefined();
+    expect(response.error?.code).toBe(-32602);
+  });
+});
+
 describe("e2e / B / dist/server.js — multi-request session", () => {
   it("a single server keeps state across init → remember → health requests", async () => {
     const ws = await provisionWorkspace("session-rt");
