@@ -36,13 +36,13 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  *     between privacy modes — the new mode must be reflected for the
  *     next `mem.context` invocation.
  *   - Called by `DestroyWorkspaceUseCase` (indirectly: the row is
- *     dropped together with the entire `.mcp-memoria/` directory; no
+ *     dropped together with the entire `.recall/` directory; no
  *     dedicated `delete` is needed in this port).
  */
 export interface UpsertWorkspaceConfigInput {
   /**
    * Absolute path to the host project root. The adapter resolves
-   * `<root>/.mcp-memoria/memoria.db` and opens (or reopens) the
+   * `<root>/.recall/recall.db` and opens (or reopens) the
    * SQLite handle to perform the upsert.
    */
   readonly rootPath: WorkspacePath;

@@ -20,7 +20,7 @@ import { PassphraseMismatchError } from "./workspace-handlers.ts";
 import { resolveRootPath } from "./root-path.ts";
 
 /**
- * Handler for `mcp-memoria export-key`. Pre-condition: workspace
+ * Handler for `recall export-key`. Pre-condition: workspace
  * must be unlocked. The facade refuses on locked workspaces and
  * the dispatch maps the resulting domain error to
  * `lockedWorkspace` exit code.
@@ -49,7 +49,7 @@ export class ExportKeyCommandHandler implements CommandHandler<"export-key"> {
 }
 
 /**
- * Handler for `mcp-memoria rekey` (v0.5+). Pre-condition: workspace
+ * Handler for `recall rekey` (v0.5+). Pre-condition: workspace
  * unlocked. Generates a new master key and re-ciphers every envelope.
  */
 export class RekeyCommandHandler implements CommandHandler<"rekey"> {
@@ -86,7 +86,7 @@ export class RekeyCommandHandler implements CommandHandler<"rekey"> {
 }
 
 /**
- * Handler for `mcp-memoria add-key` (v0.5+). Adds a secondary key
+ * Handler for `recall add-key` (v0.5+). Adds a secondary key
  * envelope without invalidating the existing one.
  */
 export class AddKeyCommandHandler implements CommandHandler<"add-key"> {

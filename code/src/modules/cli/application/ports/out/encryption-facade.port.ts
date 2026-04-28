@@ -2,12 +2,12 @@
  * Driven (output) facade ports toward the encryption module's
  * key-lifecycle use cases that the CLI invokes:
  *
- *   - `mcp-memoria export-key` — re-print the key in the box layout
+ *   - `recall export-key` — re-print the key in the box layout
  *     described in `docs/11-seguridad-modos.md` §3 ("Que ocurre al
  *     inicializar"). Pre-condition: the workspace must be unlocked.
- *   - `mcp-memoria rekey`      — generate a new master key, re-cipher
+ *   - `recall rekey`      — generate a new master key, re-cipher
  *     every envelope, print the new key once. Pre-condition: unlocked.
- *   - `mcp-memoria add-key`    — append a secondary envelope (multi-key,
+ *   - `recall add-key`    — append a secondary envelope (multi-key,
  *     v0.5+). Returns the freshly minted key id.
  *
  * The CLI passes raw passphrases / labels and receives back the

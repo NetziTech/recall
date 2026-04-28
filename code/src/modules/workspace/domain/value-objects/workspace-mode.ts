@@ -15,7 +15,7 @@ const WORKSPACE_MODE_KINDS = ["shared", "encrypted", "private"] as const;
  * Discriminated union of the three privacy modes a workspace can adopt.
  *
  * The literal values are the canonical wire format used everywhere in
- * the system: `.mcp-memoria/config.json → mode`, JSON-RPC payloads,
+ * the system: `.recall/config.json → mode`, JSON-RPC payloads,
  * audit log entries, etc. (see `docs/11-seguridad-modos.md` §1 for the
  * full taxonomy).
  */
@@ -24,7 +24,7 @@ export type WorkspaceModeKind = (typeof WORKSPACE_MODE_KINDS)[number];
 /**
  * Value object representing the privacy mode of a workspace.
  *
- * The mode determines (a) whether the `.mcp-memoria/` directory is
+ * The mode determines (a) whether the `.recall/` directory is
  * versioned in git, (b) whether SQLCipher is layered on top of the SQLite
  * databases, and (c) whether the runtime requires an unlock step before
  * any read/write. The semantics are documented in

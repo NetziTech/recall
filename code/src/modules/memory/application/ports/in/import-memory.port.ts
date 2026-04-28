@@ -39,7 +39,7 @@ export interface ImportMemoryResult {
  * Driving (input) port: parse a JSON export and persist its contents
  * into the workspace.
  *
- * Maps to the CLI's `mcp-memoria import` (`docs/07-instalacion.md`
+ * Maps to the CLI's `recall import` (`docs/07-instalacion.md`
  * §7.7). The use case:
  *
  * 1. Validates the envelope (Zod) and the per-aggregate payloads.

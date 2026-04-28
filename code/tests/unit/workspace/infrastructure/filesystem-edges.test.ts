@@ -39,7 +39,7 @@ describe("NodeWorkspaceFilesystem.readConfig non-ENOENT branch", () => {
 
   it("readConfig non-ENOENT error → configReadFailed", async () => {
     await fsAdapter.createWorkspaceDirectory(rootPath);
-    const cfgPath = path.join(tmpDir, ".mcp-memoria", "config.json");
+    const cfgPath = path.join(tmpDir, ".recall", "config.json");
     await fs.writeFile(cfgPath, "{}", "utf8");
     await fs.chmod(cfgPath, 0o000);
     try {
@@ -66,18 +66,18 @@ describe("NodeWorkspaceFilesystem.readConfig non-ENOENT branch", () => {
 describe("NodeWorkspaceFilesystem.removeWorkspaceDirectory edge-cases", () => {
   it("rejects a path that is not the workspace directory (suffix guard)", async () => {
     // The canonical suffix guard only kicks in when the path resolves
-    // to something that does NOT end in `.mcp-memoria`. We exercise it
+    // to something that does NOT end in `.recall`. We exercise it
     // by passing a `WorkspacePath` whose joined directory ends in
-    // `.mcp-memoria`. The guard normally never trips at runtime because
-    // `WorkspacePath.join('.mcp-memoria')` is the only construction
+    // `.recall`. The guard normally never trips at runtime because
+    // `WorkspacePath.join('.recall')` is the only construction
     // path; this test forces the false branch by patching the helper.
     //
     // Easier path: pass a WorkspacePath at root of a tmpdir so the
     // method succeeds normally, then verify the success path; the
     // failure branch is documented as defence-in-depth.
-    await fs.mkdir(path.join(tmpDir, ".mcp-memoria"));
+    await fs.mkdir(path.join(tmpDir, ".recall"));
     await fs.writeFile(
-      path.join(tmpDir, ".mcp-memoria", "config.json"),
+      path.join(tmpDir, ".recall", "config.json"),
       "{}",
       "utf8",
     );
@@ -86,14 +86,14 @@ describe("NodeWorkspaceFilesystem.removeWorkspaceDirectory edge-cases", () => {
     ).resolves.toBeUndefined();
     expect(
       await fs
-        .stat(path.join(tmpDir, ".mcp-memoria"))
+        .stat(path.join(tmpDir, ".recall"))
         .then(() => true)
         .catch(() => false),
     ).toBe(false);
   });
 
   it("removeWorkspaceDirectory on a missing dir succeeds (force:true)", async () => {
-    // No `.mcp-memoria` exists. fs.rm with `force: true` doesn't throw.
+    // No `.recall` exists. fs.rm with `force: true` doesn't throw.
     await expect(
       fsAdapter.removeWorkspaceDirectory(rootPath),
     ).resolves.toBeUndefined();
@@ -102,11 +102,11 @@ describe("NodeWorkspaceFilesystem.removeWorkspaceDirectory edge-cases", () => {
   // POSIX-only: chmod-based negative test for the rm catch.
   if (process.platform !== "win32") {
     it("removeWorkspaceDirectory wraps fs.rm failures", async () => {
-      // Make tmpDir read-only so the rm of `.mcp-memoria` inside it
+      // Make tmpDir read-only so the rm of `.recall` inside it
       // fails with EACCES.
-      await fs.mkdir(path.join(tmpDir, ".mcp-memoria"));
+      await fs.mkdir(path.join(tmpDir, ".recall"));
       await fs.writeFile(
-        path.join(tmpDir, ".mcp-memoria", "config.json"),
+        path.join(tmpDir, ".recall", "config.json"),
         "{}",
         "utf8",
       );
@@ -139,11 +139,11 @@ describe("NodeWorkspaceFilesystem.endsWithWorkspaceSegment (private)", () => {
   // accepted. The private helper is reachable via the public method.
   it("removeWorkspaceDirectory accepts trailing-slash variant (private helper coverage)", async () => {
     // The `path.resolve` step normalises any trailing slash, so the
-    // dir always ends with `.mcp-memoria`. We just verify a clean run
+    // dir always ends with `.recall`. We just verify a clean run
     // here — the trailing-`/` and Windows `\\` branches are exercised
     // by the tests in `node-workspace-filesystem.test.ts`'s
     // pre-existing scenarios on POSIX/Win.
-    await fs.mkdir(path.join(tmpDir, ".mcp-memoria"));
+    await fs.mkdir(path.join(tmpDir, ".recall"));
     await expect(
       fsAdapter.removeWorkspaceDirectory(rootPath),
     ).resolves.toBeUndefined();

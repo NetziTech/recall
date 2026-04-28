@@ -2,10 +2,10 @@ import type { Workspace } from "../../../domain/aggregates/workspace.ts";
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for `mcp-memoria unlock --workspace <path>`
+ * Driving (input) port for `recall unlock --workspace <path>`
  * (`docs/07-instalacion.md` §7 — "Encriptado") and the implicit unlock
  * the runtime performs at server start when the key cache in
- * `~/.config/mcp-memoria/keys/<workspace_id>.key` is populated
+ * `~/.config/recall/keys/<workspace_id>.key` is populated
  * (`docs/11-seguridad-modos.md` §3 "Sesiones siguientes").
  *
  * Orchestration:

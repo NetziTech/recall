@@ -30,7 +30,7 @@ const MAX_CAPACITY = 1000;
  * domain:
  *
  *   1. The product surface includes inspection commands like
- *      `mcp-memoria stats` and `mcp-memoria curator-log`
+ *      `recall stats` and `recall curator-log`
  *      (`docs/07-instalacion.md` §7) that benefit from a "what did the
  *      user run recently in this workspace?" answer. Without a domain
  *      object, every consumer would have to hand-roll the same ring

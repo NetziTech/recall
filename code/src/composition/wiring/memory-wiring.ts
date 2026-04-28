@@ -121,7 +121,7 @@ export interface MemoryWiringOptions {
   readonly eventPublisher: EventPublisher;
   readonly database: DatabaseConnection;
   /**
-   * Canonical id of the workspace whose `memoria.db` is wired here.
+   * Canonical id of the workspace whose `recall.db` is wired here.
    * Pinned at construction so every repository / reader / wiper
    * defends against cross-workspace queries.
    */

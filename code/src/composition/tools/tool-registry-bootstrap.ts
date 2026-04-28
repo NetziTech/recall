@@ -22,7 +22,7 @@ import type { StaticToolRegistry } from "../../modules/mcp-server/infrastructure
  */
 const TOOL_DESCRIPTIONS: Readonly<Record<string, string>> = Object.freeze({
   "mem.init":
-    "Initialise or rehydrate the workspace at the given path. Creates `.mcp-memoria/` when absent.",
+    "Initialise or rehydrate the workspace at the given path. Creates `.recall/` when absent.",
   "mem.context":
     "Assemble the seven-layer context bundle for the active session, optionally narrowed by a query.",
   "mem.recall":

@@ -20,7 +20,7 @@ import { WorkspaceInfrastructureError } from "../errors/workspace-infrastructure
  *
  * Connection lifecycle:
  *   - The adapter opens its OWN short-lived SQLite handle per upsert
- *     (resolves `<root>/.mcp-memoria/memoria.db`, runs the upsert,
+ *     (resolves `<root>/.recall/recall.db`, runs the upsert,
  *     closes). The workspace's `SqliteDatabaseBootstrap` already does
  *     the same dance for migrations so the pattern is familiar.
  *   - `loadVectorExtension: false` because this adapter does not
@@ -146,7 +146,7 @@ export class SqliteWorkspaceProjectionWriter
   }
 
   private static databasePath(rootPath: string): string {
-    return path.resolve(path.join(rootPath, ".mcp-memoria", "memoria.db"));
+    return path.resolve(path.join(rootPath, ".recall", "recall.db"));
   }
 
   private static modeKey(raw: string): "shared" | "encrypted" | "private" {

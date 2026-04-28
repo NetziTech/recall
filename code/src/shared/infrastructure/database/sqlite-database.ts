@@ -191,7 +191,7 @@ class SqliteStatement implements PreparedStatement {
  * Composition root example:
  * ```typescript
  * const db = await SqliteDatabase.open({
- *   path: path.join(workspaceRoot, ".mcp-memoria/memoria.db"),
+ *   path: path.join(workspaceRoot, ".recall/recall.db"),
  *   encryptionKey: derivedKey, // or undefined for shared/private modes
  *   logger,
  * });

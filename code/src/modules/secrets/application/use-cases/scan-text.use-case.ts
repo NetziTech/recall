@@ -10,7 +10,7 @@ import type { ScanText } from "../ports/in/scan-text.port.ts";
  * Today the use case is a thin pass-through over the `SecretsScanner`
  * driven port plus a logging hook. The split exists so the
  * application layer can grow concerns later (per-workspace pattern
- * overrides loaded from `.mcp-memoria/config.json`, telemetry of
+ * overrides loaded from `.recall/config.json`, telemetry of
  * scan latencies, in-process result caching) without rippling
  * through the input-port consumers.
  *

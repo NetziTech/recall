@@ -34,7 +34,7 @@ import { EncryptionConfigPersistenceError } from "../errors/encryption-config-pe
  * a copy is the kind of accidental coupling §1.5 explicitly
  * rejects).
  */
-const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
+const WORKSPACE_DIRECTORY_NAME = ".recall";
 const CONFIG_FILE_NAME = "config.json";
 
 /** Permission bits documented in `docs/11-seguridad-modos.md` §7. */
@@ -155,7 +155,7 @@ type RawConfig = Record<string, unknown>;
  * Filesystem-backed adapter for `EncryptionConfigRepository`.
  *
  * Reads and writes the encryption slice of
- * `<workspaceRoot>/.mcp-memoria/config.json` directly, using
+ * `<workspaceRoot>/.recall/config.json` directly, using
  * `node:fs/promises`. The adapter MUST NOT cross-import the
  * workspace module's `WorkspaceFilesystem` port: the encryption
  * module is independent and the only legitimate sharing channel is
@@ -204,7 +204,7 @@ export class JsonEncryptionConfigRepository
 
   /**
    * @param workspaceRoot Absolute path of the host project. The
-   *   adapter writes / reads `<workspaceRoot>/.mcp-memoria/config.json`.
+   *   adapter writes / reads `<workspaceRoot>/.recall/config.json`.
    *   Caller (composition root) MUST canonicalise the path before
    *   construction (the adapter still resolves defensively).
    * @param clock Used to set `updated_at_ms` when persisting after a

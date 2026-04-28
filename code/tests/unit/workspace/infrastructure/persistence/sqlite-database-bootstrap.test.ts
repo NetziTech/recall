@@ -27,7 +27,7 @@ interface Tmp {
 }
 
 async function tmp(): Promise<Tmp> {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-memoria-bootstrap-"));
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "recall-bootstrap-"));
   const migrationsDir = path.join(tmpDir, "migrations");
   await fs.mkdir(migrationsDir, { recursive: true });
   await fs.writeFile(
@@ -36,7 +36,7 @@ async function tmp(): Promise<Tmp> {
     "utf8",
   );
   // Workspace dir.
-  await fs.mkdir(path.join(tmpDir, ".mcp-memoria"), { recursive: true });
+  await fs.mkdir(path.join(tmpDir, ".recall"), { recursive: true });
   return {
     tmpDir,
     migrationsDir,
@@ -67,7 +67,7 @@ describe("SqliteDatabaseBootstrap", () => {
     });
     expect(r.schemaVersion).toBe(1);
     // Bootstrap closed the connection — file remains.
-    const stat = await fs.stat(path.join(ctx.tmpDir, ".mcp-memoria", "memoria.db"));
+    const stat = await fs.stat(path.join(ctx.tmpDir, ".recall", "recall.db"));
     expect(stat.isFile()).toBe(true);
   });
 
@@ -128,9 +128,9 @@ describe("SqliteDatabaseBootstrap", () => {
     // accept either a number or null. Verify both branches: empty
     // schema_migrations should yield schemaVersion = null because
     // MAX returns NULL.
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-memoria-empty-"));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "recall-empty-"));
     try {
-      await fs.mkdir(path.join(dir, ".mcp-memoria"), { recursive: true });
+      await fs.mkdir(path.join(dir, ".recall"), { recursive: true });
       const empty = path.join(dir, "no-migrations");
       await fs.mkdir(empty, { recursive: true });
       const adapter = new SqliteDatabaseBootstrap({

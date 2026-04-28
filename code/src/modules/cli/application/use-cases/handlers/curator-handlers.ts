@@ -13,7 +13,7 @@ import type {
 import { resolveRootPath } from "./root-path.ts";
 
 /**
- * Handler for `mcp-memoria curator-run [--dry-run]`.
+ * Handler for `recall curator-run [--dry-run]`.
  */
 export class CuratorRunCommandHandler implements CommandHandler<"curator-run"> {
   public readonly command = "curator-run" as const;
@@ -52,7 +52,7 @@ export class CuratorRunCommandHandler implements CommandHandler<"curator-run"> {
 }
 
 /**
- * Handler for `mcp-memoria curator-log [--last <n>]`.
+ * Handler for `recall curator-log [--last <n>]`.
  */
 export class CuratorLogCommandHandler implements CommandHandler<"curator-log"> {
   public readonly command = "curator-log" as const;

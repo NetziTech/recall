@@ -8,7 +8,7 @@ import type { WorkspaceId } from "../../../../../shared/domain/value-objects/wor
  *   - `unlocked: true` when the candidate passphrase derived a master
  *     key that correctly opened the validator blob. The encryption
  *     adapter has cached the resulting key under
- *     `~/.config/mcp-memoria/keys/<workspace_id>.key` (per
+ *     `~/.config/recall/keys/<workspace_id>.key` (per
  *     `docs/11-seguridad-modos.md` §3) so subsequent server starts
  *     can transparently re-open the database.
  *   - `unlocked: false` with `reason: "key-validation-failed"` when
@@ -38,9 +38,9 @@ export interface UnlockEncryptionFacade {
     readonly workspaceId: WorkspaceId;
     /**
      * `null` instructs the facade to attempt to read the cached
-     * passphrase / key from `~/.config/mcp-memoria/keys/...`. A
+     * passphrase / key from `~/.config/recall/keys/...`. A
      * non-null value is the operator-typed passphrase from
-     * `mcp-memoria unlock --workspace`.
+     * `recall unlock --workspace`.
      */
     readonly passphrase: string | null;
   }): Promise<UnlockEncryptionFacadeOutcome>;

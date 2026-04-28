@@ -69,7 +69,7 @@ describe("WorkspacePath.create", () => {
 describe("WorkspacePath.join", () => {
   it("joins POSIX paths with /", () => {
     const root = WorkspacePath.create("/home/foo");
-    expect(root.join(".mcp-memoria").toString()).toBe("/home/foo/.mcp-memoria");
+    expect(root.join(".recall").toString()).toBe("/home/foo/.recall");
   });
 
   it("joins Windows paths with \\", () => {

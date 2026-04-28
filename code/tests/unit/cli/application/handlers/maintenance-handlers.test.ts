@@ -107,7 +107,7 @@ describe("WipeCommandHandler", () => {
     });
     expect(facade.lastInput?.confirmed).toBe(true);
     expect(out.exitCode.isSuccess()).toBe(true);
-    expect(out.stdout).toContain("/tmp/.mcp-memoria");
+    expect(out.stdout).toContain("/tmp/.recall");
   });
 
   it("--confirm bypasses prompt", async () => {

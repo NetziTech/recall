@@ -45,7 +45,7 @@ const ALLOWED_TRANSITIONS: Readonly<Record<string, readonly string[]>> =
  * Aggregate root for the `workspace` bounded context.
  *
  * A `Workspace` is the in-memory projection of one
- * `.mcp-memoria/config.json` (plus the runtime-only `unlocked` flag for
+ * `.recall/config.json` (plus the runtime-only `unlocked` flag for
  * encrypted modes). It owns:
  *
  * - The workspace identity (`WorkspaceId`).
@@ -98,7 +98,7 @@ export class Workspace {
   /**
    * Brings a brand-new `Workspace` into existence. Use this exactly
    * once per workspace, when the application layer has decided the
-   * `.mcp-memoria/` directory does NOT exist yet on disk.
+   * `.recall/` directory does NOT exist yet on disk.
    *
    * Emits `WorkspaceInitialized`. The aggregate starts locked (in the
    * sense that `unlocked === false`); for `encrypted` mode the very

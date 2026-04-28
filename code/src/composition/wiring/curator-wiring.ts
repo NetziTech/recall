@@ -10,7 +10,7 @@
  *
  * The `Vec0SimilarityFinder` adapter receives the SAME database
  * connection as the rest of the wiring; the workspace MVP keeps
- * `memoria.db` and `vectors.db` in the same SQLite file (per
+ * `recall.db` and `vectors.db` in the same SQLite file (per
  * `docs/03 §1`), so a single `DatabaseConnection` covers both.
  */
 
@@ -57,7 +57,7 @@ export interface CuratorWiringOptions {
   readonly database: DatabaseConnection;
   /**
    * Canonical absolute root of the workspace (the directory holding
-   * `.mcp-memoria/`). The filesystem checker resolves stale paths
+   * `.recall/`). The filesystem checker resolves stale paths
    * relative to this root.
    */
   readonly workspaceRoot: string;

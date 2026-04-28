@@ -7,7 +7,7 @@ import type { CountTokens } from "../ports/in/count-tokens.port.ts";
  *
  * Thin pass-through over the domain `TokenCounter` adapter. The split
  * exists so the application layer can grow concerns later (per-
- * workspace encoding overrides loaded from `.mcp-memoria/config.json`,
+ * workspace encoding overrides loaded from `.recall/config.json`,
  * caching of the most-recent N counts) without rippling through the
  * input-port consumers.
  *

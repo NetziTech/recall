@@ -15,7 +15,7 @@
 | Item | Estado |
 |---|---|
 | **Fecha del handoff** | 2026-04-28 (Fase 6 RELEASE — MVP v0.1.0 publicado, ver §6.10) |
-| **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.mcp-memoria/`), con 3 modos: compartido / encriptado / privado |
+| **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
 | **Fase actual** | **MVP v0.1.0 PUBLICADO Y VALIDADO.** Workflow multi-agente CERRADO (Fases 0-6). Paquete vivo en npm + GitHub release + smoke test E2E confirmado. Proxima fase: **mantenimiento + roadmap v0.1.1 / v0.5+** (ver §8). |
 | **Lineas de codigo** | ~58,400 en `code/src/` + ~33,000 LOC de tests en 199 archivos test. 8 modulos + shared + composition + bootstrap. |
 | **Migraciones** | **8** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope). |
@@ -28,9 +28,9 @@
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@2.x` → `tar@6.x` (path-traversal en extraccion de tarball; vector real bajo). Documentadas en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. Plan de fix en v0.1.1. SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo (escanea source, no deps transitivas). |
-| **Paquete npm** | `@netzi/mcp-memoria` (scope publico). `publishConfig.access=public`. Bins `mcp-memoria` y `mcp-memoria-server`. |
+| **Paquete npm** | `@netzi/recall` (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/mcp-memoria@0.1.0` en npm (https://www.npmjs.com/package/@netzi/mcp-memoria). GitHub release publicado (https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/mcp-memoria@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
+| **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/recall@0.1.0` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release publicado (https://github.com/NetziTech/recall/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/recall@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
 | **Proximo paso** | v0.1.1: cerrar 2 highs upstream tar/fastembed + B-008 (`mem.task.get/delete`) + B-009 (`uninstall-hook`). Detalles en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. |
 
 ---
@@ -39,7 +39,7 @@
 
 Servidor MCP (Model Context Protocol) que da a Claude Code memoria
 persistente, selectiva y auto-curada **por proyecto**, con la memoria
-viviendo **dentro del propio proyecto** (`<proyecto>/.mcp-memoria/`),
+viviendo **dentro del propio proyecto** (`<proyecto>/.recall/`),
 no en HOME del usuario.
 
 Diferenciador clave vs Mem0, OpenMemory, LangMem y otros:
@@ -236,7 +236,7 @@ Detalle en [`docs/12-lineamientos-arquitectura.md`](./docs/12-lineamientos-arqui
 
 | Item | Valor |
 |---|---|
-| Proyecto | `mcp-memoria-inteligente` (UUID `766e9612-d2b0-489a-ba63-ee68214c8b5c`) |
+| Proyecto | `recall` (UUID `766e9612-d2b0-489a-ba63-ee68214c8b5c`) |
 | Visibility | `public` (intencional segun decision del usuario) |
 | Quality Gate | `MCP Memoria Strict` (caycStatus: over-compliant) |
 | Asociacion | gate → proyecto: ✓ |
@@ -618,7 +618,7 @@ Sintesis:
 |---|---|---|---|
 | **Perf curator (>10K scale)** | W-3.4-PERF-H1 (applyDecay sin batch), H2 (PruneLowConfidence sin batch transaction), H3 (Vec0SimilarityFinder 1+1 lookup) | high | scale-only, MVP no afectado |
 | **Perf retrieval/curator (db.prepare cache)** | W-3.3-PERF-M1, W-3.3-PERF-M2 (bumpUsage), W-3.4-PERF-M1, W-3.4-PERF-M2 | medium | optimizacion estandar SQLite |
-| **Security workspace hardening** | W-3.5-SEC-M1 (atomic write+rename en ensureGitignore), W-3.5-SEC-M2 (chmod 0o600 sobre memoria.db), W-3.5-SEC-L1 (redact err.message), W-3.5-SEC-L2 (constant-time compare path) | medium | hardening defensivo, modos privacy NO rotos |
+| **Security workspace hardening** | W-3.5-SEC-M1 (atomic write+rename en ensureGitignore), W-3.5-SEC-M2 (chmod 0o600 sobre recall.db), W-3.5-SEC-L1 (redact err.message), W-3.5-SEC-L2 (constant-time compare path) | medium | hardening defensivo, modos privacy NO rotos |
 | **Security mcp-server (buffer cap)** | W-3.1-SEC-M1 (StdioJsonRpcServer.buffer sin cap, DoS escenario adversarial) | medium | MVP single-user CLI no expone vector |
 | **Cosmetic encryption/secrets** | W-CA-1 (dir vacio), W-CA-2/3 (split puerto+helpers), W-SOLID-1/2/3 (isStatus muerto, void absoluteHookPath, throw new Error generico), W-DDD-1/2 (eventName ratificado) | minor/cosmetic | refactors locales |
 | **DDD soft notes (cierran en Fase 4 composition)** | W-3.3-DDD-1 (WorkspaceDisplayName placeholder), W-3.3-DDD-2 (EventBus pendiente), W-3.4-DDD-3 (tasks schema nullable; resuelto en 3.5), W-3.4-DDD-1/2/4 (placeholders MVP) | info | wiring composition root cierra varios |
@@ -872,7 +872,7 @@ descubiertos durante 5.x todos arreglados.**
 2. **PendingRekeyFacade** — multi-key envelope flow (v0.5 roadmap).
 3. **PendingAddKeyFacade** — multi-key envelope flow (v0.5 roadmap).
 4. **UninstallPreCommitHook** — gap secrets module (B-009; workaround: `rm .git/hooks/pre-commit`).
-5. **ServerFacade** — sub-process delegation a `mcp-memoria-server` binario dedicado (decision arquitectonica del mcp-server module).
+5. **ServerFacade** — sub-process delegation a `recall-server` binario dedicado (decision arquitectonica del mcp-server module).
 
 Cada stub tiene JSDoc forward-compat + error tipado
 `McpFacadeNotImplementedError` con error code estable.
@@ -912,16 +912,16 @@ phase-5-task-6-architect-final-review.md         (APPROVED CON OBSERVACIONES)
 ## 6.10 Fase 6 — Release MVP v0.1.0
 
 **Cierre:** 2026-04-28 (sesion de release). Tag y branch pusheados al
-remoto `git@github.com:NetziTech/mcp-memoria-inteligente.git`. GitHub
+remoto `git@github.com:NetziTech/recall.git`. GitHub
 release publicado. **`npm publish` ejecutado y validado** —
-`@netzi/mcp-memoria@0.1.0` disponible en
-https://registry.npmjs.org/@netzi/mcp-memoria.
+`@netzi/recall@0.1.0` disponible en
+https://registry.npmjs.org/@netzi/recall.
 
 ### Hallazgos al inicio de la sesion
 
 1. **Tag `v0.1.0` ya existia en remoto** apuntando a un commit
    pre-release con `package.json.version = "0.1.0-alpha.0"`,
-   `name = "mcp-memoria"` (sin scope), `private: true`, y `uuid@^11`
+   `name = "recall"` (sin scope), `private: true`, y `uuid@^11`
    (vulnerable). Sin GitHub release publicado. Tag fantasma creado
    prematuramente, autorizado por el usuario para reescritura
    (decision A+C: borrar local + remoto, re-tagear).
@@ -940,9 +940,9 @@ https://registry.npmjs.org/@netzi/mcp-memoria.
 | 1 | `git tag -d v0.1.0` + `git push origin :refs/tags/v0.1.0` | tag fantasma eliminado |
 | 2 | `uuid` bumpeado a `^14.0.0` en `code/package.json` | 1 vuln cerrada, sin regresiones (199/199 archivos test verde) |
 | 3 | Override `tar@^7.5.11` aplicado y revertido | rompe `import tar from "tar"` en `fastembed@2.x`. Las 2 highs quedan como **known upstream issue** (decision B1). |
-| 4 | `code/package.json` reescrito | `name=@netzi/mcp-memoria`, `version=0.1.0`, `license=MIT`, `publishConfig.access=public`, `repository.url=git+https://github.com/NetziTech/mcp-memoria-inteligente.git`, `directory=code`, `keywords`, `homepage`, `bugs`, `prepublishOnly` script. `private:true` removido. |
+| 4 | `code/package.json` reescrito | `name=@netzi/recall`, `version=0.1.0`, `license=MIT`, `publishConfig.access=public`, `repository.url=git+https://github.com/NetziTech/recall.git`, `directory=code`, `keywords`, `homepage`, `bugs`, `prepublishOnly` script. `private:true` removido. |
 | 5 | `code/LICENSE` creado | MIT, Copyright (c) 2026 Netzi Tech |
-| 6 | `code/README.md` reescrito | install via `npm i -g @netzi/mcp-memoria`, quick start, modos, known issues (CVEs upstream), dev setup |
+| 6 | `code/README.md` reescrito | install via `npm i -g @netzi/recall`, quick start, modos, known issues (CVEs upstream), dev setup |
 | 7 | `docs/RELEASE-NOTES-v0.1.0.md` creado | engineering metrics, CVEs upstream con CVSS y mitigacion, stubs deferidos, SLO note |
 | 8 | HANDOFF.md actualizado | §0 + §6.10 (esta seccion) |
 | 9 | Sanity check final | `npm run typecheck + lint + validate:modules + build + test` → EXIT=0 en los 5 |
@@ -954,7 +954,7 @@ https://registry.npmjs.org/@netzi/mcp-memoria.
 | 15 | Re-tag v0.1.0 (segunda vez) | `gh release delete v0.1.0` + `git push origin :refs/tags/v0.1.0` + commit fix `7da553a` + FF main + re-tag + push tag + `gh release create v0.1.0`. Decision A autorizada. |
 | 16 | `npm publish --dry-run` (2da) | sin warnings, 15 archivos en tarball, 1.4 MB packed. |
 | 17 | `npm publish` real | EJECUTADO por el usuario via WebAuthn passkey flow (`auth-type=web`). PUT 200, exit 0. |
-| 18 | Smoke test E2E | `npx --yes @netzi/mcp-memoria@0.1.0 --help` desde `/tmp/npx-smoke` limpio: descarga, instala deps (10), ejecuta CLI con help completo. EXIT=0. |
+| 18 | Smoke test E2E | `npx --yes @netzi/recall@0.1.0 --help` desde `/tmp/npx-smoke` limpio: descarga, instala deps (10), ejecuta CLI con help completo. EXIT=0. |
 | 19 | Validacion final | API registry 200, tarball descargable 200, GitHub release published not-draft, tag→main coherente. UI web `npmjs.com/package/...` retorna 403 cosmetico (indexing pipeline tarda ~horas; instalacion ya funciona). |
 
 ### Decisiones del orquestador (D-601..D-606)
@@ -967,7 +967,7 @@ https://registry.npmjs.org/@netzi/mcp-memoria.
 3. **D-603** `tar` override **NO aplicado** porque rompe `fastembed@2.x`.
    2 highs upstream documentadas como known issue con vector real bajo
    (modelo HuggingFace adversarial). Plan de fix en v0.1.1.
-4. **D-604** Empaquetado via npm registry bajo scope `@netzi/mcp-memoria`
+4. **D-604** Empaquetado via npm registry bajo scope `@netzi/recall`
    (decision C1). NO se intentaron binarios standalone (SEA, pkg) por
    complicacion con `better-sqlite3-multiple-ciphers` y
    `sqlite-vec` native bindings.
@@ -1025,8 +1025,8 @@ claude
 ### Si es otro dev humano
 
 ```bash
-git clone git@github.com:NetziTech/mcp-memoria-inteligente.git
-cd mcp-memoria-inteligente
+git clone git@github.com:NetziTech/recall.git
+cd recall
 git checkout v0.1.0          # release inicial publico
 cat HANDOFF.md               # §0 + §6.5..§6.10 (historial fases 1-6)
 cat .claude/workflow-state.json   # estado: phase-6-release done
@@ -1043,9 +1043,9 @@ cd code && npm install && npm run typecheck && npm run lint && \
 - **Commit del release**: `7da553a` — `fix(release): drop leading ./ from package.json bin paths` (commit final tras dos rondas de re-tag por temas de coherencia release engineering — ver §6.10).
 - **Tag**: `v0.1.0` annotated apuntando a `7da553a`.
 - **Branch principal**: `main` (sincronizado con `origin/main`).
-- **Remoto**: `git@github.com:NetziTech/mcp-memoria-inteligente.git`.
-- **Paquete npm**: https://registry.npmjs.org/@netzi/mcp-memoria → `@netzi/mcp-memoria@0.1.0` (publicado por `h2devx`, owner de org `netzi`, via WebAuthn passkey).
-- **GitHub release**: https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0 (notes desde `docs/RELEASE-NOTES-v0.1.0.md`).
+- **Remoto**: `git@github.com:NetziTech/recall.git`.
+- **Paquete npm**: https://registry.npmjs.org/@netzi/recall → `@netzi/recall@0.1.0` (publicado por `h2devx`, owner de org `netzi`, via WebAuthn passkey).
+- **GitHub release**: https://github.com/NetziTech/recall/releases/tag/v0.1.0 (notes desde `docs/RELEASE-NOTES-v0.1.0.md`).
 - **Archivos tracked**: ~700 (8 docs, 13 agents, 71 validations, 8 migrations, ~570 .ts source, ~210 tests, configs, LICENSE).
 - **`.gitignore`** (raiz): excluye `.DS_Store`, IDE files, secrets locales, **`.claude/worktrees/`** (auto-worktree del harness — el usuario quiere trabajar siempre en el repo principal, NO en worktrees).
 - **`code/.gitignore`**: excluye `node_modules/`, `dist/`, `coverage/`, etc.
@@ -1053,7 +1053,7 @@ cd code && npm install && npm run typecheck && npm run lint && \
 ### Smoke test del release (cualquier maquina con Node 20+)
 
 ```bash
-npx --yes @netzi/mcp-memoria@0.1.0 --help
+npx --yes @netzi/recall@0.1.0 --help
 # Esperado: imprime el help completo del CLI con sus 20 comandos.
 ```
 
@@ -1069,7 +1069,7 @@ npx --yes @netzi/mcp-memoria@0.1.0 --help
    PruneLowConfidence transaction, Vec0SimilarityFinder lookup,
    db.prepare cache hot-path (W-3.4-PERF-H1/H2/H3, W-3.3-PERF-M1/M2).
 5. **Hardening defensivo**: atomic gitignore write+rename, chmod
-   0o600 sobre `memoria.db`, redact path en err.message,
+   0o600 sobre `recall.db`, redact path en err.message,
    StdioJsonRpcServer buffer cap (anti-DoS), `UninstallPreCommitHook`
    (B-009).
 
@@ -1130,7 +1130,7 @@ review. Resumen:
 | ID | Severidad | Archivo | Nota |
 |---|---|---|---|
 | W-3.5-SEC-M1 | medium | `workspace/infrastructure/filesystem/node-workspace-filesystem.ts:255,276` | `ensureGitignore` no usa write-temp+rename atomico. Hardening modo private. |
-| W-3.5-SEC-M2 | medium | `shared/infrastructure/database/sqlite-database-bootstrap.ts:70-93` | `SqliteDatabaseBootstrap` no aplica chmod 0o600 explicito sobre `memoria.db`. Defense in depth (directorio ya en 0o700). |
+| W-3.5-SEC-M2 | medium | `shared/infrastructure/database/sqlite-database-bootstrap.ts:70-93` | `SqliteDatabaseBootstrap` no aplica chmod 0o600 explicito sobre `recall.db`. Defense in depth (directorio ya en 0o700). |
 | W-3.5-SEC-L1 | low | `shared/infrastructure/database/sqlite-database-bootstrap.ts` (probe) | Redact `err.message` en logger.error del probe. |
 | W-3.5-SEC-L2 | low | `workspace/infrastructure/filesystem/node-workspace-filesystem.ts` (passphrase compare path) | Constant-time compare en path workspace (encryption/domain ya lo aplica al final). |
 
@@ -1185,7 +1185,7 @@ Documentadas en `.claude/workflow-state.json` →
 - **Hybrid search** — combinacion de busqueda lexical (BM25 via FTS5) y
   semantica (cosine via sqlite-vec).
 - **`workspace_id`** — UUID v7 estable que identifica un proyecto, vive
-  en `<proyecto>/.mcp-memoria/config.json`, no se deriva del path.
+  en `<proyecto>/.recall/config.json`, no se deriva del path.
 - **Modos** — `shared` (default, todo en git plano) / `encrypted` (en git
   cifrado con SQLCipher) / `private` (en `.gitignore`).
 - **Quality gate** — conjunto de condiciones que SonarQube valida; si
@@ -1197,10 +1197,10 @@ Documentadas en `.claude/workflow-state.json` →
 ## 11. Cierre
 
 Estado: **MVP v0.1.0 PUBLICADO. Fases 0-6 CERRADAS.** El paquete vive
-en npm (https://www.npmjs.com/package/@netzi/mcp-memoria) y en
-GitHub (https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0).
+en npm (https://www.npmjs.com/package/@netzi/recall) y en
+GitHub (https://github.com/NetziTech/recall/releases/tag/v0.1.0).
 Smoke test E2E desde directorio limpio confirmado: `npx --yes
-@netzi/mcp-memoria@0.1.0 --help` ejecuta el CLI con todos los
+@netzi/recall@0.1.0 --help` ejecuta el CLI con todos los
 comandos. Tag `v0.1.0` → `7da553a` (= `main` HEAD).
 
 **Resumen del workflow completo (Fases 0-6):**

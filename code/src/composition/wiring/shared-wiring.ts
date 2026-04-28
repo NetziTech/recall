@@ -65,7 +65,7 @@ export interface SharedAdaptersOptions {
   readonly logger: PinoLoggerOptions;
   /**
    * fastembed-specific knobs. Defaults to
-   * `~/.cache/mcp-memoria/models/` per `docs/03 §1` and the
+   * `~/.cache/recall/models/` per `docs/03 §1` and the
    * BGESmallENV15 model.
    */
   readonly embedder?: FastembedEmbedderOptions | undefined;
@@ -79,7 +79,7 @@ export interface SharedAdaptersOptions {
  * - `clock`          → `SystemClock` (Date.now-backed).
  * - `idGenerator`    → `UuidV7IdGenerator` (uuid v7, time-ordered).
  * - `embedder`       → `FastembedEmbedder` lazy-loaded from
- *                      `~/.cache/mcp-memoria/models/` by default.
+ *                      `~/.cache/recall/models/` by default.
  * - `retrievalEmbedder`
  *                    → `RawEmbedderAdapter` wrapping the same
  *                      backend so the retrieval use cases can speak
@@ -91,7 +91,7 @@ export function buildSharedAdapters(options: SharedAdaptersOptions): SharedAdapt
   const idGenerator = new UuidV7IdGenerator();
 
   const embedderOpts: FastembedEmbedderOptions = options.embedder ?? {
-    cacheDir: path.join(os.homedir(), ".cache", "mcp-memoria", "models"),
+    cacheDir: path.join(os.homedir(), ".cache", "recall", "models"),
   };
   const fastembed = new FastembedEmbedder(embedderOpts);
   const retrievalEmbedder = new RawEmbedderAdapter(fastembed);

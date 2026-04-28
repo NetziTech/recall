@@ -2,17 +2,17 @@
  * Driven (output) facade ports for the maintenance commands of the
  * CLI catalog (`docs/07-instalacion.md` §7):
  *
- *   - `mcp-memoria import-handoff` — bootstrap memory from a legacy
+ *   - `recall import-handoff` — bootstrap memory from a legacy
  *     `HANDOFF.md` file (`docs/07-instalacion.md` §10).
- *   - `mcp-memoria export`         — JSON dump of every persisted
+ *   - `recall export`         — JSON dump of every persisted
  *     aggregate.
- *   - `mcp-memoria import`         — counterpart of `export`, applies
+ *   - `recall import`         — counterpart of `export`, applies
  *     a JSON dump.
- *   - `mcp-memoria wipe`           — remove `.mcp-memoria/` from disk
+ *   - `recall wipe`           — remove `.recall/` from disk
  *     after explicit confirmation.
- *   - `mcp-memoria stats`          — counts by kind, embedding-queue
+ *   - `recall stats`          — counts by kind, embedding-queue
  *     depth, last-curator info, total bytes on disk.
- *   - `mcp-memoria server`         — entry-point for the MCP server
+ *   - `recall server`         — entry-point for the MCP server
  *     stdin/stdout transport.
  *
  * These facades sit at the boundary between the CLI module and the

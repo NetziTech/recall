@@ -78,7 +78,7 @@ Validados por 6 agentes auditores en ciclo. SonarQube quality gate con
 
 ## Idea en 30 segundos
 
-Cada proyecto guarda su memoria en `<proyecto>/.mcp-memoria/`. La memoria
+Cada proyecto guarda su memoria en `<proyecto>/.recall/`. La memoria
 viaja con el codigo cuando lo clonas. Tres modos:
 
 | Modo | Que ocurre |

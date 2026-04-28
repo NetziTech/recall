@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Setup idempotente de SonarQube para mcp-memoria-inteligente.
+# Setup idempotente de SonarQube para recall.
 #
 # Estrategia:
 #   1. Valida token + conectividad.
@@ -25,7 +25,7 @@ set -uo pipefail
 # Configuracion
 # ============================================================================
 
-PROJECT_KEY="mcp-memoria-inteligente"
+PROJECT_KEY="recall"
 PROJECT_NAME="MCP Memoria Inteligente"
 PROJECT_BRANCH="main"
 GATE_NAME="MCP Memoria Strict"

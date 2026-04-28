@@ -13,7 +13,7 @@ import type { CommandExecution } from "../value-objects/command-execution.ts";
  *
  * Invariants:
  * - `workspaceId` identifies which workspace's history grew. Even if
- *   the CLI is invoked outside any workspace (e.g. `mcp-memoria` with
+ *   the CLI is invoked outside any workspace (e.g. `recall` with
  *   no `--workspace`), the application layer is expected to attach a
  *   workspace id before recording — typically the auto-detected one
  *   from the current working directory.

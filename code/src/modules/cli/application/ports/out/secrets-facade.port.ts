@@ -2,14 +2,14 @@
  * Driven (output) facade ports toward the secrets module's CLI-facing
  * use cases:
  *
- *   - `mcp-memoria audit`         — run the audit pass over the
+ *   - `recall audit`         — run the audit pass over the
  *     workspace's persisted entries, returning a structured report.
- *   - `mcp-memoria sanitize`      — request after-the-fact
+ *   - `recall sanitize`      — request after-the-fact
  *     redaction of one entry (`docs/11-seguridad-modos.md` §6.6
  *     "Sanitizacion post-hoc").
- *   - `mcp-memoria install-hook`  — install the optional pre-commit
+ *   - `recall install-hook`  — install the optional pre-commit
  *     git hook (`docs/11-seguridad-modos.md` §6.4).
- *   - `mcp-memoria uninstall-hook` — remove the installed hook.
+ *   - `recall uninstall-hook` — remove the installed hook.
  */
 
 export interface AuditFacadeInput {

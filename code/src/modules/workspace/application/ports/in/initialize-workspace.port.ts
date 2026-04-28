@@ -5,16 +5,16 @@ import type { WorkspaceMode } from "../../../domain/value-objects/workspace-mode
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for the `mcp-memoria init` flow documented in
+ * Driving (input) port for the `recall init` flow documented in
  * `docs/07-instalacion.md` §7 ("Inicializacion / modos") and
  * `docs/11-seguridad-modos.md` §§2-4 (per-mode bootstrap).
  *
- * Wires the side effects required to bring a fresh `.mcp-memoria/`
+ * Wires the side effects required to bring a fresh `.recall/`
  * directory into existence on disk:
  *
  *   1. Validate that no workspace already lives at `rootPath` (or that
  *      one does and the call is idempotent — see contract below).
- *   2. Create the `.mcp-memoria/` directory tree.
+ *   2. Create the `.recall/` directory tree.
  *   3. For `encrypted` mode, delegate to the
  *      `InitializeEncryptionFacade` output port to mint the master
  *      key + first envelope and persist them into the encryption

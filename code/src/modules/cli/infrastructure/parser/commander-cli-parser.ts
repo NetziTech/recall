@@ -33,7 +33,7 @@ import type { CliInvocation } from "../../application/dtos/cli-invocation.dto.ts
 export class CommanderCliParser {
   public parse(argv: readonly string[]): CliInvocation {
     const program = new Command()
-      .name("mcp-memoria")
+      .name("recall")
       .description(
         "MCP server for project-scoped, self-curated memory with hybrid search.",
       )
@@ -71,7 +71,7 @@ export class CommanderCliParser {
 
     program
       .command("init")
-      .description("initialise a workspace under <path>/.mcp-memoria/")
+      .description("initialise a workspace under <path>/.recall/")
       .option("--mode <mode>", "shared|encrypted|private")
       .option("--display-name <name>", "human-readable workspace name")
       .action((_opts: unknown, cmd: Command) => {
@@ -240,7 +240,7 @@ export class CommanderCliParser {
 
     program
       .command("wipe")
-      .description("remove .mcp-memoria/ from the host project")
+      .description("remove .recall/ from the host project")
       .option("--confirm", "skip the interactive WIPE confirmation", false)
       .action((_opts: unknown, cmd: Command) => {
         const opts = cmd.opts<{ confirm?: boolean }>();

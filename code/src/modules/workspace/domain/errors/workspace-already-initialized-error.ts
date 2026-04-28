@@ -6,7 +6,7 @@ import { WorkspaceDomainError } from "./workspace-domain-error.ts";
  * already hosts a workspace.
  *
  * Per `docs/11-seguridad-modos.md` §§2-4 and `docs/01-arquitectura.md`
- * §2.2, the runtime auto-detects an existing `.mcp-memoria/` and reuses
+ * §2.2, the runtime auto-detects an existing `.recall/` and reuses
  * its `workspace_id`. Explicit re-initialization is therefore an error:
  * the user almost certainly wants to either (a) rehydrate the existing
  * workspace or (b) delete the directory first.

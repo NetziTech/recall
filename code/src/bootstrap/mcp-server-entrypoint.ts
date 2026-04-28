@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Entrypoint for the `mcp-memoria-server` binary. Listens on stdio
+ * Entrypoint for the `recall-server` binary. Listens on stdio
  * for line-delimited JSON-RPC frames and dispatches to the wired
  * MCP tool use cases.
  *
@@ -62,7 +62,7 @@ async function main(): Promise<number> {
       workspaceRoot: process.cwd(),
       protocolVersion: "2024-11-05",
     },
-    "mcp-memoria-server starting; waiting for stdio frames",
+    "recall-server starting; waiting for stdio frames",
   );
 
   try {
@@ -85,7 +85,7 @@ main()
   })
   .catch((err: unknown) => {
     process.stderr.write(
-      `mcp-memoria-server: fatal: ${err instanceof Error ? err.message : String(err)}\n`,
+      `recall-server: fatal: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   });

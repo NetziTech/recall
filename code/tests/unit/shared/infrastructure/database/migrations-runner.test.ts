@@ -34,7 +34,7 @@ interface Ctx {
 }
 
 async function makeCtx(): Promise<Ctx> {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-memoria-migrations-"));
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "recall-migrations-"));
   const migrationsDir = path.join(tmpDir, "migrations");
   await fs.mkdir(migrationsDir, { recursive: true });
   return {
@@ -235,7 +235,7 @@ describe("MigrationsRunner.run", () => {
     const db = await newDb();
     try {
       await expect(
-        runner.run(db, "/this-path-does-not-exist-mcp-memoria-test"),
+        runner.run(db, "/this-path-does-not-exist-recall-test"),
       ).rejects.toMatchObject({
         code: "database.migration-directory-invalid",
       });
@@ -333,7 +333,7 @@ describe("MigrationsRunner.run", () => {
     if (stats === null || !stats.isDirectory()) return;
     // Stage just the bootstrap migration into a fresh tmp dir.
     const isolated = await fs.mkdtemp(
-      path.join(os.tmpdir(), "mcp-memoria-bootstrap-only-"),
+      path.join(os.tmpdir(), "recall-bootstrap-only-"),
     );
     try {
       const src = path.join(projectMigrations, "000__bootstrap.sql");

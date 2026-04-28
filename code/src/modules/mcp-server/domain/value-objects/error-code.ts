@@ -30,7 +30,7 @@ const STANDARD_PROTOCOL_ERROR_MIN = -32700;
 const STANDARD_PROTOCOL_ERROR_MAX = -32600;
 
 /**
- * Whitelist of MCP-Memoria custom codes documented in
+ * Whitelist of Recall custom codes documented in
  * `docs/02-protocolo-mcp.md` §6 (-32100..-32109). The set is built
  * once from the shared `JsonRpcErrorCodes` catalog so the two stay in
  * sync automatically: the day a new code is added to the catalog, the
@@ -48,7 +48,7 @@ const CUSTOM_CODES: ReadonlySet<number> = new Set<number>(
  *    range. The accepted ranges are:
  *      - Standard JSON-RPC pre-defined errors: -32700..-32600.
  *      - Standard JSON-RPC server-error block: -32099..-32000.
- *      - MCP-Memoria custom codes: every value present in
+ *      - Recall custom codes: every value present in
  *        `JsonRpcErrorCodes` (currently -32100..-32109, see
  *        `docs/02-protocolo-mcp.md` §6).
  * 2. **Type-safety**: `JsonRpcErrorCode` (the wrapper) is not
@@ -114,7 +114,7 @@ export class JsonRpcErrorCode {
   }
 
   /**
-   * True iff this code belongs to the MCP-Memoria custom range
+   * True iff this code belongs to the Recall custom range
    * (`docs/02-protocolo-mcp.md` §6).
    */
   public isCustom(): boolean {

@@ -10,7 +10,7 @@ import { DomainError } from "../../../../shared/domain/errors/domain-error.ts";
  * exist (unknown command, malformed args, out-of-range exit code) all
  * share two properties:
  *
- *   1. They surface only inside `mcp-memoria <command>` invocations from a
+ *   1. They surface only inside `recall <command>` invocations from a
  *      human terminal, never inside an MCP JSON-RPC request handler.
  *   2. They are translated by the infrastructure layer into a process
  *      exit (`process.exit(code)`) plus a Spanish-language message on

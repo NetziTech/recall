@@ -44,7 +44,7 @@ const MAX_ATTEMPTS = 5;
  * `embedding_metadata.model_name`. The retrieval embedder port does
  * not expose the model name, so the worker takes it as an injected
  * constant the composition root provides (it reads
- * `.mcp-memoria/config.json:embedder.model`). Default kept here as a
+ * `.recall/config.json:embedder.model`). Default kept here as a
  * safety net.
  */
 const DEFAULT_EMBEDDER_MODEL_NAME = "fastembed/BGE-Small-EN-1.5";

@@ -21,7 +21,7 @@ password al primer login.
 2. **Quality Gates → Create:** nombre `MCP Memoria Strict` con las
    thresholds documentadas en `sonar-project.properties`.
 3. **Projects → Create Project → Manually:**
-   - Project key: `mcp-memoria-inteligente`
+   - Project key: `recall`
    - Display name: `MCP Memoria Inteligente`
 4. En el proyecto creado, **Project Settings → Quality Gate** → asignar
    `MCP Memoria Strict`.
@@ -43,7 +43,7 @@ npm run test:coverage           # genera coverage/lcov.info
 npx sonar-scanner               # lee sonar-project.properties y sube
 ```
 
-Resultado en <http://localhost:9000/dashboard?id=mcp-memoria-inteligente>.
+Resultado en <http://localhost:9000/dashboard?id=recall>.
 
 ## 5. Quality gate FAILED
 

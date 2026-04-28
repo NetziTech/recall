@@ -10,16 +10,16 @@ import { WorkspacePath } from "../../domain/value-objects/workspace-path.ts";
 import { WorkspaceInfrastructureError } from "../errors/workspace-infrastructure-error.ts";
 
 /**
- * Sub-directory whose presence indicates a `.mcp-memoria/` workspace.
+ * Sub-directory whose presence indicates a `.recall/` workspace.
  * The detector treats any directory that contains it as a positive
  * hit, even when sibling project markers (`.git/`, `package.json`)
  * are missing.
  */
-const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
+const WORKSPACE_DIRECTORY_NAME = ".recall";
 
 /**
  * Project markers that bound the upward walk. The detector stops
- * when one of these is found WITHOUT a sibling `.mcp-memoria/`: if
+ * when one of these is found WITHOUT a sibling `.recall/`: if
  * we have crossed a project root and there is still no workspace,
  * the user is outside any initialised tree.
  *
@@ -39,7 +39,7 @@ const PROJECT_ROOT_MARKERS: readonly string[] = [
  * Implements `WorkspaceDetector` by walking the filesystem upwards
  * from `rootPath` until either:
  *
- *   - a directory containing `.mcp-memoria/config.json` is found
+ *   - a directory containing `.recall/config.json` is found
  *     (success: returns its path);
  *   - a project-root marker is found WITHOUT a workspace directory
  *     (failure: stops, returns "not found");
@@ -97,7 +97,7 @@ export class MarkerBasedWorkspaceDetector implements WorkspaceDetector {
 
   /**
    * Returns the canonical workspace root (the directory that owns
-   * the `.mcp-memoria/` sub-directory) when `dir` contains a valid
+   * the `.recall/` sub-directory) when `dir` contains a valid
    * workspace, `null` otherwise. The valid workspace check is
    * "directory exists and contains a regular `config.json` file" —
    * shape validation is the filesystem adapter's job.

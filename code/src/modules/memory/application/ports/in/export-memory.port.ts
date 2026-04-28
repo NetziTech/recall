@@ -33,7 +33,7 @@ export interface ExportMemoryResult {
  * Driving (input) port: serialise the entire memory of a workspace to
  * a portable JSON document.
  *
- * Maps to the CLI's `mcp-memoria export` (`docs/07-instalacion.md`
+ * Maps to the CLI's `recall export` (`docs/07-instalacion.md`
  * §7.6). The export is the inverse of the import below; the two
  * round-trip with byte-equivalent semantics modulo the
  * implementation-defined ordering of arrays.

@@ -16,7 +16,7 @@
  *   - `unlock` with WRONG and CORRECT passphrase
  *   - `health`, `audit`, `stats`
  *   - `export` + `import` round-trip
- *   - `wipe --confirm` removes `.mcp-memoria/`
+ *   - `wipe --confirm` removes `.recall/`
  *   - `install-hook` writes `.git/hooks/pre-commit`
  *
  * Bugs surfaced while authoring this file are documented inline with
@@ -77,7 +77,7 @@ describe("e2e / A / dist/cli.js — smoke", () => {
     // (either stdout or stderr — Commander writes to stdout, the
     // entrypoint may also echo to stderr via the logger).
     const combined = result.stdout + result.stderr;
-    expect(combined).toContain("Usage: mcp-memoria");
+    expect(combined).toContain("Usage: recall");
     expect(combined).toContain("init");
     expect(combined).toContain("health");
     expect([0, 2]).toContain(result.exitCode);
@@ -91,7 +91,7 @@ describe("e2e / A / dist/cli.js — smoke", () => {
 });
 
 describe("e2e / A / dist/cli.js — init + health", () => {
-  it("`init --mode shared` creates `.mcp-memoria/` with config.json (perm 0o600)", async () => {
+  it("`init --mode shared` creates `.recall/` with config.json (perm 0o600)", async () => {
     const ws = newWorkspace();
     const result = await runCli(cliPath, [
       "init",
@@ -104,7 +104,7 @@ describe("e2e / A / dist/cli.js — init + health", () => {
     ]);
     expect(result.exitCode).toBe(0);
 
-    const memoriaDir = path.join(ws.path, ".mcp-memoria");
+    const memoriaDir = path.join(ws.path, ".recall");
     expect(fs.existsSync(memoriaDir)).toBe(true);
     const configPath = path.join(memoriaDir, "config.json");
     expect(fs.existsSync(configPath)).toBe(true);
@@ -120,7 +120,7 @@ describe("e2e / A / dist/cli.js — init + health", () => {
     expect(id.length).toBeGreaterThan(0);
   });
 
-  it("`init --mode private` writes a workspace and a `.mcp-memoria/.gitignore` entry", async () => {
+  it("`init --mode private` writes a workspace and a `.recall/.gitignore` entry", async () => {
     const ws = newWorkspace();
     const result = await runCli(cliPath, [
       "init",
@@ -133,13 +133,13 @@ describe("e2e / A / dist/cli.js — init + health", () => {
     ]);
     expect(result.exitCode).toBe(0);
 
-    const memoriaDir = path.join(ws.path, ".mcp-memoria");
+    const memoriaDir = path.join(ws.path, ".recall");
     expect(fs.existsSync(memoriaDir)).toBe(true);
 
     // The `private` mode is meant to keep memory out of VCS. The
     // canonical guard is a `.gitignore` line that excludes the
     // memory directory from commits. The workspace filesystem
-    // adapter writes either `.mcp-memoria/.gitignore` (self-ignore)
+    // adapter writes either `.recall/.gitignore` (self-ignore)
     // or appends to a top-level `.gitignore` — accept either.
     const selfIgnore = path.join(memoriaDir, ".gitignore");
     const repoIgnore = path.join(ws.path, ".gitignore");
@@ -331,7 +331,7 @@ describe("e2e / A / dist/cli.js — export + import round-trip", () => {
 });
 
 describe("e2e / A / dist/cli.js — wipe + install-hook", () => {
-  it("`wipe --confirm` removes `.mcp-memoria/` from the workspace", async () => {
+  it("`wipe --confirm` removes `.recall/` from the workspace", async () => {
     const ws = newWorkspace();
     const init = await runCli(cliPath, [
       "init",
@@ -344,7 +344,7 @@ describe("e2e / A / dist/cli.js — wipe + install-hook", () => {
     ]);
     expect(init.exitCode).toBe(0);
 
-    const memoriaDir = path.join(ws.path, ".mcp-memoria");
+    const memoriaDir = path.join(ws.path, ".recall");
     expect(fs.existsSync(memoriaDir)).toBe(true);
 
     const wipe = await runCli(cliPath, [
@@ -358,7 +358,7 @@ describe("e2e / A / dist/cli.js — wipe + install-hook", () => {
     expect(fs.existsSync(memoriaDir)).toBe(false);
     // Defense-in-depth: the host project root MUST survive — the
     // wipe handler is supposed to canonicalise paths to refuse
-    // anything outside `.mcp-memoria/`.
+    // anything outside `.recall/`.
     expect(fs.existsSync(ws.path)).toBe(true);
   });
 

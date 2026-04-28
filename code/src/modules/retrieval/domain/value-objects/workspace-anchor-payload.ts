@@ -9,7 +9,7 @@ import type { SessionIntent } from "../../../memory/domain/value-objects/session
  * Catalogue of workspace privacy modes the bundle layer-1 may report.
  *
  * Mirrors the three modes documented in `docs/01-arquitectura.md` §2.3
- * and persisted in `.mcp-memoria/config.json`. The retrieval module
+ * and persisted in `.recall/config.json`. The retrieval module
  * does NOT import the workspace module's `WorkspaceMode` VO (that
  * would be a cross-module import outside `shared/`); the catalogue is
  * duplicated here as the *projection* that lands in the bundle. The

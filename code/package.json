@@ -1,18 +1,18 @@
 {
-  "name": "@netzi/mcp-memoria",
+  "name": "@netzi/recall",
   "version": "0.1.0",
   "description": "MCP server for project-scoped, self-curated memory with hybrid search (BM25 + sqlite-vec).",
   "type": "module",
   "license": "MIT",
   "author": "Netzi Tech",
-  "homepage": "https://github.com/NetziTech/mcp-memoria-inteligente#readme",
+  "homepage": "https://github.com/NetziTech/recall#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NetziTech/mcp-memoria-inteligente.git",
+    "url": "git+https://github.com/NetziTech/recall.git",
     "directory": "code"
   },
   "bugs": {
-    "url": "https://github.com/NetziTech/mcp-memoria-inteligente/issues"
+    "url": "https://github.com/NetziTech/recall/issues"
   },
   "keywords": [
     "mcp",
@@ -35,8 +35,8 @@
     "access": "public"
   },
   "bin": {
-    "mcp-memoria-server": "dist/server.js",
-    "mcp-memoria": "dist/cli.js"
+    "recall-server": "dist/server.js",
+    "recall": "dist/cli.js"
   },
   "files": [
     "dist/",

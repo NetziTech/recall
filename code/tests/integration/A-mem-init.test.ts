@@ -49,7 +49,7 @@ interface PersistedConfig {
 
 function readConfig(workspaceRoot: string): PersistedConfig {
   const raw = fs.readFileSync(
-    path.join(workspaceRoot, ".mcp-memoria", "config.json"),
+    path.join(workspaceRoot, ".recall", "config.json"),
     "utf8",
   );
   return JSON.parse(raw) as PersistedConfig;
@@ -119,7 +119,7 @@ describe("integration / A / mem.init — workspace initialisation", () => {
   });
 
   describe("private mode", () => {
-    it("creates `.gitignore` with the `.mcp-memoria/` token", async () => {
+    it("creates `.gitignore` with the `.recall/` token", async () => {
       await ctx.workspace.initializeWorkspace.initialize({
         rootPath: WorkspacePath.create(ctx.workspaceRoot),
         mode: WorkspaceMode.privateMode(),
@@ -130,7 +130,7 @@ describe("integration / A / mem.init — workspace initialisation", () => {
       const gitignorePath = path.join(ctx.workspaceRoot, ".gitignore");
       expect(fs.existsSync(gitignorePath)).toBe(true);
       const content = fs.readFileSync(gitignorePath, "utf8");
-      expect(content).toMatch(/\.mcp-memoria\//);
+      expect(content).toMatch(/\.recall\//);
     });
   });
 

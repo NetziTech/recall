@@ -72,7 +72,7 @@ export class InitializeEncryptionFacadeAdapter implements InitializeEncryptionFa
  * outcome shape.
  *
  * The "passphrase: null" path of the workspace contract is reserved
- * for "read the cached key from `~/.config/mcp-memoria/keys/...`".
+ * for "read the cached key from `~/.config/recall/keys/...`".
  * The encryption module does not implement that cache path yet;
  * the adapter surfaces the case as `key-validation-failed` so the
  * workspace handler prompts the user (the CLI passes the typed

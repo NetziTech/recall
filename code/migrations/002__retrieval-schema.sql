@@ -79,7 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_embedding_queue_target
 -- (a) tear this table down and rebuild it with the new dimension,
 -- or (b) add a parallel `embeddings_768` table. Per
 -- `docs/03-modelo-datos.md` §5 the vector store is REGENERABLE from
--- `memoria.db` + the embedder, so dropping and rebuilding is the
+-- `recall.db` + the embedder, so dropping and rebuilding is the
 -- expected path.
 CREATE VIRTUAL TABLE IF NOT EXISTS embeddings USING vec0(
     id  TEXT PRIMARY KEY,

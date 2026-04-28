@@ -3,7 +3,7 @@ import type { WorkspaceMode } from "../../../domain/value-objects/workspace-mode
 
 /**
  * Driven (output) port responsible for opening the SQLite database
- * sitting under `<root>/.mcp-memoria/memoria.db` and applying the
+ * sitting under `<root>/.recall/recall.db` and applying the
  * bundled migrations.
  *
  * Why this is a port and not a direct call to `SqliteDatabase.open`

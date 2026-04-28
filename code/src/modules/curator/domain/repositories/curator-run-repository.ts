@@ -22,7 +22,7 @@ import type { CuratorRunId } from "../value-objects/curator-run-id.ts";
  * Query methods:
  * - `findRecentByWorkspace(workspaceId, limit)` returns the most
  *   recent runs (descending by `startedAt`), bounded by `limit`.
- *   Used by `mcp-memoria curator-log --workspace . [--last 5]`
+ *   Used by `recall curator-log --workspace . [--last 5]`
  *   (`docs/05-memoria-decay.md` §9).
  * - `findLastByWorkspace(workspaceId)` returns the single most
  *   recent run, or `null` if the workspace has never run the

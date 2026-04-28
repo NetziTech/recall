@@ -21,7 +21,7 @@
 │  ┌─────────────────────────────────────────────────┐     │
 │  │            Storage Layer                        │     │
 │  │  ┌──────────────────┐  ┌────────────────────┐   │     │
-│  │  │ memoria.db       │  │ vectors.db         │   │     │
+│  │  │ recall.db       │  │ vectors.db         │   │     │
 │  │  │ (SQLite + FTS5)  │  │ (sqlite-vec)       │   │     │
 │  │  │ +SQLCipher si    │  │ +SQLCipher si      │   │     │
 │  │  │ modo encriptado  │  │ modo encriptado    │   │     │
@@ -36,11 +36,11 @@
                           │
        ┌──────────────────┴────────────────────┐
        ▼                                       ▼
-<proyecto>/.mcp-memoria/         ~/.cache/mcp-memoria/models/
-├── memoria.db                   └── bge-small-en-v1.5/
+<proyecto>/.recall/         ~/.cache/recall/models/
+├── recall.db                   └── bge-small-en-v1.5/
 ├── vectors.db                       (modelo ONNX, ~33 MB)
 ├── config.json
-└── .gitignore (segun modo)      ~/.config/mcp-memoria/
+└── .gitignore (segun modo)      ~/.config/recall/
                                  ├── config.json
                                  └── keys/<workspace_id>.key
 ```
@@ -64,30 +64,30 @@ maquinas o varios usuarios via servicio centralizado. Fuera del scope.
 
 ### 2.2 Memoria-en-proyecto (cambio clave vs propuesta original)
 
-Toda la memoria de un proyecto vive en `<proyecto>/.mcp-memoria/`. El servidor
+Toda la memoria de un proyecto vive en `<proyecto>/.recall/`. El servidor
 auto-detecta el workspace al arrancar caminando hacia arriba desde `cwd`
-buscando marcadores conocidos (`.git/`, `.mcp-memoria/`, `package.json`,
+buscando marcadores conocidos (`.git/`, `.recall/`, `package.json`,
 `Cargo.toml`, `pyproject.toml`).
 
 **Por que:**
 - La memoria viaja con el codigo (clone, copy, mv, share).
 - `workspace_id` estable: se genera UUID v7 al inicializar y se guarda en
-  `.mcp-memoria/config.json`. No se deriva del path. Renombrar el folder no
+  `.recall/config.json`. No se deriva del path. Renombrar el folder no
   rompe nada.
 - Backup natural: el backup del codigo incluye la memoria.
 - Compartible si el usuario lo decide (modos compartido / encriptado).
 
 **Lo unico que NO esta en el proyecto:**
-- Cache del modelo de embeddings (`~/.cache/mcp-memoria/models/`) — borrable
+- Cache del modelo de embeddings (`~/.cache/recall/models/`) — borrable
   sin perdida, se redescarga.
-- Defaults del usuario (`~/.config/mcp-memoria/config.json`) — solo dice que
+- Defaults del usuario (`~/.config/recall/config.json`) — solo dice que
   modelo embedder usar.
-- Claves de modos encriptados (`~/.config/mcp-memoria/keys/<workspace_id>.key`)
+- Claves de modos encriptados (`~/.config/recall/keys/<workspace_id>.key`)
   — gestion de secretos local del usuario.
 
 ### 2.3 Tres modos de privacidad
 
-Cada workspace declara su modo en `.mcp-memoria/config.json`:
+Cada workspace declara su modo en `.recall/config.json`:
 
 | Modo | `.gitignore` | Cifrado | Caso |
 |---|---|---|---|
@@ -214,9 +214,9 @@ Detalle completo en [`05-memoria-decay.md`](./05-memoria-decay.md).
 
 ### 3.4 Storage Layer
 
-Dos archivos en `.mcp-memoria/`:
+Dos archivos en `.recall/`:
 
-**`memoria.db`** (SQLite con FTS5):
+**`recall.db`** (SQLite con FTS5):
 - Tablas estructuradas: `sessions`, `turns`, `decisions`, `learnings`,
   `entities`, `relations`, `tasks`, `audit_log`, `pruned`.
 - Tablas FTS5 virtuales: `decisions_fts`, `learnings_fts`, `turns_fts`,
@@ -237,19 +237,19 @@ Abstraccion sobre proveedor de embeddings.
 - **Default:** `fastembed-js` con modelo `BGESmallEN15` (33 MB, 384 dim).
 - **Opcional:** Voyage AI (cloud, requiere API key) o `MultilingualE5Base`
   (250 MB, 768 dim, mejor para espanol).
-- Modelo se cachea en `~/.cache/mcp-memoria/models/` (compartido entre
+- Modelo se cachea en `~/.cache/recall/models/` (compartido entre
   proyectos).
 - Si el modelo cambia, el curador regenera embeddings en background, lazy
   por workspace.
 
 ### 3.6 Logger / Observabilidad
 
-Logs en `~/.cache/mcp-memoria/logs/<fecha>.log` (rotando):
+Logs en `~/.cache/recall/logs/<fecha>.log` (rotando):
 - Cada tool call con argumentos sanitizados (sin secretos).
 - Tiempo de respuesta.
 - Errores con stack trace.
 
-Tabla `audit_log` en cada `memoria.db` para historial por proyecto.
+Tabla `audit_log` en cada `recall.db` para historial por proyecto.
 
 ---
 
@@ -261,7 +261,7 @@ Al recibir el primer tool call (o explicitamente via `mem.init`):
 function detectWorkspace(cwdHint?: string): string {
   let dir = path.resolve(cwdHint ?? process.cwd());
   while (dir !== path.parse(dir).root) {
-    if (existsSync(path.join(dir, ".mcp-memoria"))) return dir;
+    if (existsSync(path.join(dir, ".recall"))) return dir;
     if (existsSync(path.join(dir, ".git"))) return dir;
     if (existsSync(path.join(dir, "package.json"))) return dir;
     if (existsSync(path.join(dir, "Cargo.toml"))) return dir;
@@ -287,7 +287,7 @@ Caso: usuario pide "implementa la feature X de la fase 1".
       → mem.context({query: "feature X fase 1", max_tokens: 4000})
 3. MCP server:
    a. Detecta workspace (camina hacia arriba desde cwd).
-   b. Lee config.json del workspace, abre memoria.db (con SQLCipher si
+   b. Lee config.json del workspace, abre recall.db (con SQLCipher si
       encrypted; si key no esta en HOME → error -32107).
    c. Genera embedding de la query (o usa el cache).
    d. Recupera capas 1-7: identity, constitution, active tasks, recent
@@ -347,14 +347,14 @@ serializa con un mutex. Aceptable.
 
 - Embedder no disponible → fallback a FTS5 (lexical search) puro.
 - Disco lleno → rechazar writes con error claro, mantener reads.
-- Base corrupta → mover a `memoria.db.broken-<timestamp>`, restaurar desde
+- Base corrupta → mover a `recall.db.broken-<timestamp>`, restaurar desde
   snapshot mas reciente o crear nueva, loggear.
 - Modo encriptado sin clave → error `-32107 ENCRYPTED_LOCKED` con
   instruccion de unlock.
 
 ### Errores fatales
 
-- No se puede crear `.mcp-memoria/` (permisos) → exit 1 con mensaje claro.
+- No se puede crear `.recall/` (permisos) → exit 1 con mensaje claro.
 
 ### Idempotencia
 
@@ -375,11 +375,11 @@ Vision general (detalle en `11-seguridad-modos.md`):
    con confidence > 0.9.
 2. **Path sanitizer**: paths con `/Users/<nombre>` o `/home/<nombre>` se
    reescriben a `~/...` antes de persistir.
-3. **Pre-commit hook opcional**: `mcp-memoria install-hook` instala hook git
-   que escanea `.mcp-memoria/` antes de cada commit.
-4. **Auditoria on-demand**: `mcp-memoria audit --check-secrets` escanea toda
+3. **Pre-commit hook opcional**: `recall install-hook` instala hook git
+   que escanea `.recall/` antes de cada commit.
+4. **Auditoria on-demand**: `recall audit --check-secrets` escanea toda
    la DB con detectores actualizados.
-5. **Sanitizacion post-hoc**: `mcp-memoria sanitize --entry-id ...` reemplaza
+5. **Sanitizacion post-hoc**: `recall sanitize --entry-id ...` reemplaza
    contenido por `[REDACTED]` y regenera embedding.
 
 ### Path traversal
@@ -393,7 +393,7 @@ injection.
 
 ### Permisos de archivo
 
-`.mcp-memoria/` con `0700` en Unix. Archivos `.db` con `0600`. Claves en
+`.recall/` con `0700` en Unix. Archivos `.db` con `0600`. Claves en
 HOME con `0600`.
 
 ---

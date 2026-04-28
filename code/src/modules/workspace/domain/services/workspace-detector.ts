@@ -2,13 +2,13 @@ import type { WorkspacePath } from "../value-objects/workspace-path.ts";
 
 /**
  * Result of inspecting a candidate root path for an existing
- * `.mcp-memoria/` workspace.
+ * `.recall/` workspace.
  *
  * - `exists` is `true` iff the adapter found a `config.json` it could
  *   read. The contents are NOT validated here — that is the
  *   `WorkspaceRepository`'s job once the path is known.
  * - `configPath`, when present, points to the directory that contains
- *   `config.json` (typically `<root>/.mcp-memoria/`). Adapters that do
+ *   `config.json` (typically `<root>/.recall/`). Adapters that do
  *   the upward walk described in `docs/01-arquitectura.md` §4 should
  *   return the directory they actually found, which may sit several
  *   levels above `rootPath`.
@@ -26,7 +26,7 @@ export type WorkspaceDetectionResult =
  * layer whether a host-project directory already hosts a workspace.
  *
  * The reference algorithm is in `docs/01-arquitectura.md` §4: walk
- * upwards from `cwd` searching for a `.mcp-memoria/` directory or for a
+ * upwards from `cwd` searching for a `.recall/` directory or for a
  * known project marker (`.git/`, `package.json`, ...). The adapter
  * encapsulates that filesystem walk; the domain only consumes the
  * result.

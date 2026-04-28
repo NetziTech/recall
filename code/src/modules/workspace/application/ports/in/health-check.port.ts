@@ -1,13 +1,13 @@
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for `mcp-memoria health --workspace <path>`
+ * Driving (input) port for `recall health --workspace <path>`
  * (`docs/07-instalacion.md` §7 — "Stats / health") and the `mem.health`
  * MCP tool (`docs/02-protocolo-mcp.md`).
  *
  * Performs a set of cheap integrity checks and returns a structured
  * report the CLI / MCP layer can render:
- *   - `workspaceExists`: a `.mcp-memoria/config.json` was found upward
+ *   - `workspaceExists`: a `.recall/config.json` was found upward
  *     from `rootPath` and parsed successfully.
  *   - `databaseOpenable`: the SQLite database opened (with the cached
  *     key for encrypted mode).
@@ -16,7 +16,7 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  *   - `embedderLoadable`: the configured embedder reports a non-zero
  *     dimension when initialised (lazy probe).
  *   - `gitignoreConsistent`: for `private` mode, the `.gitignore`
- *     contains the expected `.mcp-memoria/` exclusion; for shared /
+ *     contains the expected `.recall/` exclusion; for shared /
  *     encrypted modes, the entry is absent.
  *
  * Each entry is a tri-state: `pass | fail | skipped`. Skipped means

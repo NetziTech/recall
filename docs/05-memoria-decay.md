@@ -69,7 +69,7 @@ use_count += 1
 | task (done) | 0.9 | 7 |
 | task (open) | 1.0 | ∞ |
 
-Configurable via `.mcp-memoria/config.json`.
+Configurable via `.recall/config.json`.
 
 ---
 
@@ -269,7 +269,7 @@ Modulo que orquesta decay, consolidacion, pruning, validacion.
 ### Pasada completa
 
 ```
-1. Snapshot: cp memoria.db snapshots/<ts>-pre-curator.db
+1. Snapshot: cp recall.db snapshots/<ts>-pre-curator.db
               cp vectors.db snapshots/<ts>-pre-curator-vectors.db
 2. Apply decay (todos los kinds)
 3. Detect & merge consolidations
@@ -334,10 +334,10 @@ Workflow:
 ### Wipe completo
 
 ```bash
-mcp-memoria wipe --workspace . --confirm
+recall wipe --workspace . --confirm
 ```
 
-Borra `.mcp-memoria/memoria.db` y `.mcp-memoria/vectors.db`. Mantiene
+Borra `.recall/recall.db` y `.recall/vectors.db`. Mantiene
 `config.json` (el workspace_id sigue siendo el mismo). Si modo encrypted,
 la clave en HOME tambien se preserva (sigue siendo "el mismo" workspace,
 solo vacio).
@@ -345,10 +345,10 @@ solo vacio).
 ### Export completo
 
 ```bash
-mcp-memoria export --workspace . --output backup.json
+recall export --workspace . --output backup.json
 ```
 
-Devuelve JSON con todo el contenido de `memoria.db`. No incluye embeddings
+Devuelve JSON con todo el contenido de `recall.db`. No incluye embeddings
 (regenerables). Permite portar.
 
 ---
@@ -378,7 +378,7 @@ El curador loggea en tabla `curator_runs`:
 Visualizable via:
 
 ```bash
-mcp-memoria curator-log --workspace . [--last 5]
+recall curator-log --workspace . [--last 5]
 ```
 
 ---

@@ -13,7 +13,7 @@
  *
  * Currently exposes:
  *   - `MemoryWipeFacadeAdapter` — adapter for the workspace's
- *     `DestroyWorkspaceUseCase` flow (`mcp-memoria wipe`).
+ *     `DestroyWorkspaceUseCase` flow (`recall wipe`).
  */
 
 import type { WorkspaceId } from "../../shared/domain/value-objects/workspace-id.ts";

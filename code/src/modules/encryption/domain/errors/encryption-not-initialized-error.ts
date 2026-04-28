@@ -6,7 +6,7 @@ import { EncryptionDomainError } from "./encryption-domain-error.ts";
  * `EncryptionConfig` is attempted on a workspace that has none.
  *
  * Examples:
- * - The CLI calls `mcp-memoria add-key --workspace .` on a workspace
+ * - The CLI calls `recall add-key --workspace .` on a workspace
  *   whose mode is `shared` or `private` (no encryption config exists).
  * - A use case attempts to `unlockWith(masterKey)` before the
  *   aggregate has been initialized.

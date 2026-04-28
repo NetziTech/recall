@@ -2,7 +2,7 @@ import type { WorkspaceId } from "../../../../../shared/domain/value-objects/wor
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for the destructive `mcp-memoria wipe` flow
+ * Driving (input) port for the destructive `recall wipe` flow
  * documented in `docs/07-instalacion.md` §7 ("wipe").
  *
  * Semantics (confirmed by the Tarea 5.2 integration tests pin):
@@ -13,7 +13,7 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  *   - For encrypted workspaces: locks first (via the encryption
  *     module) so the on-disk key cache is invalidated before the
  *     directory disappears.
- *   - Removes the entire `<root>/.mcp-memoria/` directory tree
+ *   - Removes the entire `<root>/.recall/` directory tree
  *     recursively.
  *   - Emits `WorkspaceDestroyed` so subscribers (audit log, telemetry)
  *     can record the wipe.

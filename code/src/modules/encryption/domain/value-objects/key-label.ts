@@ -7,7 +7,7 @@ import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empt
  * The label is a human-readable description of which key/passphrase
  * produced an envelope (e.g. "alice@laptop", "recovery-key",
  * "ci-deploy-bot"). Capping at 200 chars keeps it scannable in CLI
- * output (`mcp-memoria audit`, `mcp-memoria add-key --list`) and on
+ * output (`recall audit`, `recall add-key --list`) and on
  * any future UI surface.
  */
 const KEY_LABEL_MAX_LENGTH = 200;

@@ -32,7 +32,7 @@ import type {
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
 const SERVER_INFO: ServerInfo = {
-  name: "mcp-memoria",
+  name: "recall",
   version: "0.1.0",
   protocolVersion: "2025-06-18",
 };
@@ -261,7 +261,7 @@ describe("JsonRpcHandler — initialize", () => {
       capabilities: { tools: Record<string, never> };
     };
     expect(result.protocolVersion).toBe("2025-06-18");
-    expect(result.serverInfo.name).toBe("mcp-memoria");
+    expect(result.serverInfo.name).toBe("recall");
     expect(result.serverInfo.version).toBe("0.1.0");
     expect(result.capabilities.tools).toBeDefined();
   });

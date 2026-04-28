@@ -81,7 +81,7 @@ ORDER BY distance ASC
  * sqlite-vec `vec0` virtual table.
  *
  * The class accepts a separate `DatabaseConnection` for `vectors.db`
- * (the vectors DB is split from `memoria.db` per
+ * (the vectors DB is split from `recall.db` per
  * `docs/03-modelo-datos.md` §11). The composition root opens both
  * connections and supplies the right one here.
  *

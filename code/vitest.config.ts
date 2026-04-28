@@ -1,7 +1,7 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Vitest configuration for mcp-memoria.
+ * Vitest configuration for recall.
  *
  * Coverage thresholds (per docs/12 §1 R4 / §4):
  * - Global: ≥95% on lines, branches, functions, statements.

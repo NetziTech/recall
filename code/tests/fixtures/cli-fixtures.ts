@@ -390,7 +390,7 @@ export class StubImportFacade implements ImportFacade {
 
 export class StubWipeFacade implements WipeFacade {
   public lastInput?: WipeFacadeInput;
-  public output: WipeFacadeOutput = { removedPath: "/tmp/.mcp-memoria" };
+  public output: WipeFacadeOutput = { removedPath: "/tmp/.recall" };
   public wipe(input: WipeFacadeInput): Promise<WipeFacadeOutput> {
     this.lastInput = input;
     return Promise.resolve(this.output);

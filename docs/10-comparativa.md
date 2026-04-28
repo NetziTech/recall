@@ -73,7 +73,7 @@ Esa combinacion es nueva en el mercado.
 - Equipo de 2+ devs.
 - HANDOFF.md ya pasa de 200 lineas.
 
-Migracion: `mcp-memoria import-handoff`.
+Migracion: `recall import-handoff`.
 
 ---
 
@@ -91,7 +91,7 @@ open-source de Mem0 que expone su memoria como MCP server.
 | Capas de contexto | No | Si (7 capas con presupuestos) |
 | Decay | Implicito | Explicito y configurable por kind |
 | Self-healing | No | Si (path stale, decision conflicts, etc.) |
-| Memoria por proyecto | Si pero en server, no en repo | En repo (`<proyecto>/.mcp-memoria/`) |
+| Memoria por proyecto | Si pero en server, no en repo | En repo (`<proyecto>/.recall/`) |
 | Cifrado | No nativo | SQLCipher en modo `encrypted` |
 | Compartir con equipo | Si pero requiere server compartido | Via git (modos shared/encrypted) |
 | Stack | Python + Qdrant + opcional Mem0 cloud | TS + sqlite-vec, sin cloud |
@@ -347,7 +347,7 @@ Lista pre-acordada de cosas que el MCP NO va a hacer bien (al menos en v1):
 
 ### De HANDOFF.md → este MCP
 
-Comando incluido: `mcp-memoria import-handoff`. Parsea heuristicamente.
+Comando incluido: `recall import-handoff`. Parsea heuristicamente.
 
 ### De Mem0 → este MCP
 
@@ -368,7 +368,7 @@ for (const fact of mem0Data) {
 
 ### De este MCP → Mem0 / otro
 
-`mcp-memoria export --workspace .` devuelve JSON estructurado. Script de
+`recall export --workspace .` devuelve JSON estructurado. Script de
 import al destino.
 
 **Promesa:** la memoria es portable. El usuario nunca queda atado.
@@ -379,7 +379,7 @@ import al destino.
 
 Este MCP es el unico que ofrece:
 
-1. **Memoria-en-proyecto:** vive en `<proyecto>/.mcp-memoria/`, viaja con
+1. **Memoria-en-proyecto:** vive en `<proyecto>/.recall/`, viaja con
    el codigo.
 2. **3 modos de privacidad:** compartido / encriptado (SQLCipher) /
    privado.

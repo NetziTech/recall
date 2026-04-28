@@ -40,7 +40,7 @@ describe("FilesystemPreCommitHookInstaller.install", () => {
     const hookPath = path.join(tmpDir, ".git", "hooks", "pre-commit");
     const text = await fs.readFile(hookPath, "utf8");
     expect(text).toContain("#!/usr/bin/env bash");
-    expect(text).toContain("managed-by: mcp-memoria");
+    expect(text).toContain("managed-by: recall");
     if (process.platform !== "win32") {
       const stat = await fs.stat(hookPath);
       expect(stat.mode & 0o777).toBe(0o755);
@@ -94,7 +94,7 @@ describe("FilesystemPreCommitHookInstaller.install", () => {
       path.join(hookDir, "pre-commit"),
       "utf8",
     );
-    expect(text).toContain("managed-by: mcp-memoria");
+    expect(text).toContain("managed-by: recall");
   });
 
   it("returns a Result.err when the path-sanitiser rejects the workspaceRoot (NUL byte)", async () => {

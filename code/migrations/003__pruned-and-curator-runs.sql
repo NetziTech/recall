@@ -38,7 +38,7 @@
 -- - Both tables use a single composite/single-column index per access
 --   pattern. The curator's recurring queries are
 --   `SELECT … FROM curator_runs ORDER BY started_at_ms DESC LIMIT N`
---   (`mcp-memoria curator-log`) and
+--   (`recall curator-log`) and
 --   `SELECT … FROM pruned WHERE kind = ? AND original_id = ?`
 --   (audit-trail lookups), both of which the indexes below cover.
 -- ─────────────────────────────────────────────────────────────────────

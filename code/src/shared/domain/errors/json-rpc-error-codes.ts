@@ -7,7 +7,7 @@
  * them when serializing errors, but the domain owns the catalog so that
  * domain errors can advertise their canonical code.
  *
- * Standard JSON-RPC reserves -32000..-32099. The MCP-Memoria custom
+ * Standard JSON-RPC reserves -32000..-32099. The Recall custom
  * range is -32100..-32109 as documented in `docs/02-protocolo-mcp.md` §6.
  *
  * Invariants:

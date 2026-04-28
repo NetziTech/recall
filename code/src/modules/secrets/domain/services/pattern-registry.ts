@@ -7,7 +7,7 @@ import type { SecretPattern } from "../value-objects/secret-pattern.ts";
  *
  * The concrete implementation (built-in regexes from
  * `docs/11-seguridad-modos.md` §6 + user-supplied `extra_patterns` from
- * `.mcp-memoria/config.json`) lives in `infrastructure/`. The domain
+ * `.recall/config.json`) lives in `infrastructure/`. The domain
  * only knows the contract:
  *
  * - `getPatterns()` returns the FULL set of patterns the scanner

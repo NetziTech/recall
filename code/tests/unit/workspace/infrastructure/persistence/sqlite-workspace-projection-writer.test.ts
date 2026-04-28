@@ -62,8 +62,8 @@ beforeEach(async () => {
   logger = new RecordingLogger();
   // Pre-create the workspace directory and run migrations so the
   // adapter's short-lived handle finds a populated DB.
-  await fs.mkdir(path.join(tmpDir, ".mcp-memoria"), { recursive: true });
-  const dbPath = path.join(tmpDir, ".mcp-memoria", "memoria.db");
+  await fs.mkdir(path.join(tmpDir, ".recall"), { recursive: true });
+  const dbPath = path.join(tmpDir, ".recall", "recall.db");
   const db = await SqliteDatabase.open({
     path: dbPath,
     loadVectorExtension: true,
@@ -94,7 +94,7 @@ describe("SqliteWorkspaceProjectionWriter.upsert — happy paths", () => {
       updatedAtMs: ANCHOR_TIME_MS + 1,
     });
     // Re-open to read what the adapter wrote.
-    const dbPath = path.join(tmpDir, ".mcp-memoria", "memoria.db");
+    const dbPath = path.join(tmpDir, ".recall", "recall.db");
     const db = await SqliteDatabase.open({
       path: dbPath,
       loadVectorExtension: true,
@@ -134,7 +134,7 @@ describe("SqliteWorkspaceProjectionWriter.upsert — happy paths", () => {
       config: sampleConfig(),
       updatedAtMs: ANCHOR_TIME_MS + 100,
     });
-    const dbPath = path.join(tmpDir, ".mcp-memoria", "memoria.db");
+    const dbPath = path.join(tmpDir, ".recall", "recall.db");
     const db = await SqliteDatabase.open({
       path: dbPath,
       loadVectorExtension: true,
@@ -203,9 +203,9 @@ describe("SqliteWorkspaceProjectionWriter.upsert — failure paths", () => {
   it("wraps an open/exec failure into configWriteFailed", async () => {
     // Simulate by passing a workspace path whose DB cannot be opened —
     // we wipe the workspace dir first so the SQLite open against
-    // `<root>/.mcp-memoria/memoria.db` fails (the parent directory
+    // `<root>/.recall/recall.db` fails (the parent directory
     // does not exist after rm).
-    await fs.rm(path.join(tmpDir, ".mcp-memoria"), { recursive: true });
+    await fs.rm(path.join(tmpDir, ".recall"), { recursive: true });
     const writer = new SqliteWorkspaceProjectionWriter({
       keyResolver: async () => null,
       logger,

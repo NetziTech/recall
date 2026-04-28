@@ -60,7 +60,7 @@ una sesion previa, y se perdio confianza en el estado del repo. Ver
   ingles.
 - **Workflow multi-agente**: descrito en `docs/13-workflow-agentes.md`.
 - **Estado actual**: ver `HANDOFF.md` §0 y §6.10.
-- **Release publicado**: `@netzi/mcp-memoria@0.1.0` en npm; tag
+- **Release publicado**: `@netzi/recall@0.1.0` en npm; tag
   `v0.1.0` apunta a commit del release.
 - **Proximos pasos**: v0.1.1 (cerrar 2 highs upstream tar/fastembed,
   B-008, B-009). Ver `docs/RELEASE-NOTES-v0.1.0.md` y `HANDOFF.md` §8.

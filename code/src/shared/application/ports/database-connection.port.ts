@@ -5,7 +5,7 @@
  * Why this lives in `shared/application/ports/`:
  * - All eight modules (workspace, memory, retrieval, curator, secrets,
  *   encryption, mcp-server, cli) persist to the same SQLite database
- *   (`<workspace>/.mcp-memoria/memoria.db`, see
+ *   (`<workspace>/.recall/recall.db`, see
  *   `docs/03-modelo-datos.md` §1 and `docs/06-stack-tecnico.md` §4).
  *   Pulling the connection abstraction into a single transversal port
  *   is therefore mandatory per `docs/12-lineamientos-arquitectura.md`

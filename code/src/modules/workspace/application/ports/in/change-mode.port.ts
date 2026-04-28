@@ -3,7 +3,7 @@ import type { WorkspaceMode } from "../../../domain/value-objects/workspace-mode
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for `mcp-memoria mode <new-mode> --workspace
+ * Driving (input) port for `recall mode <new-mode> --workspace
  * <path>` (`docs/07-instalacion.md` §7,
  * `docs/11-seguridad-modos.md` §5 "Cambios de modo").
  *

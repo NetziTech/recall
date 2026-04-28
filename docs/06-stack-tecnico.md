@@ -68,7 +68,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 const server = new Server(
-  { name: "mcp-memoria", version: "0.1.0" },
+  { name: "recall", version: "0.1.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -294,7 +294,7 @@ import { EmbeddingModel, FlagEmbedding } from "fastembed";
 
 const model = await FlagEmbedding.init({
   model: EmbeddingModel.BGESmallEN15,
-  cacheDir: path.join(homedir(), ".cache", "mcp-memoria", "models"),
+  cacheDir: path.join(homedir(), ".cache", "recall", "models"),
 });
 
 const vectors = await model.embed(["text1", "text2"]);
@@ -317,7 +317,7 @@ const vectors = await model.embed(["text1", "text2"]);
 ### Cache compartido
 
 ```
-~/.cache/mcp-memoria/models/
+~/.cache/recall/models/
 ├── bge-small-en-v1.5/
 │   ├── model.onnx
 │   ├── tokenizer.json
@@ -333,7 +333,7 @@ Todos los proyectos comparten el mismo cache. Si se borra, se redescarga.
 Opt-in via env var:
 
 ```bash
-MCP_MEMORIA_EMBEDDER=voyage
+RECALL_EMBEDDER=voyage
 VOYAGE_AI_KEY=xxx
 ```
 
@@ -403,11 +403,11 @@ Distribuible via npm.
 
 ```json
 {
-  "name": "mcp-memoria",
+  "name": "recall",
   "version": "0.1.0",
   "bin": {
-    "mcp-memoria-server": "./dist/index.js",
-    "mcp-memoria": "./dist/cli.js"
+    "recall-server": "./dist/index.js",
+    "recall": "./dist/cli.js"
   },
   "files": ["dist/", "README.md"]
 }
@@ -416,7 +416,7 @@ Distribuible via npm.
 Usuario instala:
 
 ```bash
-npm install -g mcp-memoria
+npm install -g recall
 ```
 
 O sin install global, en config MCP del cliente:
@@ -426,7 +426,7 @@ O sin install global, en config MCP del cliente:
   "mcpServers": {
     "memoria": {
       "command": "npx",
-      "args": ["-y", "mcp-memoria@latest", "server"]
+      "args": ["-y", "recall@latest", "server"]
     }
   }
 }
@@ -472,11 +472,11 @@ import { createWriteStream } from "fs";
 import { homedir } from "os";
 import path from "path";
 
-const logDir = path.join(homedir(), ".cache", "mcp-memoria", "logs");
+const logDir = path.join(homedir(), ".cache", "recall", "logs");
 const today = new Date().toISOString().slice(0, 10);
 
 const logger = pino(
-  { level: process.env.MCP_MEMORIA_LOG_LEVEL ?? "info" },
+  { level: process.env.RECALL_LOG_LEVEL ?? "info" },
   pino.destination(path.join(logDir, `${today}.log`))
 );
 
@@ -548,7 +548,7 @@ cache, descargado al primer uso). Aceptable.
 ## 15. Estructura de carpetas del proyecto
 
 ```
-mcp-memoria/
+recall/
 ├── src/
 │   ├── index.ts                  # entry point del server MCP
 │   ├── cli.ts                    # entry point del CLI (unlock, audit, etc.)
@@ -600,7 +600,7 @@ mcp-memoria/
 │   │   └── detector.ts           # API publica
 │   ├── workspace/
 │   │   ├── detect.ts             # auto-detect from cwd
-│   │   ├── config.ts             # leer/escribir .mcp-memoria/config.json
+│   │   ├── config.ts             # leer/escribir .recall/config.json
 │   │   └── modes.ts              # shared / encrypted / private
 │   ├── lib/
 │   │   ├── logger.ts

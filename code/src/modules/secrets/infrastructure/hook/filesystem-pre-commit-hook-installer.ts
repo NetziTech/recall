@@ -19,33 +19,33 @@ import { ForeignHookExistsError } from "../errors/foreign-hook-exists-error.ts";
  * verbose so a human inspecting the hook file recognises its
  * provenance.
  */
-const MANAGED_HOOK_MARKER = "# managed-by: mcp-memoria pre-commit hook v1";
+const MANAGED_HOOK_MARKER = "# managed-by: recall pre-commit hook v1";
 
 /**
- * Hook script content. Runs `mcp-memoria` in `audit --check-secrets
+ * Hook script content. Runs `recall` in `audit --check-secrets
  * --strict` mode against the staged files. The exit code of the CLI
  * tool determines whether the commit is allowed.
  *
  * The script is intentionally minimal: the actual scanning happens
- * inside the `mcp-memoria` binary, which already owns the detector
+ * inside the `recall` binary, which already owns the detector
  * registry and the workspace configuration. The hook is a thin
  * harness that calls into the binary and forwards its exit code.
  *
  * The shebang uses `/usr/bin/env bash` for portability across
  * Linux/macOS. Windows users either install Git for Windows (which
- * bundles bash) or use `mcp-memoria audit` manually pre-commit.
+ * bundles bash) or use `recall audit` manually pre-commit.
  */
 const HOOK_SCRIPT = `#!/usr/bin/env bash
 ${MANAGED_HOOK_MARKER}
 set -euo pipefail
 
-if ! command -v mcp-memoria >/dev/null 2>&1; then
-  echo "mcp-memoria pre-commit hook: 'mcp-memoria' binary not found in PATH; skipping" >&2
+if ! command -v recall >/dev/null 2>&1; then
+  echo "recall pre-commit hook: 'recall' binary not found in PATH; skipping" >&2
   exit 0
 fi
 
-if ! mcp-memoria audit --check-secrets --strict --workspace .; then
-  echo "mcp-memoria pre-commit hook: secrets detected in staged changes; commit blocked" >&2
+if ! recall audit --check-secrets --strict --workspace .; then
+  echo "recall pre-commit hook: secrets detected in staged changes; commit blocked" >&2
   exit 1
 fi
 
@@ -152,7 +152,7 @@ export class FilesystemPreCommitHookInstaller
       // executable script; without the execute bit on owner/group/
       // others, git silently skips the hook (defeating the entire
       // secret-scanning purpose). The file contains NO secrets — it
-      // is a thin shim that calls `mcp-memoria audit`. The world-
+      // is a thin shim that calls `recall audit`. The world-
       // read bit is needed because git may run hooks under a
       // different effective UID inside CI containers. No write bit
       // is granted to group/others, so untrusted users on the host

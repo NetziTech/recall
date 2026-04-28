@@ -6,7 +6,7 @@ import type { WorkspaceId } from "../../../../../shared/domain/value-objects/wor
  *
  * Used by `DestroyWorkspaceUseCase` to truncate the SQL tables
  * BEFORE the workspace filesystem adapter removes the
- * `.mcp-memoria/` directory.
+ * `.recall/` directory.
  *
  * Why the workspace module talks to memory through a facade:
  *   - Cross-module imports of code are forbidden by ADR-001 (`docs/12

@@ -24,7 +24,7 @@ import type { Prompt } from "../../ports/out/tty.port.ts";
 import { resolveRootPath } from "./root-path.ts";
 
 /**
- * Handler for `mcp-memoria import-handoff --handoff <file.md>`.
+ * Handler for `recall import-handoff --handoff <file.md>`.
  */
 export class ImportHandoffCommandHandler
   implements CommandHandler<"import-handoff">
@@ -61,7 +61,7 @@ export class ImportHandoffCommandHandler
 }
 
 /**
- * Handler for `mcp-memoria export --output <path>`.
+ * Handler for `recall export --output <path>`.
  */
 export class ExportCommandHandler implements CommandHandler<"export"> {
   public readonly command = "export" as const;
@@ -88,7 +88,7 @@ export class ExportCommandHandler implements CommandHandler<"export"> {
 }
 
 /**
- * Handler for `mcp-memoria import --input <path>`.
+ * Handler for `recall import --input <path>`.
  */
 export class ImportCommandHandler implements CommandHandler<"import"> {
   public readonly command = "import" as const;
@@ -115,7 +115,7 @@ export class ImportCommandHandler implements CommandHandler<"import"> {
 }
 
 /**
- * Handler for `mcp-memoria wipe --confirm`.
+ * Handler for `recall wipe --confirm`.
  *
  * Behaviour: requires the operator to type `WIPE` at the
  * confirmation prompt (or pass `--confirm` if non-interactive). The
@@ -143,7 +143,7 @@ export class WipeCommandHandler implements CommandHandler<"wipe"> {
         });
       }
       const typed = await this.prompt.readLine(
-        `Esta operacion borrara ".mcp-memoria/" bajo "${rootPath}". Escribe WIPE para confirmar: `,
+        `Esta operacion borrara ".recall/" bajo "${rootPath}". Escribe WIPE para confirmar: `,
       );
       confirmed = typed.trim() === "WIPE";
     }
@@ -165,8 +165,8 @@ export class WipeCommandHandler implements CommandHandler<"wipe"> {
 }
 
 /**
- * Handler for `mcp-memoria stats`. JSON-formatted output for easy
- * piping (`mcp-memoria stats | jq ...`).
+ * Handler for `recall stats`. JSON-formatted output for easy
+ * piping (`recall stats | jq ...`).
  */
 export class StatsCommandHandler implements CommandHandler<"stats"> {
   public readonly command = "stats" as const;
@@ -190,7 +190,7 @@ export class StatsCommandHandler implements CommandHandler<"stats"> {
 }
 
 /**
- * Handler for `mcp-memoria server`. Launches the MCP stdio
+ * Handler for `recall server`. Launches the MCP stdio
  * transport. The handler returns when the server exits; the exit
  * code is forwarded.
  */
@@ -211,7 +211,7 @@ export class ServerCommandHandler implements CommandHandler<"server"> {
       // user might be debugging) but log a warning.
       this.logger.warn(
         {},
-        "mcp-memoria server invoked from a TTY; this is usually wrong",
+        "recall server invoked from a TTY; this is usually wrong",
       );
     }
     let result;

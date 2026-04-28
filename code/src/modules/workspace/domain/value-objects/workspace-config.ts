@@ -19,7 +19,7 @@ const SCHEMA_VERSION_PATTERN = /^[0-9]+\.[0-9]+\.[0-9]+$/;
  * Value object representing the immutable subset of a workspace's
  * configuration that the domain reasons about.
  *
- * Mirrors the relevant slice of `.mcp-memoria/config.json` documented in
+ * Mirrors the relevant slice of `.recall/config.json` documented in
  * `docs/03-modelo-datos.md` §2:
  * - `schema_version`
  * - `workspace_id`

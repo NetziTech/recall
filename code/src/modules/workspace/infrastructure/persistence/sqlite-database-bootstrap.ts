@@ -140,7 +140,7 @@ export class SqliteDatabaseBootstrap implements DatabaseBootstrap {
   }
 
   private static databasePath(rootPath: string): string {
-    return path.resolve(path.join(rootPath, ".mcp-memoria", "memoria.db"));
+    return path.resolve(path.join(rootPath, ".recall", "recall.db"));
   }
 
   private static modeKey(raw: string): "shared" | "encrypted" | "private" {

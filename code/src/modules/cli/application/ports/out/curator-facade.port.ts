@@ -2,9 +2,9 @@
  * Driven (output) facade ports toward the curator module's CLI-facing
  * use cases:
  *
- *   - `mcp-memoria curator-run` — manual curator pass. Mirrors the
+ *   - `recall curator-run` — manual curator pass. Mirrors the
  *     `manual` trigger of `CuratorRun` (`docs/05-memoria-decay.md`).
- *   - `mcp-memoria curator-log` — read the most recent runs from the
+ *   - `recall curator-log` — read the most recent runs from the
  *     `curator_runs` table.
  */
 

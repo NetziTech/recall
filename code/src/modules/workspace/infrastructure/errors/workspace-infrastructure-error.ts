@@ -49,7 +49,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   public static configMissing(rootPath: string): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.config-missing",
-      `no .mcp-memoria/config.json found at the expected location under "${rootPath}"`,
+      `no .recall/config.json found at the expected location under "${rootPath}"`,
     );
   }
 
@@ -59,7 +59,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   ): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.config-malformed",
-      `failed to parse .mcp-memoria/config.json under "${rootPath}": ${detail}`,
+      `failed to parse .recall/config.json under "${rootPath}": ${detail}`,
     );
   }
 
@@ -69,7 +69,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   ): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.config-read-failed",
-      `failed to read .mcp-memoria/config.json under "${rootPath}"`,
+      `failed to read .recall/config.json under "${rootPath}"`,
       cause,
     );
   }
@@ -80,7 +80,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   ): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.config-write-failed",
-      `failed to write .mcp-memoria/config.json under "${rootPath}"`,
+      `failed to write .recall/config.json under "${rootPath}"`,
       cause,
     );
   }
@@ -91,7 +91,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   ): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.directory-create-failed",
-      `failed to create .mcp-memoria/ under "${rootPath}"`,
+      `failed to create .recall/ under "${rootPath}"`,
       cause,
     );
   }
@@ -102,7 +102,7 @@ export class WorkspaceInfrastructureError extends InfrastructureError {
   ): WorkspaceInfrastructureError {
     return new WorkspaceInfrastructureError(
       "workspace.directory-remove-failed",
-      `failed to remove .mcp-memoria/ under "${rootPath}"`,
+      `failed to remove .recall/ under "${rootPath}"`,
       cause,
     );
   }

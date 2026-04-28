@@ -23,7 +23,7 @@ export class ForeignHookExistsError extends SecretsInfrastructureError {
 
   public constructor(hookPath: string, options?: { cause?: unknown }) {
     super(
-      `pre-commit hook at ${hookPath} is not managed by mcp-memoria; pass --force to overwrite`,
+      `pre-commit hook at ${hookPath} is not managed by recall; pass --force to overwrite`,
       options?.cause !== undefined ? { cause: options.cause } : undefined,
     );
     this.hookPath = hookPath;

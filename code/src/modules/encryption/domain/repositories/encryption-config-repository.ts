@@ -10,7 +10,7 @@ import type { EncryptionConfig } from "../aggregates/encryption-config.ts";
  * documented in `docs/03-modelo-datos.md` §2 ("Campos especificos
  * del modo encrypted") — the `kdf`, `kdf_params`,
  * `key_validator_blob_b64` and `key_envelopes` slice of
- * `.mcp-memoria/config.json`.
+ * `.recall/config.json`.
  *
  * Contract:
  * - The repository works with the **whole aggregate**. Adapters

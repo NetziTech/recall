@@ -4,7 +4,7 @@ import type { WorkspaceId } from "../../../../shared/domain/value-objects/worksp
 
 /**
  * Fact: an entire workspace (SQL tables + on-disk directory tree)
- * was deliberately destroyed by the operator via `mcp-memoria wipe`.
+ * was deliberately destroyed by the operator via `recall wipe`.
  *
  * Triggered by `DestroyWorkspaceUseCase`. Subscribers can use this
  * event to:

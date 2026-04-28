@@ -408,7 +408,7 @@ export class CliSanitizeFacadeAdapter implements SanitizeFacade {
  * The `checkSecrets` and `strict` flags are forwarded as no-ops
  * for now; the audit use case is read-only and the secrets-aware
  * second pass lands in Fase 5+ (no concrete tracker yet — the
- * memory audit alone is sufficient for the MVP `mcp-memoria audit`
+ * memory audit alone is sufficient for the MVP `recall audit`
  * command).
  */
 export class CliAuditFacadeAdapter implements AuditFacade {
@@ -642,7 +642,7 @@ export class CliImportFacadeAdapter implements ImportFacade {
  *   1. Encryption lock (for encrypted workspaces, before the
  *      directory disappears).
  *   2. SQL truncation via the memory wipe facade.
- *   3. Filesystem removal of the entire `.mcp-memoria/` directory
+ *   3. Filesystem removal of the entire `.recall/` directory
  *      tree (Tarea 5.3 — Bug 2 fix; the previous implementation
  *      truncated SQL but left the directory intact).
  *   4. `WorkspaceDestroyed` event emission.
@@ -720,7 +720,7 @@ export class PendingServerFacade implements ServerFacade {
     return Promise.reject(
       new CliFacadeNotImplementedError(
         "ServerFacade",
-        "use the dedicated mcp-memoria-server binary instead",
+        "use the dedicated recall-server binary instead",
       ),
     );
   }
@@ -748,10 +748,10 @@ function severityToCliSeverity(
 
 /**
  * Helper exported for tests / future maintenance commands that need
- * a canonical `.mcp-memoria/` path inside a workspace root.
+ * a canonical `.recall/` path inside a workspace root.
  */
 export function workspaceMemoriaDir(rootPath: string): string {
-  return path.join(rootPath, ".mcp-memoria");
+  return path.join(rootPath, ".recall");
 }
 
 /**

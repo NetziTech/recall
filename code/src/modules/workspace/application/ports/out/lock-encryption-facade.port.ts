@@ -2,7 +2,7 @@ import type { WorkspaceId } from "../../../../../shared/domain/value-objects/wor
 
 /**
  * Driven (output) facade port toward the `encryption` module's
- * `LockEncryption` use case (`mcp-memoria forget-key`).
+ * `LockEncryption` use case (`recall forget-key`).
  *
  * Outcome contract:
  *   - `locked: true` when the encryption slice was unlocked and the

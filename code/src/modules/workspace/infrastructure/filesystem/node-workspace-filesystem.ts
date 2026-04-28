@@ -15,7 +15,7 @@ import { WorkspaceInfrastructureError } from "../errors/workspace-infrastructure
  * Subdirectory inside a host project that contains the workspace
  * payload. Constant per `docs/03-modelo-datos.md` §1.
  */
-const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
+const WORKSPACE_DIRECTORY_NAME = ".recall";
 const CONFIG_FILE_NAME = "config.json";
 const GITIGNORE_FILE_NAME = ".gitignore";
 
@@ -237,7 +237,7 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
     const dir = NodeWorkspaceFilesystem.workspaceDirPath(rootPath);
     // Defense-in-depth: ensure the resolved path STILL ends with the
     // workspace directory name. `workspaceDirPath` already constructs
-    // `<root>/.mcp-memoria` and resolves it via `path.resolve`, but a
+    // `<root>/.recall` and resolves it via `path.resolve`, but a
     // future change that lets callers pass a custom directory name (or
     // a buggy refactor) could route this method against an arbitrary
     // path. The guard rejects anything that does not end with the
@@ -341,9 +341,9 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
 
   /**
    * Returns true iff `candidate` ends with the canonical
-   * `.mcp-memoria` segment (with or without a trailing path
-   * separator). Cross-platform: matches both POSIX (`/foo/.mcp-memoria`)
-   * and Windows (`C:\foo\.mcp-memoria`) shapes.
+   * `.recall` segment (with or without a trailing path
+   * separator). Cross-platform: matches both POSIX (`/foo/.recall`)
+   * and Windows (`C:\foo\.recall`) shapes.
    *
    * Used as the path-canonicalisation guard for
    * `removeWorkspaceDirectory`.

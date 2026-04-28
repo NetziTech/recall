@@ -66,7 +66,7 @@ import type { Kdf } from "../ports/out/kdf.port.ts";
  *   delete returns.
  *
  * Boundary note (NOT this use case's job):
- * - This use case does NOT touch `memoria.db` / `vectors.db`. The
+ * - This use case does NOT touch `recall.db` / `vectors.db`. The
  *   workspace module's mode-change flow re-keys / decrypts the
  *   SQLCipher data BEFORE invoking this use case. After this use
  *   case returns, the SQLCipher metadata is gone but the

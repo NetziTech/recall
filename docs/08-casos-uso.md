@@ -7,7 +7,7 @@
 
 ## Caso 1: Inicializar proyecto nuevo (modo compartido)
 
-**Situacion:** primer dia trabajando en Coder. No hay `.mcp-memoria/` aun.
+**Situacion:** primer dia trabajando en Coder. No hay `.recall/` aun.
 
 ### Flujo
 
@@ -62,8 +62,8 @@ mem.init({mode: "shared", display_name: "Coder", metadata: {language: "rust", ph
 
 **Claude responde:**
 ```
-Memoria inicializada en .mcp-memoria/. Modo: compartido.
-Cuando quieras versionarla, hace `git add .mcp-memoria/` y comitealo.
+Memoria inicializada en .recall/. Modo: compartido.
+Cuando quieras versionarla, hace `git add .recall/` y comitealo.
 
 ¿Por donde arrancamos la fase 1?
 ```
@@ -71,7 +71,7 @@ Cuando quieras versionarla, hace `git add .mcp-memoria/` y comitealo.
 ### Que paso
 
 - Cero archivos de bootstrap manual.
-- `.mcp-memoria/` creado con UUID estable que sobrevive renames del folder.
+- `.recall/` creado con UUID estable que sobrevive renames del folder.
 - Listo para acumular memoria desde el primer turno.
 
 ---
@@ -146,8 +146,8 @@ Bienvenido de vuelta. Estado segun memoria:
 > ayudame a entender el proyecto
 
 [Claude llama mem.init({})]
-[MCP detecta .mcp-memoria/, lee config: mode=encrypted, workspace_id=abc-123]
-[MCP busca ~/.config/mcp-memoria/keys/abc-123.key → no existe]
+[MCP detecta .recall/, lee config: mode=encrypted, workspace_id=abc-123]
+[MCP busca ~/.config/recall/keys/abc-123.key → no existe]
 [MCP retorna -32107 ENCRYPTED_LOCKED]
 ```
 
@@ -158,14 +158,14 @@ El workspace esta cifrado y aun no tienes la clave en tu maquina.
 Pidele al team lead la clave de cifrado de este proyecto, y luego ejecuta
 en otra terminal:
 
-    mcp-memoria unlock --workspace .
+    recall unlock --workspace .
 
 Cuando este desbloqueado, vuelve aqui y seguimos.
 ```
 
 **Usuario en otra terminal:**
 ```bash
-$ mcp-memoria unlock --workspace .
+$ recall unlock --workspace .
 > Pega la clave de cifrado: M3-ZK7L-Q4WV-8RTX-9YBN-2HCD-FGJM-1PSE-4ULA
 ✓ Workspace desbloqueado.
 ```
@@ -385,14 +385,14 @@ Alternativas descartadas: Electron, Neutralino, Wails.
 compartir la memoria.
 
 ```bash
-$ mcp-memoria mode shared --workspace .
+$ recall mode shared --workspace .
 > Cambiando modo: private → shared
-> Quitando .mcp-memoria/ del .gitignore raiz
+> Quitando .recall/ del .gitignore raiz
 > ⚠ La historia de git no tiene este folder. Cuando hagas el primer commit,
    todos los devs tendran tu memoria al hacer pull.
 > ✓ Modo cambiado.
 
-$ git add .mcp-memoria/
+$ git add .recall/
 $ git commit -m "chore: compartir memoria del proyecto"
 $ git push
 ```
@@ -465,7 +465,7 @@ Recall ahora devuelve resultados mas concisos sin perdida de informacion.
 El usuario puede ver el log via:
 
 ```bash
-mcp-memoria curator-log --workspace . --last 5
+recall curator-log --workspace . --last 5
 ```
 
 ---
@@ -475,13 +475,13 @@ mcp-memoria curator-log --workspace . --last 5
 **Usuario tiene un proyecto con HANDOFF.md grande, quiere migrarlo:**
 
 ```bash
-$ mcp-memoria import-handoff \
+$ recall import-handoff \
     --workspace . \
     --handoff HANDOFF.md \
     --claude-md CLAUDE.md \
     --mode shared
 
-> Inicializando .mcp-memoria/ en modo shared...
+> Inicializando .recall/ en modo shared...
 > Parseando HANDOFF.md...
 >   - Detectadas 23 decisions en seccion "Decisiones tecnicas"
 >   - Detectadas 47 learnings en seccion "Lecciones aprendidas"
@@ -525,7 +525,7 @@ mem.forget({
 Encontre 247 entries en este workspace. ¿Borrar todas?
 
 (Alternativa: si quieres borrar TODO el workspace, ejecuta
-`mcp-memoria wipe --workspace . --confirm` desde otra terminal.)
+`recall wipe --workspace . --confirm` desde otra terminal.)
 ```
 
 **Usuario:** "si"
@@ -551,9 +551,9 @@ vacia (config.json y schema preservados).
 **Situacion:** repo privado va a hacerse publico. Antes de push, audit.
 
 ```bash
-$ mcp-memoria audit --workspace . --check-secrets --strict
+$ recall audit --workspace . --check-secrets --strict
 
-Auditando .mcp-memoria/memoria.db...
+Auditando .recall/recall.db...
   Total entries escaneadas: 423
   - Patrones AWS: 0
   - JWT: 0
@@ -579,15 +579,15 @@ Exit code: 1 (--strict)
 
 **Usuario:**
 ```bash
-$ mcp-memoria sanitize --workspace . --entry-id abc123
+$ recall sanitize --workspace . --entry-id abc123
 > Reemplazando contenido de abc123 por [REDACTED]...
 > Regenerando embedding...
 > ✓ Sanitizado.
 
-$ mcp-memoria sanitize --workspace . --entry-id def456
+$ recall sanitize --workspace . --entry-id def456
 > ...
 
-$ mcp-memoria audit --workspace . --check-secrets --strict
+$ recall audit --workspace . --check-secrets --strict
 > ✓ 0 hallazgos. OK para push.
 ```
 
@@ -668,5 +668,5 @@ Cosas que el usuario podria hacer y que el MCP debe rechazar/avisar:
   `encrypted`.
 - Apuntar al mismo workspace_path desde dos paths distintos
   (`/Users/x/proj` y `/Users/x/proj/`) → canonicalizacion los une.
-- Committear `.mcp-memoria/` cuando el modo es `private` → pre-commit hook
+- Committear `.recall/` cuando el modo es `private` → pre-commit hook
   lo bloquea.

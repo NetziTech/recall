@@ -50,14 +50,14 @@ export interface IntervalCuratorSchedulerOptions {
  *
  * The scheduler is intentionally minimal: in production, MCP servers
  * are short-lived (one process per session); the long-running case
- * is the CLI watching a workspace via `mcp-memoria curator-watch`.
+ * is the CLI watching a workspace via `recall curator-watch`.
  * The scheduler exposes:
  *
  * - `start(...)`: schedules the next tick. Idempotent — calling
  *   `start` while the scheduler is already running is a no-op.
  * - `stop(...)`: cancels the pending tick. Idempotent.
  * - `triggerNow(...)`: manual trigger respecting the cooldown. Used
- *   by the CLI's `mcp-memoria curator-run --workspace .` shortcut.
+ *   by the CLI's `recall curator-run --workspace .` shortcut.
  *
  * Rationale for keeping the scheduler in `infrastructure/`:
  * - The trigger condition (24h interval, cooldown) is an

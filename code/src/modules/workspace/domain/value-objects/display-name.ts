@@ -15,7 +15,7 @@ const DISPLAY_NAME_MAX_LENGTH = 200;
 /**
  * Value object representing the human-readable name of a workspace.
  *
- * Corresponds to `.mcp-memoria/config.json → display_name` (see
+ * Corresponds to `.recall/config.json → display_name` (see
  * `docs/03-modelo-datos.md` §2). It is what the user sees in CLI
  * prompts, audit logs and (eventually) any UI; the immutable identity
  * of the workspace is `WorkspaceId`, not the display name.

@@ -63,7 +63,7 @@ export class CuratorApplicationError extends Error {
    * Raised by the orchestrator when a `runId` it expected to load
    * could not be found. Indicates either a programming bug (the
    * orchestrator persisted the run via a different connection) or a
-   * concurrent wipe (`mcp-memoria wipe`).
+   * concurrent wipe (`recall wipe`).
    */
   public static runNotFound(runId: string): CuratorApplicationError {
     return new CuratorApplicationError(

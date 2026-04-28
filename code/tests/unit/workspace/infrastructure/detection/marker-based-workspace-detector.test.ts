@@ -13,7 +13,7 @@ interface Tmp {
 }
 
 async function tmp(): Promise<Tmp> {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-memoria-detector-"));
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "recall-detector-"));
   return {
     tmpDir,
     cleanup: async () => {
@@ -32,9 +32,9 @@ afterEach(async () => {
 });
 
 async function makeWorkspaceAt(dir: string): Promise<void> {
-  await fs.mkdir(path.join(dir, ".mcp-memoria"), { recursive: true });
+  await fs.mkdir(path.join(dir, ".recall"), { recursive: true });
   await fs.writeFile(
-    path.join(dir, ".mcp-memoria", "config.json"),
+    path.join(dir, ".recall", "config.json"),
     "{}",
     "utf8",
   );
@@ -51,7 +51,7 @@ async function makeMarker(dir: string, marker: string): Promise<void> {
 describe("MarkerBasedWorkspaceDetector", () => {
   const detector = new MarkerBasedWorkspaceDetector();
 
-  it("returns hit when .mcp-memoria/config.json is in the start dir", async () => {
+  it("returns hit when .recall/config.json is in the start dir", async () => {
     await makeWorkspaceAt(ctx.tmpDir);
     const r = await detector.detect(WorkspacePath.create(ctx.tmpDir));
     expect(r.exists).toBe(true);
@@ -91,10 +91,10 @@ describe("MarkerBasedWorkspaceDetector", () => {
     },
   );
 
-  it("treats a `.mcp-memoria` regular file as not-a-workspace", async () => {
+  it("treats a `.recall` regular file as not-a-workspace", async () => {
     // Replace the directory with a file of the same name.
     await fs.writeFile(
-      path.join(ctx.tmpDir, ".mcp-memoria"),
+      path.join(ctx.tmpDir, ".recall"),
       "not-a-dir",
       "utf8",
     );
@@ -103,7 +103,7 @@ describe("MarkerBasedWorkspaceDetector", () => {
   });
 
   it("treats `config.json` as a directory as not-a-workspace", async () => {
-    await fs.mkdir(path.join(ctx.tmpDir, ".mcp-memoria", "config.json"), {
+    await fs.mkdir(path.join(ctx.tmpDir, ".recall", "config.json"), {
       recursive: true,
     });
     const r = await detector.detect(WorkspacePath.create(ctx.tmpDir));
@@ -118,7 +118,7 @@ describe("MarkerBasedWorkspaceDetector", () => {
     await fs.mkdir(deep, { recursive: true });
     const r = await detector.detect(WorkspacePath.create(deep));
     // We expect not-found UNLESS the test runner's cwd ancestry happens
-    // to contain a `.mcp-memoria` (very unlikely in CI). In our repo
+    // to contain a `.recall` (very unlikely in CI). In our repo
     // there's none under /tmp.
     expect(typeof r.exists).toBe("boolean");
   });

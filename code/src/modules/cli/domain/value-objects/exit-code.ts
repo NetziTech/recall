@@ -1,7 +1,7 @@
 import { InvalidExitCodeError } from "../errors/invalid-exit-code-error.ts";
 
 /**
- * Catalog of named exit codes used by the `mcp-memoria` CLI. Single
+ * Catalog of named exit codes used by the `recall` CLI. Single
  * source of truth: the `ExitCodeKind` union and the numeric mapping are
  * both derived from this object so adding a new code is a one-line edit.
  *
@@ -13,10 +13,10 @@ import { InvalidExitCodeError } from "../errors/invalid-exit-code-error.ts";
  * - `1` genericError — POSIX convention for "something went wrong".
  * - `2` usageError — POSIX convention for "invalid invocation"
  *   (used by `getopt`, `argparse`, etc.).
- * - `3` invalidConfig — `.mcp-memoria/config.json` is missing or
- *   malformed (caller should run `mcp-memoria init`).
+ * - `3` invalidConfig — `.recall/config.json` is missing or
+ *   malformed (caller should run `recall init`).
  * - `4` lockedWorkspace — encrypted workspace without key in HOME
- *   (caller should run `mcp-memoria unlock`).
+ *   (caller should run `recall unlock`).
  *   Mirrors the JSON-RPC code `-32107 ENCRYPTED_LOCKED`.
  * - `5` invalidKey — the key the user supplied does not open the DB.
  *   Mirrors the JSON-RPC code `-32108 INVALID_KEY`.
@@ -68,7 +68,7 @@ export type CatalogedExitValue = (typeof EXIT_CODES)[ExitCodeKind];
  *     `ExitCode.from("lockedWorkspace")`.
  *   - `ExitCode.fromValue(n)` — the escape hatch. Used when the CLI
  *     wraps a sub-process whose own exit code we want to forward
- *     verbatim (e.g. `mcp-memoria server` exiting with whatever the
+ *     verbatim (e.g. `recall server` exiting with whatever the
  *     MCP runtime returned). The numeric value MUST satisfy POSIX:
  *     a non-negative integer in `0..255`. Otherwise
  *     `InvalidExitCodeError` is raised.

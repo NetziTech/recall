@@ -136,7 +136,7 @@ export class McpFacadeNotImplementedError extends Error {
  *     is collected interactively on the CLI). The adapter therefore
  *     surfaces a typed failure when `mode === "encrypted"`; clients
  *     are expected to drive encryption initialisation through the
- *     CLI binary (`mcp-memoria init --mode encrypted`).
+ *     CLI binary (`recall init --mode encrypted`).
  */
 export class InitializeWorkspaceFacadeAdapter implements InitializeWorkspaceFacade {
   public constructor(

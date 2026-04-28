@@ -30,7 +30,7 @@ import type {
  * Edge cases:
  *   - `detector.detect` returning `{ exists: false, configPath: null }`
  *     yields `{ found: false, ... }`; the caller decides whether to
- *     fall back to `mcp-memoria init`.
+ *     fall back to `recall init`.
  *   - A detector hit with a malformed `config.json` propagates the
  *     parse error from the filesystem adapter unchanged. We do NOT
  *     swallow it: a malformed config is a hard failure that the user

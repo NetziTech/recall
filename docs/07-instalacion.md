@@ -30,7 +30,7 @@ Sin install previo. El cliente lo ejecuta y npx descarga si falta:
   "mcpServers": {
     "memoria": {
       "command": "npx",
-      "args": ["-y", "mcp-memoria@latest", "server"]
+      "args": ["-y", "recall@latest", "server"]
     }
   }
 }
@@ -42,7 +42,7 @@ patron que otros MCP servers.
 ### Opcion B: Global
 
 ```bash
-npm install -g mcp-memoria
+npm install -g recall
 ```
 
 Luego en config MCP del cliente:
@@ -51,20 +51,20 @@ Luego en config MCP del cliente:
 {
   "mcpServers": {
     "memoria": {
-      "command": "mcp-memoria-server"
+      "command": "recall-server"
     }
   }
 }
 ```
 
-Ventaja sobre npx: el `mcp-memoria` CLI tambien queda en el PATH para
+Ventaja sobre npx: el `recall` CLI tambien queda en el PATH para
 operaciones manuales (`unlock`, `audit`, `mode`, etc.).
 
 ### Opcion C: Build desde fuente
 
 ```bash
-git clone https://github.com/<owner>/mcp-memoria
-cd mcp-memoria
+git clone https://github.com/<owner>/recall
+cd recall
 npm install
 npm run build
 ```
@@ -76,7 +76,7 @@ Apuntar el cliente al binary local:
   "mcpServers": {
     "memoria": {
       "command": "node",
-      "args": ["/path/to/mcp-memoria/dist/index.js"]
+      "args": ["/path/to/recall/dist/index.js"]
     }
   }
 }
@@ -97,7 +97,7 @@ Apuntar el cliente al binary local:
 Para Claude Code CLI:
 
 ```bash
-claude mcp add memoria npx "-y" "mcp-memoria@latest" "server"
+claude mcp add memoria npx "-y" "recall@latest" "server"
 ```
 
 O editar `~/.claude/settings.json`:
@@ -107,9 +107,9 @@ O editar `~/.claude/settings.json`:
   "mcp": {
     "memoria": {
       "command": "npx",
-      "args": ["-y", "mcp-memoria@latest", "server"],
+      "args": ["-y", "recall@latest", "server"],
       "env": {
-        "MCP_MEMORIA_LOG_LEVEL": "info"
+        "RECALL_LOG_LEVEL": "info"
       }
     }
   }
@@ -133,15 +133,15 @@ las incluye).
 
 | Variable | Default | Proposito |
 |---|---|---|
-| `MCP_MEMORIA_LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
-| `MCP_MEMORIA_EMBEDDER` | `fastembed` | `fastembed` / `voyage` |
-| `MCP_MEMORIA_EMBED_MODEL` | `BGESmallEN15` | `MultilingualE5Base` para espanol |
+| `RECALL_LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
+| `RECALL_EMBEDDER` | `fastembed` | `fastembed` / `voyage` |
+| `RECALL_EMBED_MODEL` | `BGESmallEN15` | `MultilingualE5Base` para espanol |
 | `VOYAGE_AI_KEY` | (ninguna) | API key si embedder=voyage |
-| `MCP_MEMORIA_AUTO_CURATOR` | `true` | si corre curador automatico |
-| `MCP_MEMORIA_SECRET_DETECTION` | `true` | bloquea secrets en input |
-| `MCP_MEMORIA_SESSION_IDLE_MIN` | `30` | minutos para auto-cerrar sesion |
-| `MCP_MEMORIA_CACHE_DIR` | `~/.cache/mcp-memoria` | override XDG |
-| `MCP_MEMORIA_CONFIG_DIR` | `~/.config/mcp-memoria` | override XDG |
+| `RECALL_AUTO_CURATOR` | `true` | si corre curador automatico |
+| `RECALL_SECRET_DETECTION` | `true` | bloquea secrets en input |
+| `RECALL_SESSION_IDLE_MIN` | `30` | minutos para auto-cerrar sesion |
+| `RECALL_CACHE_DIR` | `~/.cache/recall` | override XDG |
+| `RECALL_CONFIG_DIR` | `~/.config/recall` | override XDG |
 
 Definir en `claude_desktop_config.json` via campo `env`:
 
@@ -150,9 +150,9 @@ Definir en `claude_desktop_config.json` via campo `env`:
   "mcpServers": {
     "memoria": {
       "command": "npx",
-      "args": ["-y", "mcp-memoria@latest", "server"],
+      "args": ["-y", "recall@latest", "server"],
       "env": {
-        "MCP_MEMORIA_EMBEDDER": "voyage",
+        "RECALL_EMBEDDER": "voyage",
         "VOYAGE_AI_KEY": "${VOYAGE_AI_KEY}"
       }
     }
@@ -166,15 +166,15 @@ Definir en `claude_desktop_config.json` via campo `env`:
 
 ### Que pasa la primera vez en general
 
-1. El server arranca, detecta si `~/.config/mcp-memoria/` y
-   `~/.cache/mcp-memoria/` no existen.
+1. El server arranca, detecta si `~/.config/recall/` y
+   `~/.cache/recall/` no existen.
 2. Crea estructura:
    ```
-   ~/.config/mcp-memoria/
+   ~/.config/recall/
    ├── config.json     (defaults)
    └── keys/
 
-   ~/.cache/mcp-memoria/
+   ~/.cache/recall/
    ├── models/
    └── logs/
    ```
@@ -191,7 +191,7 @@ Definir en `claude_desktop_config.json` via campo `env`:
 > claude
 [Claude llama mem.init({})]
 
-[Server detecta no hay .mcp-memoria/ en cwd]
+[Server detecta no hay .recall/ en cwd]
 [Server retorna: { is_new: true, requires_mode_choice: true }]
 
 [Claude muestra al usuario:]
@@ -210,7 +210,7 @@ Definir en `claude_desktop_config.json` via campo `env`:
      - Recomendado para: equipos cerrados con info sensible
 
   3) Privado
-     - .mcp-memoria/ en .gitignore
+     - .recall/ en .gitignore
      - Tu memoria personal, no se comparte
      - Recomendado para: tus notas privadas o pruebas
 
@@ -218,7 +218,7 @@ Definir en `claude_desktop_config.json` via campo `env`:
 
 [Claude llama mem.init({mode: "encrypted"})]
 
-[Server crea .mcp-memoria/, genera clave]
+[Server crea .recall/, genera clave]
 
 [Server retorna por canal MCP:]
   { workspace_id: "abc-123...", mode: "encrypted",
@@ -250,19 +250,19 @@ sesiones, los `mem.recall` empiezan a tener resultados utiles.
 [dev2] > claude
 
 [Claude llama mem.init({})]
-[Server detecta .mcp-memoria/, lee config.json: mode=encrypted]
-[Server busca ~/.config/mcp-memoria/keys/abc-123.key → no existe]
+[Server detecta .recall/, lee config.json: mode=encrypted]
+[Server busca ~/.config/recall/keys/abc-123.key → no existe]
 [Server retorna error -32107 ENCRYPTED_LOCKED]
 
 [Claude muestra al usuario:]
   El workspace esta cifrado. Pidele la clave a alguien del equipo y
   ejecuta en otra terminal:
-    mcp-memoria unlock --workspace .
+    recall unlock --workspace .
 
-[dev2] $ mcp-memoria unlock --workspace .
+[dev2] $ recall unlock --workspace .
 > Pega la clave de cifrado: M3-ZK7L-Q4WV-8RTX-9YBN-2HCD-FGJM-1PSE-4ULA
 
-[CLI valida y guarda en ~/.config/mcp-memoria/keys/abc-123.key]
+[CLI valida y guarda en ~/.config/recall/keys/abc-123.key]
 > Workspace desbloqueado.
 
 [dev2] > claude
@@ -273,7 +273,7 @@ sesiones, los `mem.recall` empiezan a tener resultados utiles.
 
 ## 6. Configuracion por proyecto
 
-`.mcp-memoria/config.json` se crea al inicializar y se versiona en git
+`.recall/config.json` se crea al inicializar y se versiona en git
 (modos `shared` y `encrypted`). Permite override de defaults globales.
 
 ```json
@@ -310,8 +310,8 @@ sesiones, los `mem.recall` empiezan a tener resultados utiles.
 ### Politica de fusion
 
 1. Defaults del binario.
-2. `~/.config/mcp-memoria/config.json` (defaults del usuario).
-3. `.mcp-memoria/config.json` (overrides del proyecto).
+2. `~/.config/recall/config.json` (defaults del usuario).
+3. `.recall/config.json` (overrides del proyecto).
 
 El ultimo gana.
 
@@ -321,40 +321,40 @@ El ultimo gana.
 
 ```bash
 # Inicializacion / modos
-mcp-memoria init [--workspace <path>] [--mode shared|encrypted|private]
-mcp-memoria mode <new-mode> --workspace <path>
+recall init [--workspace <path>] [--mode shared|encrypted|private]
+recall mode <new-mode> --workspace <path>
 
 # Encriptado
-mcp-memoria unlock --workspace <path>
-mcp-memoria forget-key --workspace <path>
-mcp-memoria export-key --workspace <path>      # imprime clave si esta unlocked
-mcp-memoria rekey --workspace <path>            # v0.5+
-mcp-memoria add-key --workspace <path>          # v0.5+
+recall unlock --workspace <path>
+recall forget-key --workspace <path>
+recall export-key --workspace <path>      # imprime clave si esta unlocked
+recall rekey --workspace <path>            # v0.5+
+recall add-key --workspace <path>          # v0.5+
 
 # Mantenimiento
-mcp-memoria audit --workspace <path> [--check-secrets] [--strict]
-mcp-memoria sanitize --workspace <path> --entry-id <id>
-mcp-memoria curator-run --workspace <path> [--dry-run]
-mcp-memoria curator-log --workspace <path> [--last <n>]
+recall audit --workspace <path> [--check-secrets] [--strict]
+recall sanitize --workspace <path> --entry-id <id>
+recall curator-run --workspace <path> [--dry-run]
+recall curator-log --workspace <path> [--last <n>]
 
 # Migracion
-mcp-memoria import-handoff --workspace <path> --handoff <file.md>
+recall import-handoff --workspace <path> --handoff <file.md>
 
 # Backup / restore
-mcp-memoria export --workspace <path> --output backup.json
-mcp-memoria import --workspace <path> --input backup.json
-mcp-memoria wipe --workspace <path> --confirm
+recall export --workspace <path> --output backup.json
+recall import --workspace <path> --input backup.json
+recall wipe --workspace <path> --confirm
 
 # Hooks
-mcp-memoria install-hook --workspace <path>     # pre-commit hook git
-mcp-memoria uninstall-hook --workspace <path>
+recall install-hook --workspace <path>     # pre-commit hook git
+recall uninstall-hook --workspace <path>
 
 # Stats / health
-mcp-memoria stats --workspace <path>
-mcp-memoria health --workspace <path>
+recall stats --workspace <path>
+recall health --workspace <path>
 
 # Server (lo invoca el cliente MCP, no el usuario)
-mcp-memoria server                              # entry-point del MCP server
+recall server                              # entry-point del MCP server
 ```
 
 ---
@@ -367,7 +367,7 @@ Para que Claude use la memoria efectivamente, el system prompt debe incluir:
 ## Memoria persistente (MCP `memoria`)
 
 Tienes acceso al MCP `memoria` que persiste informacion del proyecto entre
-sesiones. La memoria vive en `<proyecto>/.mcp-memoria/` y, segun el modo,
+sesiones. La memoria vive en `<proyecto>/.recall/` y, segun el modo,
 puede estar versionada en git.
 
 **Al inicio de cada sesion:**
@@ -375,7 +375,7 @@ puede estar versionada en git.
 2. Si retorna `is_new: true`, pregunta al usuario que modo quiere
    (compartido / encriptado / privado).
 3. Si retorna `encryption_status: "locked"`, dile al usuario que ejecute
-   `mcp-memoria unlock --workspace <path>` y espera.
+   `recall unlock --workspace <path>` y espera.
 4. Llama `mem.context({query: "<intent del usuario>"})` para cargar contexto.
 
 **Durante la sesion:**
@@ -421,14 +421,14 @@ Para Cursor:
   "mcpServers": {
     "memoria": {
       "command": "npx",
-      "args": ["-y", "mcp-memoria@latest", "server"]
+      "args": ["-y", "recall@latest", "server"]
     }
   }
 }
 ```
 
 **Importante:** dos clientes apuntando al mismo proyecto comparten la
-memoria del proyecto (los dos abren el mismo `.mcp-memoria/memoria.db`).
+memoria del proyecto (los dos abren el mismo `.recall/recall.db`).
 Util si usas Claude Code de dia y Cursor de noche.
 
 ---
@@ -438,7 +438,7 @@ Util si usas Claude Code de dia y Cursor de noche.
 Si ya tienes un proyecto con `HANDOFF.md` y `CLAUDE.md` muy poblados:
 
 ```bash
-mcp-memoria import-handoff \
+recall import-handoff \
   --workspace . \
   --handoff HANDOFF.md \
   --claude-md CLAUDE.md \
@@ -446,7 +446,7 @@ mcp-memoria import-handoff \
 ```
 
 El comando:
-1. Si no hay `.mcp-memoria/`, crea uno con el modo elegido.
+1. Si no hay `.recall/`, crea uno con el modo elegido.
 2. Parsea las secciones del markdown (lista, headings, tablas).
 3. Mapea a tablas (decisions del CLAUDE.md, tasks/turns del HANDOFF).
 4. Crea entries con tag `imported_from_handoff`.
@@ -461,27 +461,27 @@ No es perfecto. Revisar entries con tag `needs_review`.
 
 ### Backup manual
 
-Como `.mcp-memoria/` vive dentro del proyecto, ya esta cubierto por el
+Como `.recall/` vive dentro del proyecto, ya esta cubierto por el
 backup del proyecto (git, time machine, etc.).
 
 Backup explicito:
 
 ```bash
-mcp-memoria export --workspace . --output mcp-memoria-backup-2026-04-27.json
+recall export --workspace . --output recall-backup-2026-04-27.json
 ```
 
 ### Restore
 
 ```bash
-mcp-memoria import --workspace . --input mcp-memoria-backup-2026-04-27.json
+recall import --workspace . --input recall-backup-2026-04-27.json
 ```
 
 **Atencion:** import a un workspace existente fusiona, no reemplaza. Para
 empezar de cero:
 
 ```bash
-mcp-memoria wipe --workspace . --confirm
-mcp-memoria import --workspace . --input backup.json
+recall wipe --workspace . --confirm
+recall import --workspace . --input backup.json
 ```
 
 ### Sync entre maquinas
@@ -505,19 +505,19 @@ corromper. Mejor usar la memoria en una sola a la vez.
 # Quitar del config MCP del cliente (editar manualmente)
 
 # Opcional: borrar cache compartido
-rm -rf ~/.cache/mcp-memoria/
+rm -rf ~/.cache/recall/
 
 # Opcional: borrar config global y claves
-rm -rf ~/.config/mcp-memoria/
+rm -rf ~/.config/recall/
 # (cuidado: si tienes workspaces encriptados, quedan irrecuperables sin las
 #  claves a menos que las tengas guardadas en otro lado)
 
 # Si fue install global
-npm uninstall -g mcp-memoria
+npm uninstall -g recall
 
-# Las memorias en cada proyecto (.mcp-memoria/ dentro de cada proyecto)
+# Las memorias en cada proyecto (.recall/ dentro de cada proyecto)
 # quedan ahi. Si quieres borrarlas:
-find ~/proyectos -name ".mcp-memoria" -type d -exec rm -rf {} +
+find ~/proyectos -name ".recall" -type d -exec rm -rf {} +
 ```
 
 ---
@@ -529,12 +529,12 @@ find ~/proyectos -name ".mcp-memoria" -type d -exec rm -rf {} +
 | Server no aparece en `/mcp` | Verificar config JSON, reiniciar cliente |
 | Tarda mucho la primera vez | Descarga del modelo embedding, esperar ~30s |
 | `mem.recall` devuelve vacio | Aun no hay datos. Llamar `mem.remember` primero |
-| `Database is locked` | WAL no se aplico. Verificar permisos en `.mcp-memoria/` |
-| Error -32107 ENCRYPTED_LOCKED | `mcp-memoria unlock --workspace <path>` |
+| `Database is locked` | WAL no se aplico. Verificar permisos en `.recall/` |
+| Error -32107 ENCRYPTED_LOCKED | `recall unlock --workspace <path>` |
 | Error -32108 INVALID_KEY | Verificar que pegaste la clave correcta |
-| Embeddings inconsistentes (modelo cambio) | `mcp-memoria curator-run --workspace .` para re-embed |
-| Disco lleno | `mcp-memoria curator-run` con prune agresivo, o aumentar limite en config |
-| `.mcp-memoria/` se subio por error en modo `private` | Cambiar a modo `private` no es suficiente; usar `git filter-repo` para borrar de la historia |
+| Embeddings inconsistentes (modelo cambio) | `recall curator-run --workspace .` para re-embed |
+| Disco lleno | `recall curator-run` con prune agresivo, o aumentar limite en config |
+| `.recall/` se subio por error en modo `private` | Cambiar a modo `private` no es suficiente; usar `git filter-repo` para borrar de la historia |
 | Pre-commit hook bloquea siempre | Revisar reportes; ajustar `secrets.allowed_patterns` en config |
 
 ---
@@ -543,19 +543,19 @@ find ~/proyectos -name ".mcp-memoria" -type d -exec rm -rf {} +
 
 ```bash
 # Ver logs en tiempo real
-tail -f ~/.cache/mcp-memoria/logs/$(date +%Y-%m-%d).log
+tail -f ~/.cache/recall/logs/$(date +%Y-%m-%d).log
 
 # Ver tamano de cada workspace
-find ~ -name ".mcp-memoria" -type d -exec du -sh {} +
+find ~ -name ".recall" -type d -exec du -sh {} +
 
 # Estadisticas de un proyecto
-mcp-memoria stats --workspace .
+recall stats --workspace .
 
 # Health check completo
-mcp-memoria health --workspace .
+recall health --workspace .
 
 # Historial del curador
-mcp-memoria curator-log --workspace . --last 10
+recall curator-log --workspace . --last 10
 ```
 
 ---
@@ -571,7 +571,7 @@ cd <repo>
 #    (1Password compartido, Bitwarden, etc.)
 
 # 3. Hacer unlock
-mcp-memoria unlock --workspace .
+recall unlock --workspace .
 
 # 4. Empezar a trabajar
 claude

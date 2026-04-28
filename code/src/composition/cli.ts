@@ -1,5 +1,5 @@
 /**
- * Build entrypoint for the `mcp-memoria` CLI binary. `tsup` bundles
+ * Build entrypoint for the `recall` CLI binary. `tsup` bundles
  * this file (see `code/package.json` `build` script) and the result
  * becomes `dist/cli.js`.
  *

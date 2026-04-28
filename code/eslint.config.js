@@ -1,6 +1,6 @@
 // @ts-check
 /**
- * ESLint flat config for mcp-memoria.
+ * ESLint flat config for recall.
  *
  * Goals:
  * - Type-aware linting on `src/**\/*.ts` to enforce zero `any` and zero

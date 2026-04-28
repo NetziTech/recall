@@ -35,7 +35,7 @@ ya beneficiarse de memoria persistente con compartir/cifrar/privado.
 - Migracion 001 (initial schema).
 - CI con tests + build.
 
-**Salida:** `mcp-memoria server` arranca, Claude Code lo lista en `/mcp`
+**Salida:** `recall server` arranca, Claude Code lo lista en `/mcp`
 con 0 tools.
 
 ### Dia 2 — Modos + workspace + tools de escritura
@@ -48,9 +48,9 @@ con 0 tools.
   - KDF argon2id via `@noble/hashes`.
   - SQLCipher PRAGMAs.
   - `key_validator_blob` en config.
-  - Escribir clave en `~/.config/mcp-memoria/keys/<id>.key` (0600).
+  - Escribir clave en `~/.config/recall/keys/<id>.key` (0600).
   - Imprimir clave por stdout del CLI.
-- Modo `private`: agregar `.mcp-memoria/` al `.gitignore` raiz.
+- Modo `private`: agregar `.recall/` al `.gitignore` raiz.
 - `mem.remember` (decision, learning, entity, turn).
 - `mem.task` (CRUD).
 - Capa 1 de deteccion de secrets (regex + entropy).
@@ -63,7 +63,7 @@ modos funcionan.
 ### Dia 3 — Tools de lectura + hybrid search
 
 - Worker async de embeddings (`fastembed` con `BGESmallEN15`).
-- Cache de modelo en `~/.cache/mcp-memoria/models/`.
+- Cache de modelo en `~/.cache/recall/models/`.
 - BM25 search via FTS5.
 - Cosine search via sqlite-vec.
 - Hybrid re-ranking (cosine + BM25 + recency + usage).
@@ -79,9 +79,9 @@ lexical usable.
 - `mem.context` con las 7 capas.
 - Sesiones implicitas: rollup automatico cada 30 min idle.
 - Generacion de summary de sesion basado en turns recientes.
-- CLI `mcp-memoria unlock --workspace <path>`.
-- CLI `mcp-memoria forget-key`.
-- CLI `mcp-memoria mode <new>` (cambio de modo).
+- CLI `recall unlock --workspace <path>`.
+- CLI `recall forget-key`.
+- CLI `recall mode <new>` (cambio de modo).
 - Errores `-32107` (ENCRYPTED_LOCKED), `-32108` (INVALID_KEY).
 - Migraciones lazy: al primer tool call, valida `schema_version`.
 
@@ -102,21 +102,21 @@ context bundle, recall, remember, sesiones automaticas.
 
 ### Criterio de exito MVP
 
-- [ ] Instalable via `npx -y mcp-memoria@latest server`.
+- [ ] Instalable via `npx -y recall@latest server`.
 - [ ] 6 tools funcionales: `init`, `context`, `recall`, `remember`, `task`,
       `health`.
 - [ ] Los 3 modos funcionan: shared, encrypted, private.
 - [ ] CLI con `unlock`, `forget-key`, `mode`.
 - [ ] Hybrid search (BM25 + cosine) devuelve top-8 en < 200ms con 1K entries.
 - [ ] Modo encrypted con SQLCipher + argon2id KDF.
-- [ ] Persiste en `<proyecto>/.mcp-memoria/`.
+- [ ] Persiste en `<proyecto>/.recall/`.
 - [ ] Documentado: README + protocolo + setup + seguridad.
 
 ### Limitaciones aceptadas en MVP
 
 - Sin curador completo (solo embedding queue worker; sin decay, sin
   consolidacion).
-- Sin auditoria en CLI (`mcp-memoria audit`).
+- Sin auditoria en CLI (`recall audit`).
 - Sin pre-commit hook.
 - Sin import desde HANDOFF.md.
 - Sin `mem.search_entities`, `mem.export_handoff`, `mem.forget`,
@@ -156,11 +156,11 @@ context bundle, recall, remember, sesiones automaticas.
 
 ### Semana 4 — CLI completa + import + hooks
 
-- CLI `mcp-memoria audit --check-secrets [--strict]`.
-- CLI `mcp-memoria sanitize --entry-id <id>`.
-- CLI `mcp-memoria import-handoff` (parseo heuristico).
-- CLI `mcp-memoria install-hook` (pre-commit hook git).
-- CLI `mcp-memoria stats`, `health`, `wipe`, `export`, `import`.
+- CLI `recall audit --check-secrets [--strict]`.
+- CLI `recall sanitize --entry-id <id>`.
+- CLI `recall import-handoff` (parseo heuristico).
+- CLI `recall install-hook` (pre-commit hook git).
+- CLI `recall stats`, `health`, `wipe`, `export`, `import`.
 - Mejor logging y observabilidad.
 
 ### Criterio de exito v0.5
@@ -180,8 +180,8 @@ context bundle, recall, remember, sesiones automaticas.
 
 ### Semana 5-6 — Multi-key y rekey
 
-- `mcp-memoria add-key --workspace .` (multi-key via key envelopes).
-- `mcp-memoria rekey --workspace .` (rotacion de clave maestra).
+- `recall add-key --workspace .` (multi-key via key envelopes).
+- `recall rekey --workspace .` (rotacion de clave maestra).
 - `key_envelopes[]` en config.
 - Tests con escenarios de equipo (alguien sale, rotacion, etc.).
 

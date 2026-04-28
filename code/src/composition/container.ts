@@ -152,12 +152,12 @@ export interface Container {
 export interface ContainerOptions {
   readonly shared: SharedAdaptersOptions;
   /** Absolute path to the workspace root (the directory that holds
-   *  `.mcp-memoria/`). */
+   *  `.recall/`). */
   readonly workspaceRoot: string;
   /** Absolute path to the bundled `code/migrations/` directory. */
   readonly migrationsDir: string;
   /** Live `DatabaseConnection` opened by the bootstrap entrypoint
-   *  (a `SqliteDatabase` against `<workspaceRoot>/.mcp-memoria/memoria.db`). */
+   *  (a `SqliteDatabase` against `<workspaceRoot>/.recall/recall.db`). */
   readonly database: DatabaseConnection;
   /** Resolver the workspace's database bootstrap calls when the mode
    *  is `encrypted`. Wired by the bootstrap entrypoint to a closure
@@ -204,7 +204,7 @@ export function buildContainer(options: ContainerOptions): Container {
   const eventPublisher: EventPublisher = new EventBusPublisher(eventBus);
 
   // Step 3 — encryption module (no database dependency; pure crypto
-  // + filesystem persistence under <workspaceRoot>/.mcp-memoria/).
+  // + filesystem persistence under <workspaceRoot>/.recall/).
   const encryption = buildEncryptionWiring({
     logger,
     clock: shared.clock,

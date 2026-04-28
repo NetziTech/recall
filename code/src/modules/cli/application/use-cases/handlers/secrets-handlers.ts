@@ -18,7 +18,7 @@ import type {
 import { resolveRootPath } from "./root-path.ts";
 
 /**
- * Handler for `mcp-memoria audit`.
+ * Handler for `recall audit`.
  *
  * Output format:
  *   - One line per finding, prefixed with the severity tag.
@@ -73,7 +73,7 @@ export class AuditCommandHandler implements CommandHandler<"audit"> {
 }
 
 /**
- * Handler for `mcp-memoria sanitize --entry-id <id>`.
+ * Handler for `recall sanitize --entry-id <id>`.
  */
 export class SanitizeCommandHandler implements CommandHandler<"sanitize"> {
   public readonly command = "sanitize" as const;
@@ -102,7 +102,7 @@ export class SanitizeCommandHandler implements CommandHandler<"sanitize"> {
 }
 
 /**
- * Handler for `mcp-memoria install-hook`.
+ * Handler for `recall install-hook`.
  */
 export class InstallHookCommandHandler
   implements CommandHandler<"install-hook">
@@ -130,7 +130,7 @@ export class InstallHookCommandHandler
 }
 
 /**
- * Handler for `mcp-memoria uninstall-hook`.
+ * Handler for `recall uninstall-hook`.
  */
 export class UninstallHookCommandHandler
   implements CommandHandler<"uninstall-hook">

@@ -62,7 +62,7 @@ proyectos, el sitio adecuado es `~/.claude/CLAUDE.md`.
 ```
 
 **Origen:**
-- `.mcp-memoria/config.json` (display_name, mode, metadata)
+- `.recall/config.json` (display_name, mode, metadata)
 - Sesion activa de `sessions` (intent, started_at)
 - Constants del cliente (idioma, ...)
 
@@ -294,9 +294,9 @@ Y la tool agregada `mem.context` devuelve las 7 capas ensambladas.
 | Pequeno (< 1 mes, 1 modulo) | 2000 tk | Capas 5/6 reducidas |
 | Mediano (default) | 4400 tk | Sin ajuste |
 | Grande (> 50 modulos) | 7500 tk | Capa 6 ampliada (1500 tk), capa 5 ampliada (2500 tk) |
-| Mega (monorepo) | 12000 tk | Considerar particionar por sub-proyecto con multiples `.mcp-memoria/` |
+| Mega (monorepo) | 12000 tk | Considerar particionar por sub-proyecto con multiples `.recall/` |
 
-Configurable en `.mcp-memoria/config.json`:
+Configurable en `.recall/config.json`:
 
 ```json
 {

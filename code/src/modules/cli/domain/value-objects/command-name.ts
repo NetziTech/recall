@@ -2,7 +2,7 @@ import { UnknownCommandError } from "../errors/unknown-command-error.ts";
 
 /**
  * Single source of truth for the catalog of CLI sub-commands the
- * `mcp-memoria` binary exposes. Mirrors the table in
+ * `recall` binary exposes. Mirrors the table in
  * `docs/07-instalacion.md` §7.
  *
  * The order in this array drives the order in which `--help` lists the
@@ -57,7 +57,7 @@ export type CommandNameValue = (typeof COMMAND_NAMES)[number];
 
 /**
  * Value object representing the *identity* of a CLI sub-command (the
- * token that follows `mcp-memoria` in argv).
+ * token that follows `recall` in argv).
  *
  * The class deliberately carries no behaviour beyond:
  *   - validating that the raw token is one of the known commands;

@@ -13,7 +13,7 @@ import type { Tokens } from "../../../../../shared/domain/value-objects/tokens.t
  * - **`CountTokens` (in)** is the use-case input port that callers
  *   reach for when they only need the count and not the rest of the
  *   recall pipeline (e.g. the MCP server pre-validating the
- *   `max_tokens` of an incoming request, or the CLI's `mcp-memoria
+ *   `max_tokens` of an incoming request, or the CLI's `recall
  *   count` sub-command).
  *
  * Encoding contract (mirrors `docs/04-capas-contexto.md` §10):

@@ -3,11 +3,11 @@ import { InvalidInputError } from "../../../../shared/domain/errors/invalid-inpu
 /**
  * Value object representing the absolute filesystem path to the root of
  * a host project (the directory that contains, or will contain, the
- * `.mcp-memoria/` folder).
+ * `.recall/` folder).
  *
  * The auto-detection algorithm in `docs/01-arquitectura.md` §4 walks the
  * directory tree upwards from `cwd` looking for known markers
- * (`.mcp-memoria`, `.git`, `package.json`, etc.) and returns the first
+ * (`.recall`, `.git`, `package.json`, etc.) and returns the first
  * match. The resulting path is what this VO wraps.
  *
  * Invariants:

@@ -49,7 +49,7 @@
  * - `shared/infrastructure/embedder/fastembed-adapter.ts` is the
  *   default backend (`docs/06-stack-tecnico.md` §6), wrapping
  *   `fastembed` with a model-cache resolver pointed at
- *   `~/.cache/mcp-memoria/models/`.
+ *   `~/.cache/recall/models/`.
  * - `shared/infrastructure/embedder/voyage-adapter.ts` is the
  *   opt-in cloud backend (`docs/06-stack-tecnico.md` §6 footnote),
  *   gated by `embedder.spec` in `config.json`.

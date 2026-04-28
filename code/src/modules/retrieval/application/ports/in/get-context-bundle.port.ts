@@ -8,7 +8,7 @@ import type { TokenBudget } from "../../../domain/value-objects/token-budget.ts"
 /**
  * Per-layer token budget overrides keyed by `ContextLayerKindValue`.
  *
- * Mirrors the `layer_budgets` block in `.mcp-memoria/config.json`
+ * Mirrors the `layer_budgets` block in `.recall/config.json`
  * (`docs/03-modelo-datos.md` §2 — `retrieval.scoring`) and the
  * adaptable defaults of `docs/04-capas-contexto.md` §7. Any layer not
  * listed inherits the canonical default from the same doc:

@@ -25,7 +25,7 @@ interface BuiltInPatternSpec {
  * Each entry pairs a regex source with the canonical
  * `DetectorName` and `SecretKind`. The list is the SINGLE source of
  * truth for the project's defaults; user-supplied `extra_patterns`
- * from `.mcp-memoria/config.json` extend it (rather than replace
+ * from `.recall/config.json` extend it (rather than replace
  * it). The composition root's adapter constructor is responsible for
  * concatenating the two lists.
  *

@@ -20,7 +20,7 @@ import type {
  *
  * Implements the `AuditMemory` driving port. Read-only: the use case
  * never mutates and never throws on findings. The CLI's
- * `mcp-memoria audit` subcommand is the primary consumer; the
+ * `recall audit` subcommand is the primary consumer; the
  * curator's `SelfHealUseCase` may also feed the issue list into its
  * scheduled fixes.
  *

@@ -4,7 +4,7 @@ import { CliDomainError } from "./cli-domain-error.ts";
  * Raised when the CLI driver receives a token in argv that does not match
  * any registered `CommandName`.
  *
- * Example: a user types `mcp-memoria innit` (typo). The infrastructure
+ * Example: a user types `recall innit` (typo). The infrastructure
  * argv parser hands the string `"innit"` to `CommandName.create(...)`,
  * which fails. The application layer catches the failure, wraps it in
  * this error so the terminal layer can surface a Spanish-language usage

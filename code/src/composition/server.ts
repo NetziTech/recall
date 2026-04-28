@@ -1,5 +1,5 @@
 /**
- * Build entrypoint for the `mcp-memoria-server` binary. `tsup`
+ * Build entrypoint for the `recall-server` binary. `tsup`
  * bundles this file (see `code/package.json` `build` script) and
  * the result becomes `dist/server.js`.
  *

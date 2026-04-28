@@ -455,7 +455,7 @@ describe("PinoLogger.create — destination override (Bug B-016)", () => {
   it("emits to the requested file descriptor", async () => {
     const tmp = path.join(
       os.tmpdir(),
-      `mcp-memoria-pino-${String(process.pid)}-${String(Date.now())}.log`,
+      `recall-pino-${String(process.pid)}-${String(Date.now())}.log`,
     );
     const fd = fs.openSync(tmp, "w");
     try {

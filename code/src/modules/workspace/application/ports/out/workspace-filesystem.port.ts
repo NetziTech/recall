@@ -5,8 +5,8 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  * Driven (output) port for the side effects the workspace use cases
  * need to perform on the host filesystem:
  *
- *   - Create / remove the `.mcp-memoria/` directory tree.
- *   - Read / write `<root>/.mcp-memoria/config.json` (with `0o600`).
+ *   - Create / remove the `.recall/` directory tree.
+ *   - Read / write `<root>/.recall/config.json` (with `0o600`).
  *   - Manage the host project's `.gitignore` according to the privacy
  *     mode (`docs/11-seguridad-modos.md` §§2-4).
  *
@@ -27,7 +27,7 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  *   - `encrypted` : do nothing to `.gitignore` (memory is versioned
  *                   ciphered). If a previous `private` lifecycle had
  *                   inserted an exclusion, REMOVE it.
- *   - `private`   : ensure `.mcp-memoria/` is present in the host
+ *   - `private`   : ensure `.recall/` is present in the host
  *                   project's `.gitignore` (or create the file). The
  *                   adapter does NOT prompt for confirmation: that is
  *                   a CLI concern. The use case is responsible for
@@ -35,7 +35,7 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  */
 
 /**
- * Snapshot of `<root>/.mcp-memoria/config.json` returned by
+ * Snapshot of `<root>/.recall/config.json` returned by
  * {@link WorkspaceFilesystem.readConfig}. The fields mirror the
  * persistent slice documented in `docs/03-modelo-datos.md` §2 plus
  * the encryption sub-slice (when present). The application layer is
@@ -56,21 +56,21 @@ export interface PersistedWorkspaceConfig {
 
 export interface WorkspaceFilesystem {
   /**
-   * Returns `true` iff `<root>/.mcp-memoria/config.json` exists and is
+   * Returns `true` iff `<root>/.recall/config.json` exists and is
    * a regular file. Does NOT verify its contents; that is the
    * caller's job once it parses the file via {@link readConfig}.
    */
   workspaceExists(rootPath: WorkspacePath): Promise<boolean>;
 
   /**
-   * Creates the `<root>/.mcp-memoria/` directory tree. Idempotent: if
+   * Creates the `<root>/.recall/` directory tree. Idempotent: if
    * the directory already exists the adapter does nothing. The mode
    * of the directory itself is `0o700`.
    */
   createWorkspaceDirectory(rootPath: WorkspacePath): Promise<void>;
 
   /**
-   * Reads and parses `<root>/.mcp-memoria/config.json`. Throws a
+   * Reads and parses `<root>/.recall/config.json`. Throws a
    * `WorkspaceInfrastructureError` when the file is missing,
    * unreadable, or fails JSON validation against the
    * `PersistedWorkspaceConfig` schema. The adapter performs only
@@ -81,7 +81,7 @@ export interface WorkspaceFilesystem {
   readConfig(rootPath: WorkspacePath): Promise<PersistedWorkspaceConfig>;
 
   /**
-   * Writes `<root>/.mcp-memoria/config.json` atomically (write to a
+   * Writes `<root>/.recall/config.json` atomically (write to a
    * temporary sibling then rename) with permissions `0o600`. Throws
    * a `WorkspaceInfrastructureError` on any I/O failure; partial
    * writes never reach the canonical filename.
@@ -94,8 +94,8 @@ export interface WorkspaceFilesystem {
   /**
    * Updates the host project's `.gitignore` to match the policy of
    * `mode`:
-   *   - `private`    : ensure a `.mcp-memoria/` line is present.
-   *   - `shared`/`encrypted`: ensure no `.mcp-memoria/` line is
+   *   - `private`    : ensure a `.recall/` line is present.
+   *   - `shared`/`encrypted`: ensure no `.recall/` line is
    *     present (remove it if a previous lifecycle had added it).
    *
    * Idempotent. The adapter creates the `.gitignore` file when
@@ -108,19 +108,19 @@ export interface WorkspaceFilesystem {
   ): Promise<void>;
 
   /**
-   * Removes the entire `<root>/.mcp-memoria/` directory tree
-   * recursively. Used by `DestroyWorkspaceUseCase` (the `mcp-memoria
+   * Removes the entire `<root>/.recall/` directory tree
+   * recursively. Used by `DestroyWorkspaceUseCase` (the `recall
    * wipe` flow) AFTER the SQL tables have been truncated and any
    * encryption material has been destroyed.
    *
    * Defense-in-depth: implementations MUST resolve the deletion target
-   * to `<rootPath>/.mcp-memoria/` and refuse to remove anything else
+   * to `<rootPath>/.recall/` and refuse to remove anything else
    * (no following symlinks, no surprising parent-of-target deletions).
    * The CLI confirmation gate (literal `WIPE` or `--confirm`) lives
    * one layer up; this port assumes the caller already obtained
    * consent.
    *
-   * Idempotent: a non-existent `.mcp-memoria/` is a no-op (no error).
+   * Idempotent: a non-existent `.recall/` is a no-op (no error).
    */
   removeWorkspaceDirectory(rootPath: WorkspacePath): Promise<void>;
 }

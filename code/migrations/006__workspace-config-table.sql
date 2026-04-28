@@ -43,7 +43,7 @@
 --                      same decoupling rationale as in migration 004
 --                      and 002).
 --   - `display_name`   non-empty string mirroring
---                      `<root>/.mcp-memoria/config.json#display_name`.
+--                      `<root>/.recall/config.json#display_name`.
 --   - `mode`           one of `shared | encrypted | private` — the
 --                      retrieval reader normalises invalid labels by
 --                      returning `null` instead of throwing, so this

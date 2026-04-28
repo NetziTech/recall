@@ -38,7 +38,7 @@ export class PassphraseMismatchError extends CliDomainError {
 }
 
 /**
- * Handler for `mcp-memoria init`.
+ * Handler for `recall init`.
  *
  * Behaviour per `docs/07-instalacion.md` §7 and
  * `docs/11-seguridad-modos.md` §§2-4:
@@ -128,7 +128,7 @@ export class InitCommandHandler implements CommandHandler<"init"> {
   private async collectPassphrase(nonInteractive: boolean): Promise<string> {
     if (nonInteractive) {
       throw new InvariantViolationError(
-        "encrypted init in non-interactive mode requires the passphrase via the entrypoint adapter (typically MCP_MEMORIA_PASSPHRASE)",
+        "encrypted init in non-interactive mode requires the passphrase via the entrypoint adapter (typically RECALL_PASSPHRASE)",
         { invariant: "cli.handler.passphrase-required" },
       );
     }
@@ -142,7 +142,7 @@ export class InitCommandHandler implements CommandHandler<"init"> {
 }
 
 /**
- * Handler for `mcp-memoria mode <new>`.
+ * Handler for `recall mode <new>`.
  */
 export class ModeCommandHandler implements CommandHandler<"mode"> {
   public readonly command = "mode" as const;
@@ -194,7 +194,7 @@ export class ModeCommandHandler implements CommandHandler<"mode"> {
 }
 
 /**
- * Handler for `mcp-memoria unlock`.
+ * Handler for `recall unlock`.
  */
 export class UnlockCommandHandler implements CommandHandler<"unlock"> {
   public readonly command = "unlock" as const;
@@ -228,13 +228,13 @@ export class UnlockCommandHandler implements CommandHandler<"unlock"> {
       );
     }
     return CommandOutputClass.stdoutOnly(
-      "Workspace desbloqueado. La clave persiste hasta que ejecutes 'mcp-memoria forget-key --workspace .'.\n",
+      "Workspace desbloqueado. La clave persiste hasta que ejecutes 'recall forget-key --workspace .'.\n",
     );
   }
 }
 
 /**
- * Handler for `mcp-memoria forget-key`.
+ * Handler for `recall forget-key`.
  */
 export class ForgetKeyCommandHandler implements CommandHandler<"forget-key"> {
   public readonly command = "forget-key" as const;
@@ -259,13 +259,13 @@ export class ForgetKeyCommandHandler implements CommandHandler<"forget-key"> {
       );
     }
     return CommandOutputClass.stdoutOnly(
-      "Clave borrada del cache local. Ejecuta 'mcp-memoria unlock --workspace .' para volver a abrir el workspace.\n",
+      "Clave borrada del cache local. Ejecuta 'recall unlock --workspace .' para volver a abrir el workspace.\n",
     );
   }
 }
 
 /**
- * Handler for `mcp-memoria health`.
+ * Handler for `recall health`.
  */
 export class HealthCommandHandler implements CommandHandler<"health"> {
   public readonly command = "health" as const;

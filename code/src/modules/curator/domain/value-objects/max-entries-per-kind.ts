@@ -4,7 +4,7 @@ import { MemoryEntryKind, type MemoryEntryKindKind } from "./memory-entry-kind.t
 /**
  * Default soft cap on the number of active entries per kind. Mirrors
  * the `curator.max_entries_per_kind: 5000` knob documented in
- * `docs/03-modelo-datos.md` §2 ("`.mcp-memoria/config.json`").
+ * `docs/03-modelo-datos.md` §2 ("`.recall/config.json`").
  *
  * The cap is informational — the curator does not delete to enforce
  * it. Instead, exceeding it triggers more aggressive consolidation

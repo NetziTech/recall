@@ -9,7 +9,7 @@
  *   `EncryptionConfigRepository`. It writes the encryption slice
  *   (`kdf`, `kdf_params`, `key_validator_blob_b64`, `key_envelopes`,
  *   plus a few internal markers) directly to
- *   `<workspaceRoot>/.mcp-memoria/config.json`, side-by-side with
+ *   `<workspaceRoot>/.recall/config.json`, side-by-side with
  *   the workspace module's own slice (workspace identity, embedder
  *   spec, etc.). The two modules share the file but own disjoint
  *   top-level slices and the adapter merges them safely.

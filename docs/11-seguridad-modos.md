@@ -9,12 +9,12 @@
 
 | Modo | Que se versiona en git | Cifrado | Caso |
 |---|---|---|---|
-| `shared` (default) | Todo `.mcp-memoria/` plano | No | Open-source, equipo abierto, sin info sensible |
-| `encrypted` | Todo `.mcp-memoria/` cifrado | SQLCipher AES-256 | Equipo cerrado, info sensible, repo privado o publico con seguridad extra |
+| `shared` (default) | Todo `.recall/` plano | No | Open-source, equipo abierto, sin info sensible |
+| `encrypted` | Todo `.recall/` cifrado | SQLCipher AES-256 | Equipo cerrado, info sensible, repo privado o publico con seguridad extra |
 | `private` | Nada (`.gitignore`) | No (no se sube) | Memoria personal, no se comparte |
 
-El modo se elige al primer arranque y queda en `.mcp-memoria/config.json`.
-Cambiable despues con `mcp-memoria mode <nuevo>`.
+El modo se elige al primer arranque y queda en `.recall/config.json`.
+Cambiable despues con `recall mode <nuevo>`.
 
 ---
 
@@ -23,13 +23,13 @@ Cambiable despues con `mcp-memoria mode <nuevo>`.
 ### Que ocurre al inicializar
 
 ```
-> claude  [primera sesion en proyecto sin .mcp-memoria/]
+> claude  [primera sesion en proyecto sin .recall/]
 [Claude llama mem.init({ mode: "shared" })]
 
 MCP crea:
-  .mcp-memoria/
+  .recall/
   ├── config.json          { workspace_id, mode: "shared", schema_version }
-  ├── memoria.db           SQLite plano
+  ├── recall.db           SQLite plano
   ├── vectors.db           SQLite plano
   └── .gitignore           (vacio: nada se ignora)
 
@@ -68,15 +68,15 @@ MCP genera:
   - encryption_key = 32 bytes cripto-aleatorios
 
 MCP escribe (con SQLCipher):
-  .mcp-memoria/
+  .recall/
   ├── config.json          { workspace_id, mode: "encrypted", schema_version,
   │                          kdf: "argon2id", kdf_params: {...},
   │                          key_validator_blob: "..." }
-  ├── memoria.db           cifrado AES-256
+  ├── recall.db           cifrado AES-256
   ├── vectors.db           cifrado AES-256
   └── .gitignore           (vacio: todo se versiona)
 
-  ~/.config/mcp-memoria/keys/<workspace_id>.key   (0600)
+  ~/.config/recall/keys/<workspace_id>.key   (0600)
 
 MCP imprime UNA SOLA VEZ por stdout del CLI (NO por canal MCP):
   ╔══════════════════════════════════════════════════════════════╗
@@ -111,9 +111,9 @@ toca el LLM.
 
 [Claude llama mem.context(...)]
 MCP arranca:
-  - Detecta .mcp-memoria/, lee config.json
+  - Detecta .recall/, lee config.json
   - mode: "encrypted", workspace_id: "abc-123..."
-  - Busca ~/.config/mcp-memoria/keys/abc-123.key → no existe
+  - Busca ~/.config/recall/keys/abc-123.key → no existe
   - Retorna error -32107 ENCRYPTED_LOCKED al cliente:
     {
       "code": -32107,
@@ -121,25 +121,25 @@ MCP arranca:
       "data": {
         "workspace_id": "abc-123...",
         "workspace_path": "/path/to/proyect",
-        "unlock_command": "mcp-memoria unlock --workspace ."
+        "unlock_command": "recall unlock --workspace ."
       }
     }
 
 Claude muestra el mensaje al usuario.
 
-[dev2] $ mcp-memoria unlock --workspace .
+[dev2] $ recall unlock --workspace .
 > Pega la clave de cifrado: M3-ZK7L-Q4WV-8RTX-9YBN-2HCD-FGJM-1PSE-4ULA
 
 MCP valida la clave:
   - Deriva clave AES-256 con argon2id usando kdf_params del config.
-  - Intenta abrir memoria.db con esa clave.
+  - Intenta abrir recall.db con esa clave.
   - Lee key_validator_blob (un blob conocido cifrado al inicializar).
   - Si decifra correctamente → clave correcta.
 
 Si OK:
-  Guarda en ~/.config/mcp-memoria/keys/abc-123.key (permisos 0600)
+  Guarda en ~/.config/recall/keys/abc-123.key (permisos 0600)
   Imprime: "Workspace desbloqueado. Esta clave persiste hasta que
-            ejecutes 'mcp-memoria forget-key --workspace .'"
+            ejecutes 'recall forget-key --workspace .'"
 
 [dev2] > claude
 [ahora todo funciona transparente]
@@ -153,11 +153,11 @@ abrir las DBs.
 ### Comandos relacionados
 
 ```bash
-mcp-memoria unlock --workspace <path>           # Pegar clave + guardar en HOME
-mcp-memoria forget-key --workspace <path>       # Borrar clave local; DB queda bloqueada
-mcp-memoria export-key --workspace <path>       # Re-imprimir clave (si esta unlocked)
-mcp-memoria rekey --workspace <path>            # Generar clave nueva, re-cifrar todo (v0.5+)
-mcp-memoria add-key --workspace <path>          # Agregar clave secundaria (multi-key, v0.5+)
+recall unlock --workspace <path>           # Pegar clave + guardar en HOME
+recall forget-key --workspace <path>       # Borrar clave local; DB queda bloqueada
+recall export-key --workspace <path>       # Re-imprimir clave (si esta unlocked)
+recall rekey --workspace <path>            # Generar clave nueva, re-cifrar todo (v0.5+)
+recall add-key --workspace <path>          # Agregar clave secundaria (multi-key, v0.5+)
 ```
 
 ### Cuando usarlo
@@ -168,7 +168,7 @@ mcp-memoria add-key --workspace <path>          # Agregar clave secundaria (mult
 
 ### Trade-offs
 
-- Diffs de git de `.mcp-memoria/*.db` son binarios opacos, no se pueden
+- Diffs de git de `.recall/*.db` son binarios opacos, no se pueden
   revisar en code review.
 - Si pierdes la clave Y todos los miembros del equipo pierden la suya, la
   memoria es irrecuperable. Es la promesa del cifrado.
@@ -184,13 +184,13 @@ mcp-memoria add-key --workspace <path>          # Agregar clave secundaria (mult
 > claude  [Claude llama mem.init({ mode: "private" })]
 
 MCP crea:
-  .mcp-memoria/
+  .recall/
   ├── config.json          { workspace_id, mode: "private", schema_version }
-  ├── memoria.db
+  ├── recall.db
   ├── vectors.db
   └── .gitignore           contenido: *
 
-Y agrega ".mcp-memoria/" al `.gitignore` raiz del proyecto si existe (con
+Y agrega ".recall/" al `.gitignore` raiz del proyecto si existe (con
 prompt de confirmacion).
 ```
 
@@ -204,7 +204,7 @@ prompt de confirmacion).
 
 - No se comparte con el equipo. Otro dev al clonar empieza con memoria vacia.
 - Si cambias de maquina, no se sincroniza (a menos que tu mismo sincronices
-  `.mcp-memoria/` por otro canal: rsync, Dropbox, etc.).
+  `.recall/` por otro canal: rsync, Dropbox, etc.).
 
 ### Cuando usarlo
 
@@ -219,9 +219,9 @@ prompt de confirmacion).
 ## 5. Cambios de modo
 
 ```bash
-mcp-memoria mode shared    --workspace .
-mcp-memoria mode encrypted --workspace .
-mcp-memoria mode private   --workspace .
+recall mode shared    --workspace .
+recall mode encrypted --workspace .
+recall mode private   --workspace .
 ```
 
 ### Reglas
@@ -229,7 +229,7 @@ mcp-memoria mode private   --workspace .
 | De | A | Que pasa |
 |---|---|---|
 | `shared` | `encrypted` | Genera nueva clave, re-cifra DBs, imprime clave una vez |
-| `shared` | `private` | Mueve `.mcp-memoria/` a `.gitignore`. **Warning:** la historia de git ya tiene los datos en plano (ver "post-leak hygiene") |
+| `shared` | `private` | Mueve `.recall/` a `.gitignore`. **Warning:** la historia de git ya tiene los datos en plano (ver "post-leak hygiene") |
 | `encrypted` | `shared` | **PROHIBIDA** (politica conservadora). El domain lanza `InvalidModeTransitionError`. Dos pasos explicitos requeridos: `encrypted → private → shared` (ver nota abajo) |
 | `encrypted` | `private` | Requiere unlock. Mueve a `.gitignore`. Borra clave de HOME (opt-in) |
 | `private` | `shared` | Quita de `.gitignore`. Comitealo cuando estes listo |
@@ -250,10 +250,10 @@ Si el usuario realmente quiere desencriptar y compartir, debe seguir
 
 ```bash
 # Paso 1 — desencriptar destruyendo el cifrado y moviendo a .gitignore
-mcp-memoria mode private --workspace .   # requiere unlock previo
+recall mode private --workspace .   # requiere unlock previo
 
 # Paso 2 — quitar de .gitignore y comitear
-mcp-memoria mode shared --workspace .
+recall mode shared --workspace .
 ```
 
 El patron es **seguro-por-defecto**: cualquier comando que mezcle
@@ -273,7 +273,7 @@ datos siguen en la historia de git. El comando warning sugiere:
 
 ```bash
 # Si era informacion sensible, considera filtrar la historia:
-git filter-repo --invert-paths --path .mcp-memoria/
+git filter-repo --invert-paths --path .recall/
 git push --force-with-lease origin main
 ```
 
@@ -298,7 +298,7 @@ Antes de cualquier `record_*`, el MCP corre:
 | Private keys | `-----BEGIN [A-Z ]+PRIVATE KEY-----` | Rechaza |
 | Entropy check | strings > 20 chars con entropia Shannon > 4.5 bits/char | Warning + log, no rechaza (muchos falsos positivos posibles) |
 
-Configurable via `.mcp-memoria/config.json`:
+Configurable via `.recall/config.json`:
 
 ```json
 {
@@ -336,25 +336,25 @@ quien clone el repo sin la clave no puede leerlo.
 ### Capa 4 — Pre-commit hook opcional
 
 ```bash
-mcp-memoria install-hook --workspace .
+recall install-hook --workspace .
 ```
 
 Instala un git pre-commit hook que, antes de cada commit:
 
-1. Lista archivos staged dentro de `.mcp-memoria/`.
+1. Lista archivos staged dentro de `.recall/`.
 2. Si modo es `shared`, escanea contenido completo (no solo el delta) con
    detectores actualizados de la version actual del MCP.
 3. Si modo es `encrypted`, valida que las DBs siguen cifradas (proteccion
    contra cambio de modo accidental).
 4. Si modo es `private`, valida que NO hay archivos staged en
-   `.mcp-memoria/` (alguien podria haber removido el `.gitignore`).
+   `.recall/` (alguien podria haber removido el `.gitignore`).
 5. Si encuentra problemas → bloquea el commit con mensaje claro: archivo,
    linea, patron detectado, como permitirlo si es falso positivo.
 
 ### Capa 5 — Auditoria on-demand
 
 ```bash
-mcp-memoria audit --workspace . --check-secrets [--strict]
+recall audit --workspace . --check-secrets [--strict]
 ```
 
 Escanea TODA la DB (no solo lo nuevo) con detectores actualizados. Reporta
@@ -370,7 +370,7 @@ para CI.
 ### Sanitizacion post-hoc
 
 ```bash
-mcp-memoria sanitize --workspace . --entry-id abc123
+recall sanitize --workspace . --entry-id abc123
 ```
 
 Reemplaza el contenido por `[REDACTED:secret-detected-by-audit-2026-04-27]`,
@@ -383,7 +383,7 @@ registra en `audit_log`.
 
 ### Almacenamiento local
 
-`~/.config/mcp-memoria/keys/<workspace_id>.key` con permisos `0600`.
+`~/.config/recall/keys/<workspace_id>.key` con permisos `0600`.
 
 Formato del archivo:
 ```
@@ -414,7 +414,7 @@ Asi se valida sin abrir la DB completa, en < 100ms.
 ### Multi-key (v0.5+)
 
 ```bash
-mcp-memoria add-key --workspace .
+recall add-key --workspace .
 ```
 
 Genera una segunda clave que tambien puede abrir la DB. SQLCipher no
@@ -434,7 +434,7 @@ Casos:
 ### Rotacion de clave
 
 ```bash
-mcp-memoria rekey --workspace .
+recall rekey --workspace .
 ```
 
 1. Requiere unlock previo (DB abierta).
@@ -464,13 +464,13 @@ y unlock con la nueva, el ex-miembro queda fuera.
 
 Si el usuario tiene Claude Code y Cursor abiertos en el mismo proyecto:
 
-- Ambos abren las mismas DBs en `.mcp-memoria/`.
+- Ambos abren las mismas DBs en `.recall/`.
 - WAL mode permite multi-reader y un escritor a la vez.
 - Si el modo es `encrypted`, ambos clientes leen la misma clave de
-  `~/.config/mcp-memoria/keys/<workspace_id>.key`. No hay duplicacion.
+  `~/.config/recall/keys/<workspace_id>.key`. No hay duplicacion.
 
 Si dos usuarios distintos en la misma maquina (cuentas distintas):
-- Cada cuenta tiene su propio `~/.config/mcp-memoria/keys/`.
+- Cada cuenta tiene su propio `~/.config/recall/keys/`.
 - Si ambos comparten el folder del proyecto (poco comun), cada uno necesita
   unlock con la clave en su propia HOME.
 
@@ -496,7 +496,7 @@ Workflow:
 
 Para wipe completo:
 ```bash
-mcp-memoria wipe --workspace . --confirm
+recall wipe --workspace . --confirm
 ```
 
 ---
@@ -511,7 +511,7 @@ mcp-memoria wipe --workspace . --confirm
 | Onboarding de nuevo dev | Inmediato | Requiere recibir clave | Empieza vacio |
 | Latencia de operaciones | Baseline | +10-20% | Baseline |
 | Recovery si pierdes clave | N/A | Imposible (es la promesa) | N/A |
-| Rotacion de acceso | N/A | `mcp-memoria rekey` | N/A |
+| Rotacion de acceso | N/A | `recall rekey` | N/A |
 | Setup | Cero | Generar y compartir clave | Cero |
 
 ---
@@ -520,7 +520,7 @@ mcp-memoria wipe --workspace . --confirm
 
 | Anti-patron | Por que mal | Solucion |
 |---|---|---|
-| Committear `.mcp-memoria/` en modo `private` | Filtra info aunque el usuario crea que no | Hook pre-commit valida modo |
+| Committear `.recall/` en modo `private` | Filtra info aunque el usuario crea que no | Hook pre-commit valida modo |
 | Compartir la clave por chat publico | La clave queda logueada | Documentar canal seguro (password manager) |
 | Asumir que `shared` es seguro porque el repo es privado | El repo puede volverse publico, mirrors pueden filtrar | Si hay info sensible, usar `encrypted` |
 | Mezclar info personal en proyecto compartido | Otro dev ve tus notas privadas | Para info personal usa modo `private` o `~/.claude/CLAUDE.md` |

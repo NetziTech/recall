@@ -104,7 +104,7 @@ describe("SqliteDatabase.bytesToHex covers padding for low-byte values", () => {
   // was correctly padded.
   it("opens with a key containing bytes < 16 (padding branch)", async () => {
     const logger = new SilentLogger();
-    const tmp = `/tmp/mcp-memoria-hex-pad-${Date.now()}-${process.pid}.db`;
+    const tmp = `/tmp/recall-hex-pad-${Date.now()}-${process.pid}.db`;
     const key: EncryptionKeyBytes = { bytes: new Uint8Array(32).fill(0x05) };
     const db = await SqliteDatabase.open({
       path: tmp,

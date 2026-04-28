@@ -170,7 +170,7 @@ export interface BuildTestContainerOptions {
  * Builds the integration-test container.
  *
  *   - Creates a fresh tmp workspace dir under `os.tmpdir()`.
- *   - Opens a real `SqliteDatabase` at `<root>/.mcp-memoria/memoria.db`
+ *   - Opens a real `SqliteDatabase` at `<root>/.recall/recall.db`
  *     and (unless `skipMigrations`) applies every migration shipped in
  *     `code/migrations/`.
  *   - Wires every module via the canonical helpers (`buildSharedAdapters`
@@ -186,7 +186,7 @@ export async function buildTestContainer(
     options.workspaceRoot ??
     fs.mkdtempSync(path.join(os.tmpdir(), "mem-int-"));
   const ownsRoot = options.workspaceRoot === undefined;
-  const databaseDir = path.join(workspaceRoot, ".mcp-memoria");
+  const databaseDir = path.join(workspaceRoot, ".recall");
   // We always need the directory to exist so SqliteDatabase.open does
   // not fail. If `skipMigrations` is true, the test is driving its own
   // workspace bootstrap (e.g. `mem.init`); we rely on the workspace
@@ -194,7 +194,7 @@ export async function buildTestContainer(
   // permissions. We still pre-create it here so the placeholder
   // database file can be opened.
   fs.mkdirSync(databaseDir, { recursive: true, mode: 0o700 });
-  const databasePath = path.join(databaseDir, "memoria.db");
+  const databasePath = path.join(databaseDir, "recall.db");
   const migrationsDir = resolveMigrationsDir();
 
   const logger: Logger = new SilentLogger();
@@ -348,7 +348,7 @@ export async function buildTestContainer(
     clock,
     facades: mcpServerFacades,
     serverInfo: {
-      name: "mcp-memoria-test",
+      name: "recall-test",
       version: "0.1.0-test",
       protocolVersion: "2024-11-05",
     },
@@ -453,7 +453,7 @@ export function tsAt(offsetMs: number): Timestamp {
 }
 
 /**
- * Reads the workspaceId from `<root>/.mcp-memoria/config.json`.
+ * Reads the workspaceId from `<root>/.recall/config.json`.
  *
  * Used by tests that need to align the test container's pinned
  * workspaceId with the id minted by the workspace's `initialize`
@@ -462,7 +462,7 @@ export function tsAt(offsetMs: number): Timestamp {
  */
 export function readWorkspaceIdFromConfig(workspaceRoot: string): WorkspaceId {
   const raw = fs.readFileSync(
-    path.join(workspaceRoot, ".mcp-memoria", "config.json"),
+    path.join(workspaceRoot, ".recall", "config.json"),
     "utf8",
   );
   const parsed = JSON.parse(raw) as { workspace_id?: unknown };

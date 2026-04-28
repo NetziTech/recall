@@ -1,5 +1,5 @@
 /**
- * Tests for `DestroyWorkspaceUseCase` (the `mcp-memoria wipe` flow).
+ * Tests for `DestroyWorkspaceUseCase` (the `recall wipe` flow).
  *
  * Covers: confirmation guard, "no workspace" rejection, lock-encryption
  * branch (encrypted + unlocked workspace), happy path, lock-no-op
@@ -148,7 +148,7 @@ describe("DestroyWorkspaceUseCase", () => {
     });
     const out = await uc.destroy({ rootPath: ROOT, confirmed: true });
     expect(out.rowsDeleted).toBe(5);
-    expect(out.removedPath).toContain(".mcp-memoria");
+    expect(out.removedPath).toContain(".recall");
     expect(memoryWipe.calls.length).toBe(1);
     expect(fs.removeCalls.length).toBe(1);
     expect(lock.calls.length).toBe(0); // not encrypted → no lock call

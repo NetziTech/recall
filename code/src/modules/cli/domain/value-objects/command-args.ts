@@ -56,7 +56,7 @@ export class CommandArgs {
 
   /**
    * Convenience factory for commands invoked without any arguments
-   * (e.g. `mcp-memoria server`). The wrapped payload is `null` so
+   * (e.g. `recall server`). The wrapped payload is `null` so
    * downstream consumers can branch on `raw() === null`.
    */
   public static empty(): CommandArgs {

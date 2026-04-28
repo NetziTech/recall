@@ -9,7 +9,7 @@
  *      binary. The function looks for `code/migrations/` first
  *      relative to the source tree (`tsx` dev path) and falls back to
  *      `dist/migrations/` (post-build).
- *   2. Open a `SqliteDatabase` against the workspace's `memoria.db`
+ *   2. Open a `SqliteDatabase` against the workspace's `recall.db`
  *      with the encryption key resolver supplied by the caller.
  *   3. Run the bundled migrations via `MigrationsRunner`.
  *   4. Hand the live connection + the resolver to {@link buildContainer}.
@@ -53,11 +53,11 @@ import { PinoLogger } from "../shared/infrastructure/logger/pino-logger.ts";
  * run as `tsx src/bootstrap/...-entrypoint.ts` (development) or as
  * `node dist/cli.js` / `node dist/server.js` (production). The
  * resolver accepts both layouts and is also driven by the
- * `MCP_MEMORIA_MIGRATIONS_DIR` environment variable when callers need
+ * `RECALL_MIGRATIONS_DIR` environment variable when callers need
  * to point the binary at an arbitrary checkout (Bug B-009).
  *
  * Resolution order:
- *   1. Explicit env override (`MCP_MEMORIA_MIGRATIONS_DIR`).
+ *   1. Explicit env override (`RECALL_MIGRATIONS_DIR`).
  *   2. The entrypoint-relative layout, anchored on `process.argv[1]`.
  *      This is the single value Node guarantees points at the script
  *      that was invoked, regardless of bundling. We try in order:
@@ -80,7 +80,7 @@ import { PinoLogger } from "../shared/infrastructure/logger/pino-logger.ts";
  */
 function resolveDefaultMigrationsDir(): string {
   // 1) Env override.
-  const fromEnv = process.env["MCP_MEMORIA_MIGRATIONS_DIR"];
+  const fromEnv = process.env["RECALL_MIGRATIONS_DIR"];
   if (fromEnv !== undefined && fromEnv.length > 0) {
     return path.resolve(fromEnv);
   }
@@ -141,7 +141,7 @@ function resolveDefaultMigrationsDir(): string {
  *     workspace before the CLI's `health` / `init` commands can run.
  */
 function tryReadWorkspaceId(workspaceRoot: string): WorkspaceId | null {
-  const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+  const configPath = path.join(workspaceRoot, ".recall", "config.json");
   let raw: string;
   try {
     raw = fs.readFileSync(configPath, "utf8");
@@ -170,7 +170,7 @@ function tryReadWorkspaceId(workspaceRoot: string): WorkspaceId | null {
  */
 export interface BootstrapCompositionOptions {
   /** Absolute path to the workspace root (the directory holding
-   *  `.mcp-memoria/`). Defaults to `process.cwd()`. */
+   *  `.recall/`). Defaults to `process.cwd()`. */
   readonly workspaceRoot?: string;
   /** Override the migrations directory (mostly for tests). */
   readonly migrationsDir?: string;
@@ -191,7 +191,7 @@ export interface BootstrapCompositionOptions {
     readonly protocolVersion: string;
   };
   /**
-   * When `true`, skip opening the database — useful for `mcp-memoria
+   * When `true`, skip opening the database — useful for `recall
    * init` and for the CLI's offline help paths. The container is
    * still built, but with a stub `DatabaseConnection`. Operations
    * that touch the DB throw `DatabaseUnavailableError`.
@@ -216,7 +216,7 @@ export class DatabaseUnavailableError extends Error {
 
   public constructor() {
     super(
-      "the database connection is not available in this entrypoint mode (mcp-memoria init bootstraps the DB itself).",
+      "the database connection is not available in this entrypoint mode (recall init bootstraps the DB itself).",
     );
     this.name = "DatabaseUnavailableError";
   }
@@ -267,7 +267,7 @@ export async function bootstrapComposition(
   const logLevel = options.logLevel ?? "info";
   const logDestination: 1 | 2 = options.logDestination ?? 1;
   const serverInfo = options.serverInfo ?? {
-    name: "mcp-memoria",
+    name: "recall",
     version: "0.1.0-alpha.0",
     protocolVersion: "2024-11-05",
   };
@@ -279,7 +279,7 @@ export async function bootstrapComposition(
   // and the request path all land on the same stream (Bug B-016).
   const bootLogger: Logger = PinoLogger.create({
     level: logLevel,
-    name: "mcp-memoria-bootstrap",
+    name: "recall-bootstrap",
     destination: logDestination,
   });
 
@@ -313,7 +313,7 @@ export async function bootstrapComposition(
   if (options.skipDatabase === true) {
     database = new UnavailableDatabaseConnection();
   } else {
-    const dbPath = path.join(workspaceRoot, ".mcp-memoria", "memoria.db");
+    const dbPath = path.join(workspaceRoot, ".recall", "recall.db");
     const sqlite = await SqliteDatabase.open({
       path: dbPath,
       logger: bootLogger,
@@ -336,7 +336,7 @@ export async function bootstrapComposition(
     shared: {
       logger: {
         level: logLevel,
-        name: "mcp-memoria",
+        name: "recall",
         destination: logDestination,
       },
     },

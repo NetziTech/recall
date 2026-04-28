@@ -115,7 +115,7 @@ describe("e2e / B / dist/server.js — protocol handshake", () => {
       readonly capabilities: { readonly tools: Record<string, unknown> };
     };
     expect(result.protocolVersion).toBe("2024-11-05");
-    expect(result.serverInfo.name).toBe("mcp-memoria");
+    expect(result.serverInfo.name).toBe("recall");
     expect(typeof result.serverInfo.version).toBe("string");
     expect(result.capabilities.tools).toBeDefined();
   });

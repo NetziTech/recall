@@ -6,10 +6,10 @@ import type { WorkspacePath } from "../../../domain/value-objects/workspace-path
  * `docs/01-arquitectura.md` §4 ("Auto-detect upwards from cwd").
  *
  * Walks the filesystem upwards from `startPath` looking for a
- * `.mcp-memoria/` directory and, when found, rehydrates the
+ * `.recall/` directory and, when found, rehydrates the
  * `Workspace` aggregate from its `config.json`. The detection
  * intentionally stops at the first match: a project may have its
- * `.mcp-memoria/` several levels above the current directory but not
+ * `.recall/` several levels above the current directory but not
  * inside another nested workspace.
  *
  * Reading vs unlocking:

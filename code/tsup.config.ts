@@ -5,8 +5,8 @@ import { defineConfig } from "tsup";
 
 /**
  * Build configuration for the two distributable entrypoints:
- *   - `dist/cli.js`    — the `mcp-memoria` CLI binary.
- *   - `dist/server.js` — the `mcp-memoria-server` MCP stdio server.
+ *   - `dist/cli.js`    — the `recall` CLI binary.
+ *   - `dist/server.js` — the `recall-server` MCP stdio server.
  *
  * Native and embedder dependencies are kept EXTERNAL: bundling them
  * would either fail (native `.node` binaries) or balloon the bundle

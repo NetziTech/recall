@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Entrypoint for the `mcp-memoria` CLI binary.
+ * Entrypoint for the `recall` CLI binary.
  *
  * Wire path:
  *   1. Pre-scan `process.argv` for `--workspace <path>` so the
@@ -59,7 +59,7 @@ function previewWorkspaceArg(argv: readonly string[]): string | null {
 }
 
 /**
- * Returns `true` iff `<root>/.mcp-memoria/config.json` exists and is
+ * Returns `true` iff `<root>/.recall/config.json` exists and is
  * a regular file. The CLI uses this to decide whether to bootstrap a
  * real SQLite database (commands like `stats` / `audit` / `export`
  * need one) or skip the database (the `init` flow opens the DB
@@ -68,7 +68,7 @@ function previewWorkspaceArg(argv: readonly string[]): string | null {
  * SQLite open, and the additional `stat()` is negligible.
  */
 function workspaceConfigExists(workspaceRoot: string): boolean {
-  const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+  const configPath = path.join(workspaceRoot, ".recall", "config.json");
   try {
     return fs.statSync(configPath).isFile();
   } catch {
@@ -133,7 +133,7 @@ main()
     // before this branch, but if `bootstrapComposition` itself
     // throws we have nothing else.
     process.stderr.write(
-      `mcp-memoria: fatal: ${err instanceof Error ? err.message : String(err)}\n`,
+      `recall: fatal: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   });

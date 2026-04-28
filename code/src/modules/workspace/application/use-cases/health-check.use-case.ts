@@ -27,7 +27,7 @@ import type { DetectWorkspace } from "../ports/in/detect-workspace.port.ts";
  *                                mismatch only happens on downgrade).
  *   5. `embedder.loadable`    — `EmbedderProbe.probe`.
  *   6. `gitignore.consistent` — heuristic: for `private` mode we
- *                                expect a `.mcp-memoria/` line; for
+ *                                expect a `.recall/` line; for
  *                                shared/encrypted we expect its
  *                                absence. Implemented inline because
  *                                the filesystem port doesn't expose a
@@ -61,7 +61,7 @@ export class HealthCheckUseCase implements HealthCheck {
         status: exists ? "pass" : "fail",
         message: exists
           ? `workspace found at "${input.rootPath.toString()}"`
-          : `no .mcp-memoria/ at or under "${input.rootPath.toString()}"`,
+          : `no .recall/ at or under "${input.rootPath.toString()}"`,
       });
     } catch (err: unknown) {
       checks.push({
@@ -179,7 +179,7 @@ export class HealthCheckUseCase implements HealthCheck {
     checks.push(
       skipped(
         "gitignore.consistent",
-        "deferred to v0.5 (TODO-WS-1); call mcp-memoria mode <current> to self-heal",
+        "deferred to v0.5 (TODO-WS-1); call recall mode <current> to self-heal",
       ),
     );
 

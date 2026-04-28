@@ -27,7 +27,7 @@ const REDACTED_REPRESENTATION = "<MasterKey:redacted>";
  *
  * The master key is the cryptographic root of the encrypted mode
  * (`docs/11-seguridad-modos.md` §3 / §7): it is the actual key that
- * SQLCipher uses to AES-encrypt `memoria.db` and `vectors.db`.
+ * SQLCipher uses to AES-encrypt `recall.db` and `vectors.db`.
  * Multiple `KeyEnvelope`s can wrap the same master key with
  * different user passphrases, but the master key itself is unique
  * per workspace.

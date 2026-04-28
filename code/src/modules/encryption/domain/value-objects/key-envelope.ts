@@ -85,7 +85,7 @@ export class KeyEnvelope {
 
   /**
    * Returns a new `KeyEnvelope` with the label replaced. Useful
-   * when the user renames an envelope (`mcp-memoria add-key
+   * when the user renames an envelope (`recall add-key
    * --rename ...`). Other fields are preserved by reference (they
    * are themselves immutable).
    */

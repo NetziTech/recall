@@ -19,14 +19,14 @@ import type { WorkspaceFilesystem } from "../ports/out/workspace-filesystem.port
 /**
  * Canonical name of the workspace directory removed by this flow.
  * Mirrors `docs/03-modelo-datos.md` §1. Kept as a constant here so
- * the result envelope can report `<root>/.mcp-memoria` without
+ * the result envelope can report `<root>/.recall` without
  * depending on the filesystem adapter's internal constant.
  */
-const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
+const WORKSPACE_DIRECTORY_NAME = ".recall";
 
 /**
  * Implements the `DestroyWorkspace` driving port — the use case
- * behind `mcp-memoria wipe`.
+ * behind `recall wipe`.
  *
  * Algorithm (Tarea 5.3 — Bug 2 fix):
  *
@@ -40,14 +40,14 @@ const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
  *      `LockEncryptionFacade`. The on-disk key cache must be wiped
  *      BEFORE the directory disappears so a subsequent `init` cannot
  *      accidentally pick up a stale envelope from
- *      `~/.config/mcp-memoria/keys/`.
+ *      `~/.config/recall/keys/`.
  *   4. Truncate the SQL tables via the `MemoryWipeFacade` (the
  *      memory module's `WipeMemoryUseCase`). Errors propagate; a
  *      half-wiped database is recoverable by re-running `wipe`.
- *   5. Remove the entire `<root>/.mcp-memoria/` directory tree via
+ *   5. Remove the entire `<root>/.recall/` directory tree via
  *      the workspace filesystem adapter. The adapter performs path
  *      canonicalisation (rejects anything that does not end with the
- *      `.mcp-memoria` segment).
+ *      `.recall` segment).
  *   6. Emit `WorkspaceDestroyed` so subscribers (audit log,
  *      telemetry) record the wipe.
  *
@@ -58,7 +58,7 @@ const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
  *     them across modules would force the CLI to orchestrate the
  *     ordering, which it should not — the CLI is a transport, not a
  *     coordinator.
- *   - The workspace module owns the `.mcp-memoria/` directory's
+ *   - The workspace module owns the `.recall/` directory's
  *     lifecycle (create/remove). The memory module owns the SQL
  *     truncation. Composing them through facade ports keeps the
  *     ownership clean and the cross-module imports forbidden.
@@ -69,7 +69,7 @@ const WORKSPACE_DIRECTORY_NAME = ".mcp-memoria";
  *     SQL is idempotent: deleting from an empty table is a no-op).
  *   - Filesystem removal fails after a successful SQL wipe → the
  *     workspace's SQL is empty but the directory remains. The
- *     operator can manually `rm -rf .mcp-memoria/` or re-run wipe
+ *     operator can manually `rm -rf .recall/` or re-run wipe
  *     (which will re-run the truncation no-op then retry the
  *     removal).
  */

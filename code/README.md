@@ -1,11 +1,11 @@
-# @netzi/mcp-memoria
+# @netzi/recall
 
 > MCP server for project-scoped, self-curated memory with hybrid search (BM25 + sqlite-vec).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org/)
 
-`@netzi/mcp-memoria` gives Claude Code (and any MCP-capable client) **persistent, project-scoped memory** that lives **inside the project itself** (`<repo>/.mcp-memoria/`), not in `$HOME`.
+`@netzi/recall` gives Claude Code (and any MCP-capable client) **persistent, project-scoped memory** that lives **inside the project itself** (`<repo>/.recall/`), not in `$HOME`.
 
 Memory travels with the code: clone the repo, get the memory. Move the repo, the memory moves with it.
 
@@ -13,7 +13,7 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 
 ## Why another memory layer?
 
-| Feature | `@netzi/mcp-memoria` | Mem0 / OpenMemory / LangMem |
+| Feature | `@netzi/recall` | Mem0 / OpenMemory / LangMem |
 |---|---|---|
 | Lives **in the project**, not in `$HOME` | yes | no |
 | Three privacy modes (shared / encrypted / private) | yes | no |
@@ -28,17 +28,17 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 ## Install
 
 ```bash
-npm install -g @netzi/mcp-memoria
+npm install -g @netzi/recall
 # or use it on demand
-npx @netzi/mcp-memoria --help
+npx @netzi/recall --help
 ```
 
 This installs two binaries:
 
 | Binary | Purpose |
 |---|---|
-| `mcp-memoria` | CLI for setup, mode changes, audits, exports, etc. |
-| `mcp-memoria-server` | The MCP stdio server (invoked by your MCP client) |
+| `recall` | CLI for setup, mode changes, audits, exports, etc. |
+| `recall-server` | The MCP stdio server (invoked by your MCP client) |
 
 Requires **Node.js 20+**.
 
@@ -50,14 +50,14 @@ Requires **Node.js 20+**.
 
 ```bash
 cd /path/to/my-project
-mcp-memoria init --mode shared    # default; tracked in git as plain SQLite
+recall init --mode shared    # default; tracked in git as plain SQLite
 # or
-mcp-memoria init --mode private   # added to .gitignore, single-machine
+recall init --mode private   # added to .gitignore, single-machine
 # or
-mcp-memoria init --mode encrypted # encrypted with SQLCipher (Argon2id KDF)
+recall init --mode encrypted # encrypted with SQLCipher (Argon2id KDF)
 ```
 
-This creates `<project>/.mcp-memoria/` with `config.json`, `memoria.db`, and (in
+This creates `<project>/.recall/` with `config.json`, `recall.db`, and (in
 shared/encrypted modes) a `.gitkeep`.
 
 ### 2. Wire it into Claude Code
@@ -68,7 +68,7 @@ Add to your MCP client config (e.g. `~/.config/claude/mcp.json`):
 {
   "mcpServers": {
     "memoria": {
-      "command": "mcp-memoria-server",
+      "command": "recall-server",
       "args": []
     }
   }
@@ -93,17 +93,17 @@ The six MVP tools are exposed automatically:
 ### 4. Manage the workspace from the CLI
 
 ```bash
-mcp-memoria stats               # memory stats
-mcp-memoria health              # health probes
-mcp-memoria audit               # cross-checks + secret scan
-mcp-memoria curator-run         # decay + consolidation + prune
-mcp-memoria mode encrypted      # change privacy mode
-mcp-memoria unlock              # unlock an encrypted workspace
-mcp-memoria export -o dump.json # dump the workspace
-mcp-memoria install-hook        # optional pre-commit secret-scan hook
+recall stats               # memory stats
+recall health              # health probes
+recall audit               # cross-checks + secret scan
+recall curator-run         # decay + consolidation + prune
+recall mode encrypted      # change privacy mode
+recall unlock              # unlock an encrypted workspace
+recall export -o dump.json # dump the workspace
+recall install-hook        # optional pre-commit secret-scan hook
 ```
 
-Run `mcp-memoria --help` for the full catalog (20 commands).
+Run `recall --help` for the full catalog (20 commands).
 
 ---
 
@@ -127,7 +127,7 @@ Strict modularity (8 modules + `shared/` + `composition/`), Clean Architecture
 Embeddings via `fastembed` (local). Memory curation runs in the background
 with exponential decay and semantic consolidation.
 
-Full docs in the repo: <https://github.com/NetziTech/mcp-memoria-inteligente/tree/main/docs>.
+Full docs in the repo: <https://github.com/NetziTech/recall/tree/main/docs>.
 
 ---
 
@@ -162,8 +162,8 @@ implementations land.
 ## Development
 
 ```bash
-git clone https://github.com/NetziTech/mcp-memoria-inteligente.git
-cd mcp-memoria-inteligente/code
+git clone https://github.com/NetziTech/recall.git
+cd recall/code
 npm install
 npm run ci            # typecheck + lint + validate:modules + test:coverage
 npm run build         # tsup → dist/
@@ -179,7 +179,7 @@ Vitest 3 (coverage thresholds 95% global, 100% domain/application,
 ## Status
 
 **v0.1.0 — MVP.** 2421 tests passing across 199 test files. Coverage 96.4%.
-Quality gate PASSED. See [`HANDOFF.md`](https://github.com/NetziTech/mcp-memoria-inteligente/blob/main/HANDOFF.md) for the full state-of-the-project document.
+Quality gate PASSED. See [`HANDOFF.md`](https://github.com/NetziTech/recall/blob/main/HANDOFF.md) for the full state-of-the-project document.
 
 ---
 

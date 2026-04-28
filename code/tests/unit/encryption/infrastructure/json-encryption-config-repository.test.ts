@@ -101,14 +101,14 @@ describe("JsonEncryptionConfigRepository", () => {
       logger: new RecordingLogger(),
     });
     await repo.save(makeConfig());
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     const stat = await fs.stat(configPath);
     // On POSIX, mode lower bits should be 0o600 (octal 384)
     expect(stat.mode & 0o777).toBe(0o600);
   });
 
   it("delete removes encryption slice but preserves other slices", async () => {
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     // Pre-populate with a workspace slice + encryption slice
     const repo = new JsonEncryptionConfigRepository({
@@ -191,7 +191,7 @@ describe("JsonEncryptionConfigRepository", () => {
   });
 
   it("rejects malformed config.json (invalid JSON)", async () => {
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     await fs.writeFile(configPath, "not valid json {", "utf8");
     const repo = new JsonEncryptionConfigRepository({
@@ -205,7 +205,7 @@ describe("JsonEncryptionConfigRepository", () => {
   });
 
   it("returns null for partial encryption slice", async () => {
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     await fs.writeFile(
       configPath,
@@ -222,7 +222,7 @@ describe("JsonEncryptionConfigRepository", () => {
   });
 
   it("rejects mismatched workspace_id", async () => {
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     const repo = new JsonEncryptionConfigRepository({
       workspaceRoot,
@@ -237,7 +237,7 @@ describe("JsonEncryptionConfigRepository", () => {
   });
 
   it("disjoint slices: save preserves unrelated keys (workspace + encryption coexist)", async () => {
-    const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+    const configPath = path.join(workspaceRoot, ".recall", "config.json");
     await fs.mkdir(path.dirname(configPath), { recursive: true });
     await fs.writeFile(
       configPath,

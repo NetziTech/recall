@@ -10,8 +10,8 @@
 ### Por proyecto
 
 ```
-<proyecto>/.mcp-memoria/
-├── memoria.db                  # SQLite estructurado (con SQLCipher si modo encrypted)
+<proyecto>/.recall/
+├── recall.db                  # SQLite estructurado (con SQLCipher si modo encrypted)
 ├── vectors.db                  # SQLite con sqlite-vec (con SQLCipher si modo encrypted)
 ├── config.json                 # Config del workspace
 ├── .gitignore                  # auto-creado segun modo
@@ -23,14 +23,14 @@
 ### En HOME del usuario
 
 ```
-~/.cache/mcp-memoria/           # XDG_CACHE_HOME (cache, borrable)
+~/.cache/recall/           # XDG_CACHE_HOME (cache, borrable)
 ├── models/
 │   ├── bge-small-en-v1.5/      # 33 MB ONNX
 │   └── multilingual-e5-base/   # 250 MB ONNX (si el usuario lo eligio)
 └── logs/
     └── 2026-04-27.log
 
-~/.config/mcp-memoria/          # XDG_CONFIG_HOME (config + claves)
+~/.config/recall/          # XDG_CONFIG_HOME (config + claves)
 ├── config.json                 # Defaults globales del usuario
 └── keys/
     └── <workspace_id>.key      # Permisos 0600
@@ -38,7 +38,7 @@
 
 ---
 
-## 2. `.mcp-memoria/config.json`
+## 2. `.recall/config.json`
 
 Vive en el proyecto, se versiona en git en modos `shared` y `encrypted`.
 
@@ -111,7 +111,7 @@ Vive en el proyecto, se versiona en git en modos `shared` y `encrypted`.
 
 ---
 
-## 3. `~/.config/mcp-memoria/config.json`
+## 3. `~/.config/recall/config.json`
 
 Defaults globales del usuario. Solo cosas que NO deben repetirse por proyecto:
 
@@ -136,7 +136,7 @@ Si un proyecto define `embedder.model` distinto, ese gana.
 
 ---
 
-## 4. SQLite: `memoria.db`
+## 4. SQLite: `recall.db`
 
 ### 4.1 Tabla `sessions`
 
@@ -446,7 +446,7 @@ CREATE INDEX idx_curator_runs_time ON curator_runs(started_at_ms DESC);
 
 ## 5. SQLite: `vectors.db`
 
-Separado de `memoria.db` para que se pueda regenerar sin tocar el resto
+Separado de `recall.db` para que se pueda regenerar sin tocar el resto
 estructurado (re-embed cuando cambia el modelo).
 
 ```sql
@@ -472,7 +472,7 @@ CREATE INDEX idx_emb_meta_model  ON embedding_metadata(model_name);
 ```
 
 **Ciclo:**
-1. Se inserta entry en `memoria.db`.
+1. Se inserta entry en `recall.db`.
 2. Worker async lee `embedding_queue`, computa embedding del
    `searchable_text`.
 3. Inserta en `embeddings` + `embedding_metadata`, borra de cola.
@@ -496,18 +496,18 @@ primer `tool call` sobre ese workspace.
 
 ### Flujo
 
-Al abrir `memoria.db`:
+Al abrir `recall.db`:
 
 1. Lee `PRAGMA user_version` (o tabla `_meta` si schema_version es texto).
 2. Compara con `CURRENT_SCHEMA_VERSION` del binario.
 3. Si igual → continua.
 4. Si binario > DB → ejecuta migraciones pendientes en transaccion:
-   - Snapshot pre-migracion: `cp memoria.db snapshots/<ts>-pre-migration.db`.
+   - Snapshot pre-migracion: `cp recall.db snapshots/<ts>-pre-migration.db`.
    - Aplica scripts de `migrations/NNN_*.sql` en orden.
    - Actualiza `user_version`.
    - Si modo encrypted, las migraciones corren con la DB unlocked.
 5. Si binario < DB (downgrade) → error claro: "Tu binario es viejo, actualiza
-   o renombra `.mcp-memoria/` y empieza de cero".
+   o renombra `.recall/` y empieza de cero".
 
 ### Estructura de migraciones
 
@@ -561,7 +561,7 @@ SQL).
 ### Pre-curator
 Antes de cada `mem.curator_run`:
 ```
-cp memoria.db snapshots/<ts>-pre-curator.db
+cp recall.db snapshots/<ts>-pre-curator.db
 cp vectors.db snapshots/<ts>-pre-curator-vectors.db
 ```
 Mantiene los ultimos 5 snapshots, borra los demas.
@@ -569,14 +569,14 @@ Mantiene los ultimos 5 snapshots, borra los demas.
 ### Pre-migration
 Antes de aplicar migraciones de schema:
 ```
-cp memoria.db snapshots/<ts>-pre-migration-v<old>-to-v<new>.db
+cp recall.db snapshots/<ts>-pre-migration-v<old>-to-v<new>.db
 ```
 Permanente (no se rota).
 
 ### Pre-rekey
-Antes de `mcp-memoria rekey`:
+Antes de `recall rekey`:
 ```
-cp memoria.db snapshots/<ts>-pre-rekey.db
+cp recall.db snapshots/<ts>-pre-rekey.db
 cp vectors.db snapshots/<ts>-pre-rekey-vectors.db
 ```
 Mantiene ultimos 2.
@@ -635,11 +635,11 @@ SQLite + FTS5 + sqlite-vec + SQLCipher ofrece:
 
 ---
 
-## 11. Por que separar `memoria.db` y `vectors.db`
+## 11. Por que separar `recall.db` y `vectors.db`
 
-- Re-embed (cambio de modelo) toca solo `vectors.db`. `memoria.db` queda
+- Re-embed (cambio de modelo) toca solo `vectors.db`. `recall.db` queda
   intacto.
-- `vectors.db` es regenerable desde `memoria.db` + el modelo. Es esencial
+- `vectors.db` es regenerable desde `recall.db` + el modelo. Es esencial
   cache, no fuente de verdad.
 - En modo encriptado, ambos se cifran con la misma clave (consistencia).
 - Permite que `vectors.db` este en `.gitignore` incluso en modo `shared`

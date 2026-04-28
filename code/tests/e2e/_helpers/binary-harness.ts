@@ -33,7 +33,7 @@
  *
  * Cleanup:
  *   - The staging tree is NOT removed in `afterAll`: every worker
- *     reuses the same `os.tmpdir()/mcp-memoria-e2e-<pid>/` location
+ *     reuses the same `os.tmpdir()/recall-e2e-<pid>/` location
  *     so multiple test files in one Vitest run share the snapshot.
  *     The OS scrubs `os.tmpdir()` on reboot, which is acceptable for
  *     CI ephemerals.
@@ -62,7 +62,7 @@ let cachedStagingRoot: string | null = null;
  * Returns the staging root, materialising it on the first call.
  *
  * The staging tree lives at:
- *   `os.tmpdir()/mcp-memoria-e2e-<pid>/`
+ *   `os.tmpdir()/recall-e2e-<pid>/`
  * which guarantees workers in the same `vitest` invocation reuse the
  * snapshot but workers in different invocations do not collide.
  */
@@ -99,7 +99,7 @@ export function setupBinaryHarness(): {
 
   const stagingRoot = path.join(
     os.tmpdir(),
-    `mcp-memoria-e2e-${String(process.pid)}`,
+    `recall-e2e-${String(process.pid)}`,
   );
   fs.mkdirSync(path.join(stagingRoot, "code", "dist"), { recursive: true });
 
@@ -175,7 +175,7 @@ export function freshWorkspace(): {
   readonly path: string;
   readonly cleanup: () => void;
 } {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-memoria-e2e-ws-"));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "recall-e2e-ws-"));
   return {
     path: dir,
     cleanup: (): void => {
@@ -275,7 +275,7 @@ export function runCli(
  * Reads the workspace_id stored in the workspace config.
  */
 export function readWorkspaceId(workspaceRoot: string): string {
-  const configPath = path.join(workspaceRoot, ".mcp-memoria", "config.json");
+  const configPath = path.join(workspaceRoot, ".recall", "config.json");
   const raw = fs.readFileSync(configPath, "utf8");
   const parsed = JSON.parse(raw) as { readonly workspace_id?: unknown };
   if (typeof parsed.workspace_id !== "string") {
@@ -419,7 +419,7 @@ export function startMcpServer(
       pending.clear();
     });
 
-    // The server logs `mcp-memoria-server starting; waiting for stdio
+    // The server logs `recall-server starting; waiting for stdio
     // frames` once it is ready to accept input. The marker may land
     // on EITHER stderr (the documented sink) OR stdout (BUG B-016):
     // we accept both so the harness keeps working through the fix.

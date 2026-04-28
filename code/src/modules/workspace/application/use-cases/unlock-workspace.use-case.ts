@@ -29,7 +29,7 @@ import type { DetectWorkspace } from "../ports/in/detect-workspace.port.ts";
  * the `unlocked` flag is runtime-only (see
  * `WorkspaceRepository`'s contract). The encryption module's adapter
  * is responsible for caching the key in
- * `~/.config/mcp-memoria/keys/...`.
+ * `~/.config/recall/keys/...`.
  */
 export class UnlockWorkspaceUseCase implements UnlockWorkspace {
   public constructor(

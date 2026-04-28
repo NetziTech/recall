@@ -15,7 +15,7 @@ interface Tmp {
 }
 
 async function tmp(): Promise<Tmp> {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-memoria-fs-"));
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "recall-fs-"));
   return {
     tmpDir,
     rootPath: WorkspacePath.create(tmpDir),
@@ -46,7 +46,7 @@ afterEach(async () => {
 });
 
 describe("NodeWorkspaceFilesystem.workspaceExists", () => {
-  it("false when no .mcp-memoria/", async () => {
+  it("false when no .recall/", async () => {
     expect(await fsAdapter.workspaceExists(ctx.rootPath)).toBe(false);
   });
 
@@ -60,7 +60,7 @@ describe("NodeWorkspaceFilesystem.workspaceExists", () => {
 describe("NodeWorkspaceFilesystem.createWorkspaceDirectory", () => {
   it("creates with mode 0o700", async () => {
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
-    const stat = await fs.stat(path.join(ctx.tmpDir, ".mcp-memoria"));
+    const stat = await fs.stat(path.join(ctx.tmpDir, ".recall"));
     expect(stat.isDirectory()).toBe(true);
     if (process.platform !== "win32") {
       // On POSIX, low byte is permission bits.
@@ -71,7 +71,7 @@ describe("NodeWorkspaceFilesystem.createWorkspaceDirectory", () => {
   it("idempotent", async () => {
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
-    const stat = await fs.stat(path.join(ctx.tmpDir, ".mcp-memoria"));
+    const stat = await fs.stat(path.join(ctx.tmpDir, ".recall"));
     expect(stat.isDirectory()).toBe(true);
   });
 
@@ -99,7 +99,7 @@ describe("NodeWorkspaceFilesystem.readConfig + writeConfig", () => {
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
     await fsAdapter.writeConfig(ctx.rootPath, SAMPLE);
     const stat = await fs.stat(
-      path.join(ctx.tmpDir, ".mcp-memoria", "config.json"),
+      path.join(ctx.tmpDir, ".recall", "config.json"),
     );
     if (process.platform !== "win32") {
       expect(stat.mode & 0o777).toBe(0o600);
@@ -121,7 +121,7 @@ describe("NodeWorkspaceFilesystem.readConfig + writeConfig", () => {
       encryption: { kdf: "argon2id" },
     };
     await fs.writeFile(
-      path.join(ctx.tmpDir, ".mcp-memoria", "config.json"),
+      path.join(ctx.tmpDir, ".recall", "config.json"),
       JSON.stringify(seeded),
       "utf8",
     );
@@ -130,7 +130,7 @@ describe("NodeWorkspaceFilesystem.readConfig + writeConfig", () => {
       displayName: "Renamed",
     });
     const text = await fs.readFile(
-      path.join(ctx.tmpDir, ".mcp-memoria", "config.json"),
+      path.join(ctx.tmpDir, ".recall", "config.json"),
       "utf8",
     );
     const parsed = JSON.parse(text) as Record<string, unknown>;
@@ -155,7 +155,7 @@ describe("NodeWorkspaceFilesystem.readConfig + writeConfig", () => {
   it("readConfig: malformed JSON → configMalformed", async () => {
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
     await fs.writeFile(
-      path.join(ctx.tmpDir, ".mcp-memoria", "config.json"),
+      path.join(ctx.tmpDir, ".recall", "config.json"),
       "{ not json",
       "utf8",
     );
@@ -174,7 +174,7 @@ describe("NodeWorkspaceFilesystem.readConfig + writeConfig", () => {
   it("readConfig: schema-incompatible JSON → configMalformed", async () => {
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
     await fs.writeFile(
-      path.join(ctx.tmpDir, ".mcp-memoria", "config.json"),
+      path.join(ctx.tmpDir, ".recall", "config.json"),
       JSON.stringify({ wrong: "shape" }),
       "utf8",
     );
@@ -195,14 +195,14 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("private mode: creates .gitignore with the entry when absent", async () => {
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
     const text = await fs.readFile(path.join(ctx.tmpDir, ".gitignore"), "utf8");
-    expect(text).toContain(".mcp-memoria/");
+    expect(text).toContain(".recall/");
   });
 
   it("private mode: idempotent — does not duplicate the entry", async () => {
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
     const text = await fs.readFile(path.join(ctx.tmpDir, ".gitignore"), "utf8");
-    expect(text.split("\n").filter((l) => l.trim() === ".mcp-memoria/").length).toBe(1);
+    expect(text.split("\n").filter((l) => l.trim() === ".recall/").length).toBe(1);
   });
 
   it("private mode: appends to an existing .gitignore", async () => {
@@ -214,18 +214,18 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
     const text = await fs.readFile(path.join(ctx.tmpDir, ".gitignore"), "utf8");
     expect(text).toContain("node_modules");
-    expect(text).toContain(".mcp-memoria/");
+    expect(text).toContain(".recall/");
   });
 
   it("shared/encrypted: removes a stale entry if present", async () => {
     await fs.writeFile(
       path.join(ctx.tmpDir, ".gitignore"),
-      "node_modules\n.mcp-memoria/\nbuild/\n",
+      "node_modules\n.recall/\nbuild/\n",
       "utf8",
     );
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.sharedMode());
     const text = await fs.readFile(path.join(ctx.tmpDir, ".gitignore"), "utf8");
-    expect(text).not.toContain(".mcp-memoria/");
+    expect(text).not.toContain(".recall/");
     expect(text).toContain("node_modules");
     expect(text).toContain("build/");
   });
@@ -233,7 +233,7 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("shared/encrypted: deletes empty .gitignore left behind", async () => {
     await fs.writeFile(
       path.join(ctx.tmpDir, ".gitignore"),
-      ".mcp-memoria/\n",
+      ".recall/\n",
       "utf8",
     );
     await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.sharedMode());
@@ -297,7 +297,7 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("shared: writeFile failure when removing entry → gitignoreUpdateFailed", async () => {
     if (process.platform === "win32") return;
     const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
-    await fs.writeFile(gitignorePath, ".mcp-memoria/\nnode_modules\n", "utf8");
+    await fs.writeFile(gitignorePath, ".recall/\nnode_modules\n", "utf8");
     // Read-only parent dir: writeFile fails with EACCES.
     await fs.chmod(ctx.tmpDir, 0o500);
     try {
@@ -320,7 +320,7 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("shared: unlink failure on empty .gitignore → gitignoreUpdateFailed", async () => {
     if (process.platform === "win32") return;
     const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
-    await fs.writeFile(gitignorePath, ".mcp-memoria/\n", "utf8");
+    await fs.writeFile(gitignorePath, ".recall/\n", "utf8");
     await fs.chmod(ctx.tmpDir, 0o500);
     try {
       const e = await fsAdapter
@@ -338,9 +338,9 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   });
 
   it("workspaceExists: non-ENOENT propagates as configReadFailed", async () => {
-    // Make `.mcp-memoria` a regular file → stat on
-    // `.mcp-memoria/config.json` returns ENOTDIR.
-    await fs.writeFile(path.join(ctx.tmpDir, ".mcp-memoria"), "x", "utf8");
+    // Make `.recall` a regular file → stat on
+    // `.recall/config.json` returns ENOTDIR.
+    await fs.writeFile(path.join(ctx.tmpDir, ".recall"), "x", "utf8");
     const e = await fsAdapter
       .workspaceExists(ctx.rootPath)
       .then(
@@ -358,8 +358,8 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("writeConfig: failure → configWriteFailed (with tmp cleanup)", async () => {
     if (process.platform === "win32") return;
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
-    // Read-only `.mcp-memoria/` dir: writeFile to temp path fails.
-    const dir = path.join(ctx.tmpDir, ".mcp-memoria");
+    // Read-only `.recall/` dir: writeFile to temp path fails.
+    const dir = path.join(ctx.tmpDir, ".recall");
     await fs.chmod(dir, 0o500);
     try {
       const e = await fsAdapter
@@ -382,7 +382,7 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
   it("writeConfig: existing-but-unreadable previous config → configReadFailed", async () => {
     if (process.platform === "win32") return;
     await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
-    const cfgPath = path.join(ctx.tmpDir, ".mcp-memoria", "config.json");
+    const cfgPath = path.join(ctx.tmpDir, ".recall", "config.json");
     await fs.writeFile(cfgPath, "{}", "utf8");
     // Make the existing file unreadable (chmod 0o000).
     await fs.chmod(cfgPath, 0o000);

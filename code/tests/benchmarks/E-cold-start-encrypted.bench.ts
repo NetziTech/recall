@@ -10,7 +10,7 @@
  * Implementation note (binary spawn unavailable):
  * The CLI's `init --mode encrypted` and `mode encrypted` commands
  * BLOCK on a TTY passphrase prompt — there is no `--passphrase` flag
- * or `MCP_MEMORIA_PASSPHRASE` env var consumed by the entrypoint
+ * or `RECALL_PASSPHRASE` env var consumed by the entrypoint
  * (per BUG B-012 in `tests/e2e/A-cli-binary.test.ts` and the
  * "encrypted init in non-interactive mode requires the passphrase
  * via the entrypoint adapter" sentinel in

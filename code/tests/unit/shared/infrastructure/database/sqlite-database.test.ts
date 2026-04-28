@@ -87,7 +87,7 @@ describe("SqliteDatabase.open", () => {
     // empty (SQLCipher initialises a fresh encrypted page format), so
     // we must instead verify the rejection path another way: open one
     // DB with key A, write a row, close, reopen with key B.
-    const tmp = `/tmp/mcp-memoria-tests-sqlite-${Date.now()}-${process.pid}.db`;
+    const tmp = `/tmp/recall-tests-sqlite-${Date.now()}-${process.pid}.db`;
     const keyA: EncryptionKeyBytes = { bytes: new Uint8Array(32).fill(7) };
     const keyB: EncryptionKeyBytes = { bytes: new Uint8Array(32).fill(8) };
 
@@ -150,7 +150,7 @@ describe("SqliteDatabase.open", () => {
   });
 
   it("readonly mode opens an existing DB", async () => {
-    const tmp = `/tmp/mcp-memoria-tests-ro-${Date.now()}-${process.pid}.db`;
+    const tmp = `/tmp/recall-tests-ro-${Date.now()}-${process.pid}.db`;
     const logger = newLogger();
     // Seed the file as writable.
     const seed = await SqliteDatabase.open({
@@ -206,7 +206,7 @@ describe("SqliteDatabase.open", () => {
     let captured: unknown = null;
     try {
       await SqliteDatabase.open({
-        path: "/nonexistent-parent-mcp-memoria-test/db.sqlite",
+        path: "/nonexistent-parent-recall-test/db.sqlite",
         logger,
         loadVectorExtension: false,
       });
@@ -437,7 +437,7 @@ describe("SqliteDatabase encryption (SQLCipher)", () => {
   let tmp: string;
 
   beforeAll(() => {
-    tmp = `/tmp/mcp-memoria-tests-cipher-${Date.now()}-${process.pid}.db`;
+    tmp = `/tmp/recall-tests-cipher-${Date.now()}-${process.pid}.db`;
   });
 
   it("opens, writes, closes, reopens with same key", async () => {

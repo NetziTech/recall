@@ -6,7 +6,7 @@
  *
  * Persistence adapter:
  *   - `JsonEncryptionConfigRepository` reads / writes the encryption
- *     slice of `<workspaceRoot>/.mcp-memoria/config.json` via
+ *     slice of `<workspaceRoot>/.recall/config.json` via
  *     `node:fs/promises`. The adapter receives an absolute,
  *     canonicalised `workspaceRoot` from the bootstrap caller.
  *

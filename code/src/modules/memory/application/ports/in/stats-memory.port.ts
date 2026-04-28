@@ -4,7 +4,7 @@ import type { WorkspaceId } from "../../../../../shared/domain/value-objects/wor
  * Result of a `StatsMemory.stats(...)` invocation.
  *
  * Mirrors the `mem.health.detail` surface in
- * `docs/02-protocolo-mcp.md` §4.6 and the CLI's `mcp-memoria stats`
+ * `docs/02-protocolo-mcp.md` §4.6 and the CLI's `recall stats`
  * (`docs/07-instalacion.md` §7.8). All numeric counts are non-negative
  * integers; `oldestEntryMs` and `newestEntryMs` are `null` when the
  * workspace is empty.

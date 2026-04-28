@@ -26,7 +26,7 @@ const MIN_IV_LENGTH_BYTES = 12;
  * with a `DerivedKey`.
  *
  * This is the cryptographic blob that gets persisted in the
- * `key_envelopes` array of `.mcp-memoria/config.json` (see
+ * `key_envelopes` array of `.recall/config.json` (see
  * `docs/03-modelo-datos.md` §2 and `docs/11-seguridad-modos.md` §7
  * "Multi-key (v0.5+)"). On unlock, the `EnvelopeCipher.unwrap`
  * adapter takes this VO + a `DerivedKey` and returns the plain

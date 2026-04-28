@@ -8,7 +8,7 @@ import { MemoryDomainError } from "./memory-domain-error.ts";
  *
  * Per `docs/01-arquitectura.md` §2.5, sessions auto-close after 30
  * minutes (configurable via
- * `~/.config/mcp-memoria/config.json → session_idle_timeout_min`,
+ * `~/.config/recall/config.json → session_idle_timeout_min`,
  * `docs/03-modelo-datos.md` §3). The aggregate refuses to extend a
  * session past its idle window: the application layer must end the
  * stale session and start a fresh one. The wire-level mapping is

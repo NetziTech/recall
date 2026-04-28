@@ -11,7 +11,7 @@ import { ExitCode } from "./exit-code.ts";
  *
  * Why three fields and not, say, a single `string`:
  *   - The CLI follows POSIX conventions: structured output goes to
- *     `stdout` (so it can be piped: `mcp-memoria stats | grep ...`),
+ *     `stdout` (so it can be piped: `recall stats | grep ...`),
  *     human-readable diagnostics go to `stderr`. Conflating the two
  *     would break composability.
  *   - The exit code is independent from the text: a command may emit

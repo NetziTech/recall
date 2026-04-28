@@ -11,7 +11,7 @@
 - **Timestamps**: `ms` desde epoch UTC (numero entero).
 - **Workspace**: el MCP auto-detecta caminando hacia arriba desde `cwd`. El
   cliente puede pasar `workspace_path` explicito si quiere override. El
-  `workspace_id` se obtiene leyendo `.mcp-memoria/config.json`.
+  `workspace_id` se obtiene leyendo `.recall/config.json`.
 - **Tokens**: cuando un tool acepta `max_tokens`, el servidor respeta
   garantizadamente ese tope (token counter via tiktoken o heuristica).
 - **Errores**: JSON-RPC standard `code` + `message` + `data`. Codigos custom
@@ -84,8 +84,8 @@ Inicializa o re-abre el workspace. Idempotente.
 el system prompt).
 
 **Comportamiento si workspace ya existe:**
-- Lee `.mcp-memoria/config.json`, devuelve metadata.
-- Ignora `mode` del input (no se cambia con init; usar `mcp-memoria mode`).
+- Lee `.recall/config.json`, devuelve metadata.
+- Ignora `mode` del input (no se cambia con init; usar `recall mode`).
 - Si encrypted: intenta abrir con clave en HOME; si falla, devuelve
   `encryption_status: "locked"`.
 
@@ -617,7 +617,7 @@ Auditoria on-demand.
 | `-32104` | Schema version incompatible | El MCP corre migracion automatica al inicio; este error solo si fallan |
 | `-32105` | Secret detected in input | Sanitizar y reintentar |
 | `-32106` | Rate limit (curador corriendo) | Esperar y reintentar |
-| `-32107` | ENCRYPTED_LOCKED — sin clave | Cliente pide al usuario `mcp-memoria unlock` |
+| `-32107` | ENCRYPTED_LOCKED — sin clave | Cliente pide al usuario `recall unlock` |
 | `-32108` | INVALID_KEY | Verificar clave |
 | `-32109` | KEY_REVOKED — clave invalidada por rekey | Pedir clave nueva |
 
@@ -647,7 +647,7 @@ Tienes acceso al MCP `memoria` que persiste informacion del proyecto.
 **Al inicio de cada sesion (primer turno):**
 1. `mem.init` — auto-detecta y abre el workspace.
 2. Si retorna `encryption_status: "locked"`, dile al usuario que ejecute
-   `mcp-memoria unlock --workspace <path>` antes de continuar.
+   `recall unlock --workspace <path>` antes de continuar.
 3. `mem.context({query: "<lo que pidio el usuario>"})` para cargar las
    capas relevantes.
 

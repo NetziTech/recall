@@ -13,7 +13,7 @@
  *   - `audit` runs the full memory audit.
  *   - `export` + `import` round-trip the persisted memory through a
  *     temporary JSON file.
- *   - `wipe --confirm` removes the `.mcp-memoria/` directory.
+ *   - `wipe --confirm` removes the `.recall/` directory.
  */
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -68,7 +68,7 @@ describe("integration / H / CLI command pipeline", () => {
         "cli-shared",
       ]);
       expect(code).toBe(0);
-      expect(fs.existsSync(path.join(ctx.workspaceRoot, ".mcp-memoria", "config.json"))).toBe(
+      expect(fs.existsSync(path.join(ctx.workspaceRoot, ".recall", "config.json"))).toBe(
         true,
       );
     });
@@ -159,9 +159,9 @@ describe("integration / H / CLI command pipeline", () => {
       expect(code).toBe(0);
     });
 
-    it("`wipe --confirm` truncates the SQL tables AND removes the .mcp-memoria/ directory", async () => {
+    it("`wipe --confirm` truncates the SQL tables AND removes the .recall/ directory", async () => {
       // FIXED (Tarea 5.3 — Bug 2): the previous behaviour truncated
-      // SQL but left `.mcp-memoria/` in place, contradicting the
+      // SQL but left `.recall/` in place, contradicting the
       // "Workspace eliminado: <path>" message printed by the handler.
       // The `wipe` flow now routes through
       // `DestroyWorkspaceUseCase`, which truncates SQL via the memory
@@ -180,7 +180,7 @@ describe("integration / H / CLI command pipeline", () => {
       ]);
       expect(code).toBe(0);
       // The directory has been removed.
-      expect(fs.existsSync(path.join(ctx.workspaceRoot, ".mcp-memoria"))).toBe(
+      expect(fs.existsSync(path.join(ctx.workspaceRoot, ".recall"))).toBe(
         false,
       );
       // The host project root itself is preserved (defense-in-depth

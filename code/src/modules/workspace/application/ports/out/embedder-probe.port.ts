@@ -6,7 +6,7 @@
  * dimension. A working `Embedder` adapter has the model loaded
  * lazily, so reading `dimension()` typically forces the load and
  * surfaces any I/O / model-cache failure (`docs/06-stack-tecnico.md`
- * §6 — "Modelos recomendados", "Cache local: ~/.cache/mcp-memoria/models/").
+ * §6 — "Modelos recomendados", "Cache local: ~/.cache/recall/models/").
  *
  * Why this is its own port rather than reusing the shared
  * `Embedder` port:

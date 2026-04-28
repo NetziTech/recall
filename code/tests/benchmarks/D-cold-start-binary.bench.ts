@@ -47,7 +47,7 @@ if (!fs.existsSync(CLI_PATH)) {
 
 // Allocate a workspace that survives the whole bench.
 const workspaceRoot = fs.mkdtempSync(
-  path.join(os.tmpdir(), "mcp-memoria-bench-D-"),
+  path.join(os.tmpdir(), "recall-bench-D-"),
 );
 process.on("beforeExit", () => {
   try {

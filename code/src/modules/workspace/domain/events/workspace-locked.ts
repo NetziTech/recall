@@ -5,9 +5,9 @@ import type { WorkspaceId } from "../../../../shared/domain/value-objects/worksp
 /**
  * Fact: an encrypted workspace was deliberately re-locked.
  *
- * Triggered by the `mcp-memoria forget-key` flow described in
+ * Triggered by the `recall forget-key` flow described in
  * `docs/11-seguridad-modos.md` §3 (commands list). Subscribers wipe the
- * key from `~/.config/mcp-memoria/keys/...` and any in-process key
+ * key from `~/.config/recall/keys/...` and any in-process key
  * cache.
  *
  * Invariants:

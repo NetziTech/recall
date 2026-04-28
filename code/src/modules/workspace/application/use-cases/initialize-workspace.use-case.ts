@@ -36,13 +36,13 @@ const CURRENT_SCHEMA_VERSION = "1.0.0";
  * Algorithm (per `docs/11-seguridad-modos.md` §§2-4 and
  * `docs/01-arquitectura.md` §2.2):
  *
- *   1. If `<root>/.mcp-memoria/config.json` already exists, parse it,
+ *   1. If `<root>/.recall/config.json` already exists, parse it,
  *      rehydrate the aggregate, and return `{ wasCreated: false }`.
  *      Idempotency rule: the existing workspace must already be in
  *      the requested mode; otherwise `Workspace.rejectReinitialization`
  *      raises `WorkspaceAlreadyInitializedError` so the caller can
  *      decide between rehydrating (call again with the right mode)
- *      or wiping (`mcp-memoria wipe`).
+ *      or wiping (`recall wipe`).
  *   2. Otherwise: mint a fresh `WorkspaceId`, build the
  *      `WorkspaceConfig`, ask the filesystem adapter to create the
  *      directory tree, and persist `config.json`.
@@ -58,7 +58,7 @@ const CURRENT_SCHEMA_VERSION = "1.0.0";
  *
  * Why split the side effects this way:
  *   - The encryption slice MUST be persisted before SQLCipher opens
- *     `memoria.db` because the open path reads the on-disk
+ *     `recall.db` because the open path reads the on-disk
  *     KdfParams/envelopes via the encryption module.
  *   - The `.gitignore` pass is last so a half-finished init never
  *     leaves a stale ignore entry.

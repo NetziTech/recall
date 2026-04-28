@@ -43,7 +43,7 @@ export class NoWorkspaceAtPathError extends WorkspaceApplicationError {
 
   public constructor(rootPath: string, options?: { cause?: unknown }) {
     super(
-      `no workspace found at or above "${rootPath}"; run "mcp-memoria init" first`,
+      `no workspace found at or above "${rootPath}"; run "recall init" first`,
       options !== undefined ? { cause: options.cause } : undefined,
     );
     this.rootPath = rootPath;

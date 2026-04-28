@@ -1,6 +1,6 @@
 # Release Notes — v0.1.0
 
-> First public release of `@netzi/mcp-memoria` — MVP.
+> First public release of `@netzi/recall` — MVP.
 > 2026-04-28.
 
 ## Highlights
@@ -11,7 +11,7 @@
   `encrypted` (SQLCipher with Argon2id KDF — OWASP 2024 parameters),
   `private` (gitignored, single-machine).
 - **Hybrid search from day one**: BM25 via FTS5 + cosine via sqlite-vec.
-- **Memory lives inside the project** (`<repo>/.mcp-memoria/`), not in
+- **Memory lives inside the project** (`<repo>/.recall/`), not in
   `$HOME`. It clones, moves, and shares with the code.
 - **Self-curating** memory: differential decay by kind, semantic
   consolidation (cosine > 0.92), pruning with audit trail, self-healing.
@@ -35,9 +35,9 @@
 ## Install
 
 ```bash
-npm install -g @netzi/mcp-memoria
+npm install -g @netzi/recall
 # or
-npx @netzi/mcp-memoria init --mode shared
+npx @netzi/recall init --mode shared
 ```
 
 Requires Node.js 20+. See [README](../code/README.md) for full setup.
@@ -114,4 +114,4 @@ an opt-in OS-keychain key cache (ADR pending).
 
 [Full HANDOFF](../HANDOFF.md) ·
 [Architecture docs](../docs/) ·
-[GitHub](https://github.com/NetziTech/mcp-memoria-inteligente)
+[GitHub](https://github.com/NetziTech/recall)

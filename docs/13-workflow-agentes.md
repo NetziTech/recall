@@ -204,7 +204,7 @@ de patrones prohibidos.
   - A10 SSRF: si en algun momento Voyage AI, validar URL.
 - Detector de secretos en `shared/infrastructure/secrets/` con patrones
   conocidos + entropy.
-- Permisos `0600` en `~/.config/mcp-memoria/keys/`.
+- Permisos `0600` en `~/.config/recall/keys/`.
 - Path sanitizer aplicado en todos los inputs.
 - No hay credenciales hardcoded.
 
@@ -454,7 +454,7 @@ Los archivos estan en este repo. Lista:
 `code/sonar-project.properties`:
 
 ```properties
-sonar.projectKey=mcp-memoria-inteligente
+sonar.projectKey=recall
 sonar.projectName=MCP Memoria Inteligente
 sonar.projectVersion=0.1.0
 

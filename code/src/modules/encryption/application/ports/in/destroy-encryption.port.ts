@@ -17,7 +17,7 @@ import type { Passphrase } from "../../../domain/value-objects/passphrase.ts";
  *   `config.json` so the workspace can no longer be unlocked
  *   through the encryption module.
  * - It DOES NOT touch the SQLCipher database files. Re-keying /
- *   decrypting the actual `memoria.db` and `vectors.db` into
+ *   decrypting the actual `recall.db` and `vectors.db` into
  *   plain SQLite files is the responsibility of the workspace
  *   module's mode-change flow. The composition root orchestrates
  *   both halves in the right order (decrypt the data FIRST, then

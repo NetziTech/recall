@@ -23,7 +23,7 @@ export interface ImportHandoffResult {
  * Driving (input) port: turn an existing `HANDOFF.md` into the seed
  * memory of a fresh workspace.
  *
- * Maps to the CLI's `mcp-memoria import-handoff <path>`
+ * Maps to the CLI's `recall import-handoff <path>`
  * (`docs/07-instalacion.md` §7.11) and is one of the headline value
  * propositions of the project: the very document that the MCP
  * replaces is the bootstrap for the new workspace.

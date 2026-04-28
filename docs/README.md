@@ -7,10 +7,10 @@
 
 ## 0. Resumen ejecutivo
 
-**Que es.** Un servidor MCP standalone (single binary / `npx -y mcp-memoria`) que
+**Que es.** Un servidor MCP standalone (single binary / `npx -y recall`) que
 Claude Code conecta para tener memoria estructurada, persistente y consultable
 sobre cualquier proyecto en el que trabaje el usuario. La memoria vive **dentro
-del proyecto** (`<proyecto>/.mcp-memoria/`) — viaja con el codigo cuando lo
+del proyecto** (`<proyecto>/.recall/`) — viaja con el codigo cuando lo
 clonas, lo mueves o lo compartes.
 
 **Que problema resuelve.**
@@ -30,7 +30,7 @@ clonas, lo mueves o lo compartes.
 
 **Filosofia.**
 
-- **Memoria-en-proyecto.** `.mcp-memoria/` vive dentro del repo, junto al
+- **Memoria-en-proyecto.** `.recall/` vive dentro del repo, junto al
   codigo. Como `.git/`, viaja con el proyecto.
 - **3 modos de privacidad.** Compartido (default, todo en git plano),
   encriptado (en git pero cifrado con SQLCipher), o privado (en `.gitignore`).
@@ -73,13 +73,13 @@ pide.
 
 A diferencia de otras soluciones MCP de memoria que centralizan en HOME del
 usuario, este MCP guarda la memoria **dentro del proyecto**, en
-`<proyecto>/.mcp-memoria/`.
+`<proyecto>/.recall/`.
 
 ### Por que
 
 1. **La memoria viaja con el codigo.** Si copias el folder, mueves el repo o
    lo clonas en otra maquina, la memoria viene con el.
-2. **Compartible con el equipo.** Si commiteas `.mcp-memoria/`, otros devs
+2. **Compartible con el equipo.** Si commiteas `.recall/`, otros devs
    tienen acceso al historial de decisiones, learnings y entidades que el
    equipo ha construido en sus sesiones con Claude.
 3. **Sin hashes que se rompen.** Renombrar el folder no destruye la memoria
@@ -91,23 +91,23 @@ usuario, este MCP guarda la memoria **dentro del proyecto**, en
 ### Que vive donde
 
 ```
-<proyecto>/.mcp-memoria/                ← TODA la memoria del proyecto
-├── memoria.db                          ← decisions, learnings, tasks, turns, entities
+<proyecto>/.recall/                ← TODA la memoria del proyecto
+├── recall.db                          ← decisions, learnings, tasks, turns, entities
 ├── vectors.db                          ← embeddings
 ├── config.json                         ← config del workspace (incluye modo y workspace_id)
 └── .gitignore                          ← auto-creado segun modo
 
-~/.cache/mcp-memoria/                   ← SOLO cache (XDG-compliant)
+~/.cache/recall/                   ← SOLO cache (XDG-compliant)
 └── models/                             ← modelo de embeddings (compartido entre proyectos)
 
-~/.config/mcp-memoria/                  ← SOLO defaults globales minimos (XDG-compliant)
+~/.config/recall/                  ← SOLO defaults globales minimos (XDG-compliant)
 ├── config.json                         ← que modelo embedder usar
 └── keys/                               ← claves de modos encriptados, indexadas por workspace_id
     └── <workspace_id>.key
 ```
 
-**Regla de oro:** si borras `~/.cache/mcp-memoria/`, no pierdes nada del
-proyecto (se redescarga el modelo). Si borras `~/.config/mcp-memoria/keys/`,
+**Regla de oro:** si borras `~/.cache/recall/`, no pierdes nada del
+proyecto (se redescarga el modelo). Si borras `~/.config/recall/keys/`,
 los workspaces encriptados quedan bloqueados hasta que vuelvas a hacer unlock
 (la memoria sigue ahi, solo no la puedes leer sin la clave).
 
@@ -164,7 +164,7 @@ Esto es **especificacion**, no codigo aun. La intencion es:
 3. Que un futuro Coder lo use como adapter de memoria, no como duplicacion.
 
 Cuando se construya el codigo, vivira en repo separado:
-`github.com/<owner>/mcp-memoria-inteligente` o similar.
+`github.com/<owner>/recall` o similar.
 
 ---
 
@@ -174,10 +174,10 @@ Detalle completo en [`11-seguridad-modos.md`](./11-seguridad-modos.md).
 
 | Modo | Que se versiona en git | Caso |
 |---|---|---|
-| **Compartido** (default) | Todo `.mcp-memoria/` plano | Open-source, equipo abierto, sin info sensible |
-| **Encriptado** | Todo `.mcp-memoria/` cifrado con SQLCipher | Equipo cerrado, info sensible, repo privado o publico con seguridad extra |
+| **Compartido** (default) | Todo `.recall/` plano | Open-source, equipo abierto, sin info sensible |
+| **Encriptado** | Todo `.recall/` cifrado con SQLCipher | Equipo cerrado, info sensible, repo privado o publico con seguridad extra |
 | **Privado** | Nada (todo en `.gitignore`) | Memoria personal, no se comparte |
 
 El modo se elige al primer arranque y queda en
-`.mcp-memoria/config.json`. Cambiable despues con
-`mcp-memoria mode <nuevo-modo>`.
+`.recall/config.json`. Cambiable despues con
+`recall mode <nuevo-modo>`.

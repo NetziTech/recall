@@ -42,7 +42,7 @@ export interface AuditMemoryResult {
  * Driving (input) port: run the consistency-audit pass over the
  * workspace's memory.
  *
- * Maps to the CLI's `mcp-memoria audit` (`docs/07-instalacion.md`
+ * Maps to the CLI's `recall audit` (`docs/07-instalacion.md`
  * §7.10). Checks performed:
  *
  * 1. Orphaned `superseded_by` (decision points at non-existent id).

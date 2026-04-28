@@ -2,12 +2,12 @@ import type { Workspace } from "../../../domain/aggregates/workspace.ts";
 import type { WorkspacePath } from "../../../domain/value-objects/workspace-path.ts";
 
 /**
- * Driving (input) port for `mcp-memoria forget-key --workspace <path>`
+ * Driving (input) port for `recall forget-key --workspace <path>`
  * (`docs/07-instalacion.md` §7 — "Encriptado").
  *
  * Symmetric counterpart of `UnlockWorkspace`. Drops the in-memory key
  * (via `Workspace.lock`) and asks the `LockEncryptionFacade` to wipe
- * the on-disk cache in `~/.config/mcp-memoria/keys/<workspace_id>.key`
+ * the on-disk cache in `~/.config/recall/keys/<workspace_id>.key`
  * — both sides of the lock state must move together. Failing to wipe
  * the cache while flipping the runtime state would leave the next
  * server start in an unlocked state from a key the operator had asked

@@ -7,7 +7,7 @@ import type { WorkspaceId } from "../../../../shared/domain/value-objects/worksp
  * process.
  *
  * The actual key derivation, validation and persistence in
- * `~/.config/mcp-memoria/keys/<workspace_id>.key` are infrastructure
+ * `~/.config/recall/keys/<workspace_id>.key` are infrastructure
  * concerns (see `docs/11-seguridad-modos.md` §3 and §7). The aggregate
  * only records the *fact* that the unlock happened, so audit logs and
  * downstream readiness signals can react.

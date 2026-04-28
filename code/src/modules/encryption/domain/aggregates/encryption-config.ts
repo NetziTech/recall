@@ -35,7 +35,7 @@ import { InvariantViolationError } from "../../../../shared/domain/errors/invari
  * - `kdfSpec`: the algorithm + params used to derive keys from
  *   passphrases. Currently constant per workspace; rotating requires
  *   re-deriving every envelope, which is a flow we do not yet
- *   model in the domain (see `mcp-memoria rekey` in
+ *   model in the domain (see `recall rekey` in
  *   `docs/11-seguridad-modos.md` §7).
  * - `keyValidatorBlob`: the AEAD blob that lets `unlockWith`
  *   verify a candidate master key without opening the SQLCipher

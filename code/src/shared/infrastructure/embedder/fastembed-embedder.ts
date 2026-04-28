@@ -23,7 +23,7 @@ export type FastembedModelName = Exclude<
  * - `modelName` — one of the curated fastembed models. Default
  *   `BGESmallENV15` (the one pinned in `docs/06 §6`).
  * - `cacheDir` — directory where ONNX weights are downloaded and
- *   cached. Default `~/.cache/mcp-memoria/models/` per
+ *   cached. Default `~/.cache/recall/models/` per
  *   `docs/03-modelo-datos.md` §1 (resolved by the composition root, not
  *   here, so the adapter stays portable for tests with a temp dir).
  * - `maxLength` — token cap applied at tokenisation time. fastembed
@@ -110,7 +110,7 @@ const DEFAULT_MODEL: FastembedModelName = EmbeddingModel.BGESmallENV15;
  * ```typescript
  * const embedder = new FastembedEmbedder({
  *   modelName: EmbeddingModel.BGESmallENV15,
- *   cacheDir: path.join(homedir, ".cache", "mcp-memoria", "models"),
+ *   cacheDir: path.join(homedir, ".cache", "recall", "models"),
  *   maxLength: 512,
  * });
  * const { vector } = await embedder.embed("first query"); // model loads here

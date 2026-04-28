@@ -16,7 +16,7 @@
  * them. The two remaining typed-error exports
  * (`CliFacadeNotImplementedError`, `McpFacadeNotImplementedError`)
  * cover the facades that legitimately stay stubbed (multi-key v0.5,
- * `mcp-memoria server` sub-process, `mem.task get/delete` actions).
+ * `recall server` sub-process, `mem.task get/delete` actions).
  */
 
 export type { Container, ContainerOptions } from "./container.ts";

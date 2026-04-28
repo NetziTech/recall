@@ -26,7 +26,7 @@ import type { CommandHistory } from "../aggregates/command-history.ts";
  *     would silently break `CommandHistory.rehydrate`'s invariant
  *     check. Repeated `save(history)` calls with the same aggregate
  *     are idempotent (last-write-wins on the buffer contents).
- *   - `delete(id)` removes the aggregate. Used by `mcp-memoria wipe`
+ *   - `delete(id)` removes the aggregate. Used by `recall wipe`
  *     and during workspace teardown. Calling `delete` for a workspace
  *     with no history is a no-op (no error).
  *

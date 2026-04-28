@@ -13,7 +13,7 @@ export interface WipeMemoryResult {
 /**
  * Driving (input) port: erase every memory row in the workspace.
  *
- * Maps to the CLI's `mcp-memoria wipe` (`docs/07-instalacion.md`
+ * Maps to the CLI's `recall wipe` (`docs/07-instalacion.md`
  * §7.9). The CLI parser is the layer that enforces the `WIPE` literal
  * confirmation; this use case trusts the caller and proceeds.
  *
