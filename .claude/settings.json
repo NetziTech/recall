@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'if [[ \"$PWD\" == *\"/.claude/worktrees/\"* ]]; then echo \"WARNING_NETZI_NO_WORKTREES: Esta sesion arranco dentro de .claude/worktrees/ (cwd=$PWD). Este proyecto NO permite trabajar desde worktrees. El asistente debe DETENER cualquier accion sobre git/repo y avisar al usuario para que: (1) cierre esta sesion, (2) abra Claude directamente sobre /Users/h2devx/proyects/netzi-tech/mcp/memoria, (3) elimine el worktree con git worktree remove + git branch -D. Ver CLAUDE.md.\"; fi'"
+          }
+        ]
+      }
+    ]
+  }
+}
