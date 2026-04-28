@@ -29,7 +29,8 @@
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@2.x` → `tar@6.x` (path-traversal en extraccion de tarball; vector real bajo). Documentadas en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. Plan de fix en v0.1.1. SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo (escanea source, no deps transitivas). |
 | **Paquete npm** | `@netzi/mcp-memoria` (scope publico). `publishConfig.access=public`. Bins `mcp-memoria` y `mcp-memoria-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Proximo paso unico** | `npm publish` (manual: requiere `npm login` del usuario; el CI de tu maquina no esta autenticado). Resto del flujo (tag + push + GitHub release) ya ejecutado en §6.10. |
+| **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/mcp-memoria@0.1.0` en npm (https://www.npmjs.com/package/@netzi/mcp-memoria). GitHub release publicado (https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/mcp-memoria@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
+| **Proximo paso** | v0.1.1: cerrar 2 highs upstream tar/fastembed + B-008 (`mem.task.get/delete`) + B-009 (`uninstall-hook`). Detalles en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. |
 
 ---
 
@@ -911,8 +912,9 @@ phase-5-task-6-architect-final-review.md         (APPROVED CON OBSERVACIONES)
 
 **Cierre:** 2026-04-28 (sesion de release). Tag y branch pusheados al
 remoto `git@github.com:NetziTech/mcp-memoria-inteligente.git`. GitHub
-release publicado. `npm publish` queda pendiente como accion manual del
-usuario (requiere `npm login` interactivo).
+release publicado. **`npm publish` ejecutado y validado** —
+`@netzi/mcp-memoria@0.1.0` disponible en
+https://registry.npmjs.org/@netzi/mcp-memoria.
 
 ### Hallazgos al inicio de la sesion
 
@@ -947,8 +949,12 @@ usuario (requiere `npm login` interactivo).
 | 11 | Branch fast-forwarded a `main` y pusheado | `git push origin claude/magical-elbakyan-fca193:main` |
 | 12 | Tag annotated `v0.1.0` re-creado y pusheado | apunta al commit con todos los fixes |
 | 13 | `gh release create v0.1.0` | con notes desde `docs/RELEASE-NOTES-v0.1.0.md` |
-| 14 | `npm publish --dry-run` | verificado contenido del paquete (dist/ + README + LICENSE + migrations) |
-| 15 | `npm publish` real | **PENDIENTE — accion manual del usuario** (requiere `npm login` con cuenta del scope `@netzi`) |
+| 14 | `npm publish --dry-run` (1ra) | warning: `bin` paths con `./` invalidos. Auto-fix `npm pkg fix` aplicado. |
+| 15 | Re-tag v0.1.0 (segunda vez) | `gh release delete v0.1.0` + `git push origin :refs/tags/v0.1.0` + commit fix `7da553a` + FF main + re-tag + push tag + `gh release create v0.1.0`. Decision A autorizada. |
+| 16 | `npm publish --dry-run` (2da) | sin warnings, 15 archivos en tarball, 1.4 MB packed. |
+| 17 | `npm publish` real | EJECUTADO por el usuario via WebAuthn passkey flow (`auth-type=web`). PUT 200, exit 0. |
+| 18 | Smoke test E2E | `npx --yes @netzi/mcp-memoria@0.1.0 --help` desde `/tmp/npx-smoke` limpio: descarga, instala deps (10), ejecuta CLI con help completo. EXIT=0. |
+| 19 | Validacion final | API registry 200, tarball descargable 200, GitHub release published not-draft, tag→main coherente. UI web `npmjs.com/package/...` retorna 403 cosmetico (indexing pipeline tarda ~horas; instalacion ya funciona). |
 
 ### Decisiones del orquestador (D-601..D-606)
 
@@ -966,9 +972,22 @@ usuario (requiere `npm login` interactivo).
    `sqlite-vec` native bindings.
 5. **D-605** LICENSE MIT, copyright Netzi Tech. Default razonable;
    ajustable si el usuario decide otra licencia.
-6. **D-606** `npm publish` queda como accion manual del usuario porque
-   `npm whoami` reporta `ENEEDAUTH` y no se debe almacenar token en el
-   repo. Comando exacto en §7.
+6. **D-606** `npm publish` lo ejecuto el usuario manualmente desde su
+   sesion CLI autenticada (cuenta `h2devx`, owner de org `netzi`). Uso
+   `--auth-type=web` (passkey en macOS) porque tiene 2FA activado y no
+   acepta TOTP. Resultado: PUT 200 + exit 0. Cero tokens npm
+   almacenados en el repo.
+7. **D-607** Re-tag v0.1.0 ejecutado DOS VECES en esta sesion (decision
+   A+C inicial + decision A second-round por el `bin` path warning).
+   Justificacion: el primer tag fantasma `v0.1.0` apuntaba a un commit
+   con `package.json.version = "0.1.0-alpha.0"`; el segundo tag
+   apuntaba a un commit con `bin: "./dist/..."` que npm auto-rompia al
+   publicar. En ambos casos no habia release ni consumidores. Tag
+   final `v0.1.0` apunta a commit `7da553a` con todo coherente.
+8. **D-608** Smoke test E2E desde directorio limpio (`/tmp/npx-smoke`)
+   adoptado como ultimo gate de validacion del release. Confirma que
+   el paquete publicado en npm es funcional, no solo que `npm publish`
+   retorno 0.
 
 ### Reportes de validacion
 
@@ -1202,13 +1221,18 @@ Documentadas en `.claude/workflow-state.json` →
 
 ## 11. Cierre
 
-Estado: **MVP v0.1.0 APROBADO. Fase 5 (Testing + Architect Review
-FINAL) CERRADA. Listo para release.**
+Estado: **MVP v0.1.0 PUBLICADO. Fases 0-6 CERRADAS.** El paquete vive
+en npm (https://www.npmjs.com/package/@netzi/mcp-memoria) y en
+GitHub (https://github.com/NetziTech/mcp-memoria-inteligente/releases/tag/v0.1.0).
+Smoke test E2E desde directorio limpio confirmado: `npx --yes
+@netzi/mcp-memoria@0.1.0 --help` ejecuta el CLI con todos los
+comandos. Tag `v0.1.0` → `7da553a` (= `main` HEAD).
 
-**Resumen del workflow completo (Fases 0-5):**
+**Resumen del workflow completo (Fases 0-6):**
 
-- **5 fases ejecutadas** sin escalaciones a humano (cero
-  ambiguedades de spec).
+- **6 fases ejecutadas** (0 planning → 5 testing → 6 release) sin
+  escalaciones a humano (cero ambiguedades de spec; las 4 decisiones
+  humanas D-101/D-102/D-103/E se resolvieron en architect review 5.6).
 - **30 tareas APROBADAS** por sus validadores.
 - **47 validadores ejecutados** (clean-arch + solid + ddd + security
   + performance + qa-sonarqube + architect-review-final), todos con
@@ -1252,17 +1276,19 @@ FINAL) CERRADA. Listo para release.**
   compromiso a la seguridad. Roadmap v0.5 contempla `<500ms` via OS
   keychain key cache (ADR pendiente).
 
-**Siguiente accion concreta:** **liberar MVP v0.1.0**. El comando
-exacto esta en §7 (`git tag v0.1.0`, `npm run build`, `gh release
-create`). El workflow de implementacion termino. Cero validaciones
-pendientes.
+**Siguiente accion concreta:** abrir el ciclo de **v0.1.1** —
+prioridad: cerrar las 2 highs upstream `tar`/`fastembed` (esperar
+`fastembed@2.1+` con `tar@7.x` o migrar embedder), implementar B-008
+(`mem.task.get`/`mem.task.delete`) y B-009 (`uninstall-hook`). El
+workflow de release v0.1.0 esta cerrado. Cero validaciones pendientes
+sobre v0.1.0.
 
-**Despues del release v0.1.0** vendran las features de v0.5 (multi-key
-envelope, encrypted cold start <500ms, perf hardening >10K, etc.) que
-NO requieren cambios estructurales — el ADR system + el sistema de
+**Despues** vendran las features de v0.5 (multi-key envelope,
+encrypted cold start <500ms, perf hardening >10K, etc.) que NO
+requieren cambios estructurales — el ADR system + el sistema de
 modulos absorben la evolucion.
 
 ---
 
-_Ultima actualizacion: 2026-04-28 (cierre Fase 6 — Release MVP v0.1.0 publicado en GitHub; npm publish pendiente manual)_
+_Ultima actualizacion: 2026-04-28 (cierre Fase 6 — Release MVP v0.1.0 PUBLICADO Y VALIDADO: npm + GitHub release + smoke test E2E)_
 _Mantenedor: equipo Netzi Tech_
