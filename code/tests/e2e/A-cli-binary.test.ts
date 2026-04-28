@@ -102,6 +102,25 @@ describe("e2e / A / dist/cli.js — smoke", () => {
     expect(result.stderr.length).toBeGreaterThan(0);
   });
 
+  it("unknown command propagates EXIT=2 (B-CLI-3)", async () => {
+    // B-CLI-3: a stale dogfood report claimed `recall foobar` returned
+    // EXIT=0 despite emitting `cli.unknown-command` warn + stderr
+    // message. Investigation showed `CliEntrypoint.handleParseError`
+    // already maps `UnknownCommandError` → `usageError` (2) and the
+    // bootstrap `main()`'s `.then(code => process.exit(code))` chain
+    // propagates the value verbatim. This test pins the contract
+    // against the shipped binary so a future refactor that wraps the
+    // entrypoint result in a try/catch returning 0 on error gets
+    // caught immediately. We use the explicit token "foobar" from the
+    // bug report so future grep searches land on this regression.
+    const result = await runCli(cliPath, ["foobar"]);
+    expect(result.exitCode).toBe(2);
+    // Stderr must carry the typed message so script authors can
+    // pattern-match on it.
+    expect(result.stderr).toContain("unknown CLI command");
+    expect(result.stderr).toContain("foobar");
+  });
+
   it("`health` on an UNINITIALISED workspace exits non-zero (B-CLI-2)", async () => {
     // B-CLI-2: an early version of the handler was reported to print
     // "[FAIL] ... Resultado: con fallos" and STILL return EXIT=0,
