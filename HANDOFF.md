@@ -27,11 +27,11 @@
 | **Tests** | **2421 passing** en 199 archivos test. **Coverage 96.4%** (domain ~99%, application ~99%, infrastructure ~92%). 23 E2E + 52 integration + 6 benchmarks + ~2340 unit. |
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
-| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@2.x` → `tar@6.x` (path-traversal en extraccion de tarball; vector real bajo). Documentadas en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. Plan de fix en v0.1.1. SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo (escanea source, no deps transitivas). |
+| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). v0.1.1 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. |
 | **Paquete npm** | `@netzi/recall` (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
 | **Estado del release** | **PUBLICADO Y VALIDADO.** `@netzi/recall@0.1.0` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release publicado (https://github.com/NetziTech/recall/releases/tag/v0.1.0). Tag `v0.1.0` → commit `7da553a` (= `main` HEAD). Smoke test E2E confirmado: `npx --yes @netzi/recall@0.1.0 --help` desde directorio limpio descarga, instala deps y ejecuta CLI sin errores. |
-| **Proximo paso** | v0.1.1: cerrar 2 highs upstream tar/fastembed + B-008 (`mem.task.get/delete`) + B-009 (`uninstall-hook`). Detalles en `docs/RELEASE-NOTES-v0.1.0.md` y §6.10. |
+| **Proximo paso** | v0.1.1 restante: B-008 (`mem.task.get/delete`) + B-009 (`uninstall-hook`). Las 2 highs upstream ya tienen ADR-004 (wontfix-con-mitigacion) hasta v0.5. Detalles en `docs/RELEASE-NOTES-v0.1.0.md`, §6.10 y §6.11. |
 
 ---
 
@@ -1000,10 +1000,100 @@ sobre el commit final.
 ### Cero deuda heredada de Fase 6 a v0.1.1
 
 - 2 vulns highs documentadas en `docs/RELEASE-NOTES-v0.1.0.md` con
-  vector real, mitigacion y plan de fix.
+  vector real, mitigacion y plan de fix. **Cerradas como wontfix
+  formal en sub-fase 5 (§6.11) con ADR-004.**
 - 5 stubs `Pending*` siguen justificados (tracking en §6.9).
 - 18 items backlog v0.5 catalogados (tracking en §6.9).
 - Repo sincronizado: `main` remoto = tag `v0.1.0` = HEAD del worktree.
+
+## 6.11 v0.1.1 sub-fase 5 — investigacion y wontfix de tar/fastembed highs
+
+**Cierre:** 2026-04-28. Sub-fase 5 del ciclo
+`phase-7-rename-and-recall-v0.1.0` (post-rename, post-CLI-fixes,
+pre-publish v0.1.1).
+
+### Objetivo
+
+Cerrar las 2 advisories `high` (`GHSA-34x7-hfp2-rc4v` +
+`GHSA-83g3-92jg-28cx`, mas cluster relacionado) que `npm audit
+--omit=dev` reporta sobre `tar@6.x` heredado de `fastembed@^2.0.0`,
+**sin** romper el embedder ni introducir codigo de seguridad custom.
+
+### Investigacion ejecutada
+
+| # | Alternativa | Comando/test | Resultado |
+|---|---|---|---|
+| 1 | Bump `fastembed` a `2.1.0` | `npm view fastembed@2.1.0 dependencies` | RECHAZADA. fastembed@2.1.0 sigue con `tar: ^6.2.0`. Ya estabamos en 2.1.0 (resuelto por `^2.0.0`). |
+| 2 | `npm overrides: { "tar": "7.5.13" }` + reinstall | `npm install` + `npx vitest run tests/unit/shared/infrastructure/embedder/` | RECHAZADA. `npm audit --omit=dev` reporta `0 vulnerabilities` con el override aplicado, pero la suite del embedder falla con `SyntaxError: The requested module 'tar' does not provide an export named 'default'` en `import tar from "tar"` (linea 7 de `node_modules/fastembed/lib/esm/fastembed.js`). Confirmado empiricamente: `tar@7.5.13` ESM solo expone named exports. Override revertido. |
+| 3 | Swap a `@huggingface/transformers` (Xenova) | `npm view @huggingface/transformers dependencies` (sin `tar`, con `sharp` + `onnxruntime-node`) | RECHAZADA. Cambio v0.5-class: re-implementar adapter, ~24 tests mockeando `FlagEmbedding.init`, riesgo de regresion en benchmarks (`mem.recall` 1.51ms p95 actual), nueva nativa `sharp`, posibles diffs en normalizacion de embeddings que afectarian retrieval scores ya almacenados. Out of scope para patch de seguridad. |
+| 4 | Custom shim `tar7-default-export-wrapper` via `npm:` alias en overrides | (no implementado) | RECHAZADA. Crear/mantener un wrapper que re-exporta `{ x, c, t, ... }` como `default` ES codigo de seguridad custom. La regla del modulo `encryption` ("nunca implementar criptografia custom") se extiende por consistencia a deps de seguridad criticas como `tar` (extraccion de archivos no confiables). |
+
+### Decisiones del orquestador
+
+1. **D-611** Wontfix formal de las 2 highs hasta v0.5, justificado por
+   las 4 alternativas descartadas.
+2. **D-612** ADR-004 redactado en `docs/12-lineamientos-arquitectura.md
+   §1.5.4` con tabla de alternativas, vector real corregido y plan de
+   reapertura en v0.5.
+3. **D-613** Vector real **corregido** en `code/README.md` y
+   `docs/RELEASE-NOTES-v0.1.0.md`. La v0.1.0 original decia "atacante
+   controla un modelo en HuggingFace CDN"; la lectura de
+   `node_modules/fastembed/lib/esm/fastembed.js` linea 138 demuestra
+   que la URL real es
+   `https://storage.googleapis.com/qdrant-fastembed/<modelName>.tar.gz`
+   (GCS bucket de Qdrant), no HuggingFace. Likelihood real: muy
+   bajo (compromise de bucket GCS o TLS MITM con CA comprometida).
+4. **D-614** Sin cambios de codigo en este commit. La unica defensa
+   en profundidad practica (pre-warm de cache via `cacheDir`) ya
+   existe en el adapter; el commit solo re-documenta como activarla.
+   Una mejora con SHA-pinning del tarball antes de invocar `tar.x` se
+   evaluo y descarto: requiere mantener SHAs hardcoded para 7 modelos
+   (algunos > 1 GB) que Qdrant podria rotar sin aviso, y no se gana
+   defensa real porque el TLS+IAM ya gating del bucket es lo que cubre
+   el vector residual.
+
+### Hallazgos
+
+- **Correccion factual:** la documentacion v0.1.0 atribuia el
+  download a HuggingFace; en realidad es GCS de Qdrant. El cambio
+  reduce el modelo de amenaza real (la superficie GCS+TLS es mas
+  acotada que la de HF + sus mirrors).
+- **Empirico:** `tar@7.x` ESM no expone `default` export. Esto
+  invalida cualquier override directo mientras fastembed mantenga
+  `import tar from "tar"`. Documentado para no re-investigar en
+  futuras sesiones.
+- **`fastembed@2.1.0` = latest** al 2026-04-28. Su release timeline
+  (1.14.4 → 2.0.0 → 2.1.0) sugiere que el equipo Qdrant podria pasar
+  a `tar@7.x` en una proxima 2.x, pero no hay senial publica.
+
+### Archivos tocados
+
+| Archivo | Cambio |
+|---|---|
+| `docs/12-lineamientos-arquitectura.md` | + §1.5.4 ADR-004 (wontfix con tabla de alternativas + correccion del vector real). |
+| `code/README.md` | "Known issues" reescrita: vector real GCS de Qdrant (no HF), mitigacion `cacheDir`/`FASTEMBED_CACHE_PATH`, link a ADR-004. |
+| `docs/RELEASE-NOTES-v0.1.0.md` | Bloque "Upstream CVEs" reescrito con nota de update, tabla de alternativas, mitigacion clarificada, plan v0.5. |
+| `HANDOFF.md` | §0 fila "Vulns npm audit" + fila "Proximo paso" actualizadas. Esta seccion §6.11 nueva. |
+
+### Validacion
+
+`npm audit --omit=dev` sigue reportando exactamente las 2 advisories
+ya conocidas (esperado — la decision es wontfix). Los 5 checks
+pre-commit:
+
+| Check | Resultado |
+|---|---|
+| `npm run typecheck` | EXIT=0 |
+| `npm run lint` | EXIT=0 |
+| `npm run validate:modules` | EXIT=0 (PASS — no module violations) |
+| `npm run build` | EXIT=0 |
+| `npm test` | EXIT=0 (2421 tests passing) |
+
+### Reapertura prevista en v0.5
+
+Si para v0.5 `fastembed` no ha publicado release con `tar@7.x`, la
+opcion (3) (swap a `@huggingface/transformers`) se promueve a
+prioridad alta. ADR-004 documenta los criterios de reapertura.
 
 ---
 

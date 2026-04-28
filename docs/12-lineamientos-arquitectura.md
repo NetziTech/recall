@@ -446,6 +446,103 @@ intencionalmente distintos.
   schema declarativo (yaml/json) si el catalogo crece. MVP usa tabla
   hardcoded por simplicidad.
 
+#### 1.5.4 ADR-004 — Wontfix transitivo `tar@6.x` via `fastembed@2.x`
+
+**Status:** ACCEPTED — 2026-04-28. Adoptado en v0.1.1 sub-fase 5 tras
+agotar las cuatro opciones de mitigacion plausibles.
+
+**Fecha:** 2026-04-28.
+
+**Contexto.** `npm audit --omit=dev` reporta 2 advisories `high` que
+afectan a `tar@6.x`, dependencia transitiva de `fastembed@^2.0.0`:
+
+| Advisory | Severidad | Vector tecnico |
+|---|---|---|
+| [GHSA-34x7-hfp2-rc4v](https://github.com/advisories/GHSA-34x7-hfp2-rc4v) | high (CVSS 8.2) | Hardlink path traversal (CWE-22, CWE-59) |
+| [GHSA-83g3-92jg-28cx](https://github.com/advisories/GHSA-83g3-92jg-28cx) | high (CVSS 7.1) | Hardlink target escape via symlink chain (CWE-22) |
+
+(npm audit lista 4 advisories adicionales agrupadas en el mismo
+package; las dos de arriba son las representativas del cluster.)
+
+Las CVEs requieren un tarball **adversarial** que llegue al callsite
+`tar.x({ file })`. En `fastembed@2.1.0` ese callsite vive en
+`Dependencies.decompressToCache()` y solo se invoca con tarballs
+descargados desde la URL hardcoded
+`https://storage.googleapis.com/qdrant-fastembed/<modelName>.tar.gz`
+(GCS bucket controlado por el equipo de Qdrant). Es decir: **el
+producto nunca confia en un tarball de origen externo no
+auditado**; el unico path donde `tar.x` se invoca es contra archivos
+servidos por GCS de Qdrant via HTTPS.
+
+**Vector real residual:** un atacante con compromise del bucket GCS
+de Qdrant **o** un MITM con CA comprometida podria servir un tarball
+malicioso a `mem.recall` / `mem.context` la primera vez que el
+embedder se inicializa. Likelihood: **muy bajo** (TLS + Google Cloud
+IAM + dominio publico canonico).
+
+**Decision.** Mantener `fastembed@^2.0.0` con `tar@6.x` transitivo
+en v0.1.1; documentar en `code/README.md` y
+`docs/RELEASE-NOTES-v0.1.0.md` que las advisories estan abiertas con
+mitigacion. El cierre real se difiere a v0.5 (o antes si fastembed
+publica un release con `tar@7.x`).
+
+**Justificacion.**
+
+1. **Las cuatro alternativas de cierre fallan.** Probadas en orden
+   durante la sub-fase 5 del ciclo `phase-7-rename-and-recall-v0.1.0`:
+
+   | # | Alternativa | Resultado |
+   |---|---|---|
+   | (a) | Bump a `fastembed@2.1.0` (latest) | RECHAZADA. `npm view fastembed@2.1.0 dependencies` confirma que sigue dependiendo de `tar@^6.2.0`. No hay release upstream con `tar@7.x`. |
+   | (b) | `npm overrides: { "tar": "7.5.13" }` | RECHAZADA. `tar@7.x` no exporta `default` desde su modulo ESM; `import tar from "tar"` (linea 7 de `node_modules/fastembed/lib/esm/fastembed.js`) lanza `SyntaxError: The requested module 'tar' does not provide an export named 'default'`. Probado: la suite de `tests/unit/shared/infrastructure/embedder/` falla al cargar. |
+   | (c) | Swap a `@huggingface/transformers` (Xenova) | RECHAZADA. Cambio de embedder es trabajo de v0.5: re-implementar adapter, ~24 tests mockeando `FlagEmbedding.init`, riesgo de regresion en benchmarks (`mem.recall` 1.51ms p95), nueva dependencia nativa `sharp` con su propio historial de CVEs, posibles diferencias de normalizacion en embeddings (afectarian retrieval scores de memorias ya almacenadas). |
+   | (d) | Custom shim de `tar@7` con default export sintetico | RECHAZADA. Crear un wrapper `npm:tar7-default-shim` que re-exporta `{ x, c, t, ... }` como `default` introduce **codigo de seguridad custom** que viola la regla "no crypto/security custom" del modulo encryption (extendida por consistencia a deps de seguridad). |
+
+2. **Vector real cuantificado bajo.** El path vulnerable solo se
+   ejecuta contra `storage.googleapis.com/qdrant-fastembed/`,
+   protegido por TLS + Google Cloud IAM + ownership Qdrant. Para
+   explotar, el atacante necesita: (i) compromiso del bucket GCS
+   ajeno **o** (ii) compromiso de la cadena de CA del cliente. Ambos
+   son fuera del modelo de amenaza razonable de un MCP que corre
+   localmente.
+
+3. **Mitigacion ya disponible.** El usuario que opera en entorno
+   adversarial puede pre-poblar el cache (`FASTEMBED_CACHE_PATH` o
+   `cacheDir` en composition root) con tarballs auditados desde
+   fuentes confiables; fastembed detecta la presencia del archivo y
+   no invoca el download.
+
+4. **Trazabilidad y reversibilidad.** El dia que `fastembed`
+   publique un release con `tar@7.x`, basta `npm install
+   fastembed@<nuevo>` y reverificar `npm audit`. La decision no
+   compromete arquitectura, solo deps.
+
+**Correccion factual respecto a `docs/RELEASE-NOTES-v0.1.0.md`
+original:** las release notes v0.1.0 describen el vector como "an
+attacker-controlled embedding model on the HuggingFace CDN". La
+revision del codigo de `fastembed@2.1.0` (linea 138 de
+`fastembed.js`) demuestra que la URL real es
+`https://storage.googleapis.com/qdrant-fastembed/`, NO HuggingFace.
+La nota del README (`code/README.md`) y la release note se corrigen
+en el commit que adopta este ADR.
+
+**Alternativas rechazadas:** ver tabla en justificacion (a)-(d)
+arriba.
+
+**Consecuencias:**
+
+- `code/README.md` y `docs/RELEASE-NOTES-v0.1.0.md` se actualizan
+  para corregir la URL del vector real y enlazar este ADR.
+- Las dos advisories `high` permanecen visibles en `npm audit
+  --omit=dev` hasta que upstream actualice o se ejecute la opcion (c)
+  en v0.5.
+- v0.5 reabrira la decision: si para entonces `fastembed` no ha
+  publicado release compatible con `tar@7.x`, la opcion (c) (swap a
+  `@huggingface/transformers`) pasa a tener prioridad sobre wontfix.
+- El validador de release (`security-review` futuro) debe aceptar
+  estas dos advisories explicitamente como "documented wontfix per
+  ADR-004" hasta que se cierren.
+
 ---
 
 ### 1.6 Cero `any`, type-safety total

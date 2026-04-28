@@ -133,21 +133,38 @@ Full docs in the repo: <https://github.com/NetziTech/recall/tree/main/docs>.
 
 ## Known issues
 
-### Upstream CVEs (tracked, not yet fixable)
+### Upstream CVEs (documented wontfix — see ADR-004)
 
-`fastembed@2.x` depends on `tar@6.x`, which has **2 high-severity advisories**
-(`GHSA-34x7-hfp2-rc4v`, `GHSA-83g3-92jg-28cx`, et al.) for path
-traversal/symlink poisoning during tarball extraction. **Real-world vector**:
-an attacker-controlled embedding model on the HuggingFace CDN, served on first
-use of `mem.recall`. Mitigation:
+`fastembed@^2.0.0` depends on `tar@6.x`, which has **2 representative
+high-severity advisories** (`GHSA-34x7-hfp2-rc4v`, `GHSA-83g3-92jg-28cx`,
+plus a cluster of related ones) for hardlink/symlink path traversal during
+tarball extraction. The latest upstream release at the time of writing
+(`fastembed@2.1.0`) **still depends on `tar@^6.2.0`**, so a clean upstream
+fix is not yet available.
 
-- The default model is the well-known `BAAI/bge-small-en-v1.5`, downloaded
-  over HTTPS from HuggingFace's own CDN.
-- Set `FASTEMBED_CACHE_PATH` to pre-warm the cache from a trusted location
-  if you operate in a hostile environment.
+**Real-world vector (corrected from v0.1.0 release notes)**: the only
+callsite where `fastembed` invokes `tar.x()` is against tarballs downloaded
+from the **hardcoded URL `https://storage.googleapis.com/qdrant-fastembed/<model>.tar.gz`**
+(a Qdrant-owned Google Cloud Storage bucket), **not** the HuggingFace CDN as
+the v0.1.0 notes incorrectly stated. Exploiting the advisory therefore
+requires either compromising Qdrant's GCS bucket or breaking TLS to the
+client. Likelihood: very low.
 
-A fix (either upstream `fastembed@2.1+` with `tar@7.x` or a swap to a
-different embedder) is planned for **v0.1.1**.
+Mitigation today:
+
+- Set `cacheDir` in the composition root (or `FASTEMBED_CACHE_PATH` env var)
+  to point at a pre-populated, auditable model cache. When the cached
+  tarball is already present, `fastembed` skips both download and
+  extraction.
+- Run `recall` only against project paths under your control; `recall`
+  never downloads embedding models from user-supplied URLs.
+
+The full decision rationale (including why we did not pin `tar@7.x`,
+swap embedders, or write a custom default-export shim) lives in
+[`docs/12-lineamientos-arquitectura.md` § 1.5.4
+ADR-004](https://github.com/NetziTech/recall/blob/main/docs/12-lineamientos-arquitectura.md).
+The advisories will close in v0.5 either via an upstream `fastembed`
+release with `tar@7.x` or by swapping to `@huggingface/transformers`.
 
 ### Stubs deferred to v0.5
 

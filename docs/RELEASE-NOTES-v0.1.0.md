@@ -44,39 +44,61 @@ Requires Node.js 20+. See [README](../code/README.md) for full setup.
 
 ## Known issues
 
-### Upstream CVEs in `fastembed@2.x` → `tar@6.x` (2 high)
+### Upstream CVEs in `fastembed@2.x` → `tar@6.x` (2 high — wontfix per ADR-004)
 
-`fastembed@2.x` transitively depends on `tar@6.x`, which has multiple
-high-severity advisories for path traversal / symlink poisoning during
-tarball extraction:
+> **Update (2026-04-28, v0.1.1 sub-fase 5):** the v0.1.0-original wording
+> below incorrectly identified the attack vector as "the HuggingFace CDN".
+> The real download URL is hardcoded in `fastembed` to a Qdrant-owned
+> Google Cloud Storage bucket. The four candidate fixes (bump, override,
+> swap embedder, custom shim) were each evaluated and rejected; the
+> formal wontfix rationale lives in
+> [`docs/12-lineamientos-arquitectura.md` § 1.5.4 ADR-004](./12-lineamientos-arquitectura.md).
+> The corrected description follows.
 
-| Advisory | Severity | CWE |
+`fastembed@^2.0.0` (latest as of 2026-04-28: `2.1.0`) transitively
+depends on `tar@6.x`, which has multiple high-severity advisories for
+path traversal / symlink poisoning during tarball extraction. `npm
+audit --omit=dev` reports 2 representative `high` advisories from this
+cluster:
+
+| Advisory | Severity | CWE | Vector |
+|---|---|---|---|
+| [GHSA-34x7-hfp2-rc4v](https://github.com/advisories/GHSA-34x7-hfp2-rc4v) | high (CVSS 8.2) | CWE-22, CWE-59 | Hardlink path traversal |
+| [GHSA-83g3-92jg-28cx](https://github.com/advisories/GHSA-83g3-92jg-28cx) | high (CVSS 7.1) | CWE-22 | Hardlink target escape via symlink chain |
+
+(Additional advisories — GHSA-8qq5-rm4j-mr97, GHSA-qffp-2rhf-9h96,
+GHSA-9ppj-qmqm-q256, GHSA-r6q2-hw4h-h46w — sit in the same cluster and
+are surfaced together by `npm audit`.)
+
+**Real-world attack vector (corrected).** The only callsite where
+`fastembed` invokes `tar.x()` is in `Dependencies.decompressToCache()`,
+operating on tarballs downloaded from the hardcoded URL
+`https://storage.googleapis.com/qdrant-fastembed/<modelName>.tar.gz`
+(a Qdrant-owned GCS bucket, **not** the HuggingFace CDN). To exploit
+the advisory, an attacker needs either (a) compromise of Qdrant's GCS
+bucket and IAM, or (b) a successful TLS MITM with a compromised CA on
+the client. Both are well outside the threat model of a locally-run MCP
+server. **Likelihood: very low.**
+
+**Why not fixed in v0.1.1.** Each of the four candidate paths was
+evaluated and rejected:
+
+| # | Option | Rejection reason |
 |---|---|---|
-| [GHSA-34x7-hfp2-rc4v](https://github.com/advisories/GHSA-34x7-hfp2-rc4v) | high (CVSS 8.2) | CWE-22, CWE-59 |
-| [GHSA-8qq5-rm4j-mr97](https://github.com/advisories/GHSA-8qq5-rm4j-mr97) | high | CWE-22 |
-| [GHSA-83g3-92jg-28cx](https://github.com/advisories/GHSA-83g3-92jg-28cx) | high (CVSS 7.1) | CWE-22 |
-| [GHSA-qffp-2rhf-9h96](https://github.com/advisories/GHSA-qffp-2rhf-9h96) | high | CWE-22, CWE-59 |
-| [GHSA-9ppj-qmqm-q256](https://github.com/advisories/GHSA-9ppj-qmqm-q256) | high | CWE-22 |
-| [GHSA-r6q2-hw4h-h46w](https://github.com/advisories/GHSA-r6q2-hw4h-h46w) | high (CVSS 8.8) | CWE-176, CWE-367 |
+| (a) | Bump to `fastembed@2.1.0` (latest) | Still pins `tar@^6.2.0` upstream. |
+| (b) | `npm overrides: { "tar": "7.5.13" }` | `tar@7.x` ESM has no `default` export; `fastembed`'s `import tar from "tar"` throws `SyntaxError` at module-load time, breaking the embedder test suite. |
+| (c) | Swap to `@huggingface/transformers` | Embedder rewrite + ~24 mocked test cases + risk of perf/score regressions + new native `sharp` dep. v0.5-class change, not a v0.1.1 patch. |
+| (d) | Custom `tar7-default-shim` package | Introduces custom security code (the project rule for `modules/encryption` is "no custom crypto", extended by consistency to security-critical deps). |
 
-**Real-world attack vector**: a malicious embedding model served from
-the HuggingFace CDN, downloaded by `fastembed` on first use of
-`mem.recall`. **Vector likelihood is low** in normal usage (default
-model `BAAI/bge-small-en-v1.5` is well-known, downloaded over HTTPS
-from the official CDN), but documented for transparency.
+**Mitigation today.** Set `cacheDir` in the composition root or
+`FASTEMBED_CACHE_PATH` env var to a pre-populated, auditable model cache.
+When the tarball already exists in `cacheDir`, `fastembed` skips both
+download and `tar.x` extraction, so the vulnerable path is never executed.
 
-**Why not fixed in v0.1.0**: the only upstream-clean fix is
-`fastembed@1.0.0`, which is a semver-major break in the embeddings API.
-Forcing `tar@7.x` via npm `overrides` breaks `fastembed@2.x` because
-`tar@7` removed the default ESM export that `fastembed` imports as
-`import tar from "tar"`.
-
-**Mitigation today**: pre-populate `FASTEMBED_CACHE_PATH` from a trusted
-source if you operate in a hostile environment.
-
-**Plan**: v0.1.1 will either pin `fastembed@2.1+` (when upstream
-publishes a `tar@7.x`-compatible release) or migrate to an alternative
-embedder. Tracked in the v0.5 roadmap.
+**Plan.** v0.5 will close the advisories either by adopting an upstream
+`fastembed` release with `tar@7.x` (if published) or by completing
+option (c) (swap to `@huggingface/transformers`). Tracked in the
+v0.5 roadmap; ADR-004 will be reopened at that point.
 
 The SonarQube quality gate (which scans source code, not transitive npm
 dependencies) reports **0 vulnerabilities** for our own code; these are
