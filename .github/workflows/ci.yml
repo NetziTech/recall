@@ -59,7 +59,7 @@ jobs:
         run: npm run test:coverage
 
       - name: SonarQube scan + quality gate
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: SonarSource/sonarqube-scan-action@v7
         with:
           projectBaseDir: code
         env:
