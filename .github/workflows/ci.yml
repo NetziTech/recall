@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # SonarQube needs full history for accurate blame and new-code detection.
           fetch-depth: 0
