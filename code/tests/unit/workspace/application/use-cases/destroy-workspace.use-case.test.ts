@@ -43,7 +43,7 @@ const ROOT = WorkspacePath.create("/tmp/wipe-test");
 
 class StubDetect implements DetectWorkspace {
   public constructor(private readonly out: DetectWorkspaceOutput) {}
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public detect(_input: DetectWorkspaceInput): Promise<DetectWorkspaceOutput> {
     return Promise.resolve(this.out);
   }

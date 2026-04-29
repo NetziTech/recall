@@ -78,7 +78,7 @@ describe("NodeReadlinePrompt — confirm parses Spanish + English affirmatives",
     const original = prompt.readLine.bind(prompt);
     void original;
     Object.defineProperty(prompt, "readLine", {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       value: (_q: string): Promise<string> => Promise.resolve("nope"),
       configurable: true,
     });
@@ -99,7 +99,7 @@ describe("NodeReadlinePrompt — confirm parses Spanish + English affirmatives",
   ])("confirm('%s') → %p", async (input, expected) => {
     const prompt = new NodeReadlinePrompt();
     Object.defineProperty(prompt, "readLine", {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+       
       value: (_q: string): Promise<string> => Promise.resolve(input),
       configurable: true,
     });

@@ -30,7 +30,7 @@ class StubDetect implements DetectWorkspace {
   public constructor(out: DetectWorkspaceOutput) {
     this.out = out;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public detect(_input: DetectWorkspaceInput): Promise<DetectWorkspaceOutput> {
     if (this.throws !== null) {
       const t = this.throws;
