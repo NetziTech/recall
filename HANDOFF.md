@@ -14,24 +14,26 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-04-28 (Phase-7 + Phase-8 cerradas — `@netzi/recall@0.1.1` publicado y validado end-to-end con cliente MCP real, ver §6.12 y §6.13) |
+| **Fecha del handoff** | 2026-04-28 (Phase-9 cerrada — primer dogfood real contra `@netzi/recall@0.1.1` revelo 4 defectos enmascarados por el MVP; corte beta `v0.1.2-beta.0` publicado, `v0.1.1` deprecada con warning. Ver §6.14) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **`@netzi/recall@0.1.1` PUBLICADO Y VALIDADO END-TO-END.** Workflow multi-agente cerrado en 8 fases (Fases 0-6 MVP + Phase-7 rename-and-recall + Phase-8 same-day patch B-MCP-1). Paquete vivo en npm con smoke E2E real desde JSON-RPC stdio (`mem.health` sin `workspace_id` en input retorna response valido). `@netzi/recall@0.1.0` deprecado en npm por bug B-MCP-1 (apunta a 0.1.1). `@netzi/mcp-memoria@0.1.0` deprecado por rename. **Proxima fase: roadmap v0.5+** (ver §8). |
-| **Lineas de codigo** | ~58,800 en `code/src/` + ~34,000 LOC de tests en **205 archivos test**. 8 modulos + shared + composition + bootstrap. |
+| **Fase actual** | **CANAL BETA ACTIVO.** Tras Phase-9 (dogfood real con cliente MCP) salieron 4 bugs (B-MCP-2/3/4/5) que escaparon al MVP por validacion shape-only. Se corto canal beta: `v0.1.2-beta.0` en npm dist-tag `beta` (mismo codigo que v0.1.1, solo reclasificacion). `v0.1.1` deprecada en npm con mensaje apuntando al canal beta; sigue en `latest` por compat. `v0.1.0` deprecada por B-MCP-1 (Phase-8). **Proxima fase: v0.1.2-beta.1 cierra B-MCP-3** (worker no instanciado en composition root — root cause confirmado en §6.14). |
+| **Lineas de codigo** | ~58,800 en `code/src/` + ~34,000 LOC de tests en **205 archivos test**. 8 modulos + shared + composition + bootstrap. **Sin cambios de codigo en Phase-9** (corte beta es solo bump de version). |
 | **Migraciones** | **8** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope). |
-| **Lineas de documentacion** | ~7,500 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, ADR-004 §1.5.4 tar/fastembed wontfix, convencion `.port.ts` §3.1). 2 release notes (`RELEASE-NOTES-v0.1.0.md`, `RELEASE-NOTES-v0.1.1.md`). |
+| **Lineas de documentacion** | ~7,650 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, ADR-004 §1.5.4 tar/fastembed wontfix, convencion `.port.ts` §3.1). 3 release notes (`RELEASE-NOTES-v0.1.0.md`, `RELEASE-NOTES-v0.1.1.md`, `RELEASE-NOTES-v0.1.2-beta.0.md`). |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
-| **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7 y Phase-8 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
+| **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7/8/9 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
 | **Tooling materializado** | `code/package.json`, `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict), `code/vitest.config.ts` (thresholds 95%/100%/100%/90%), `code/scripts/validate-modules.ts`, `code/sonar-project.properties`, `code/tsup.config.ts`. |
-| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** sobre el MVP v0.1.0: coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. Phase-7 + Phase-8 mantuvieron los 5 checks EXIT=0 sin re-correr SonarQube (cambios incrementales). |
-| **Tests** | **2501 passing** en 205 archivos test (+80 vs MVP: 17 de Phase-7 sub-fase 2 [B-CLI-1..5] + 44 de B-008 + 28 de B-009 + 18 de B-MCP-1 — 9 dejaron deltas que netean a +80). 23+ E2E + 52+ integration + 6 benchmarks + ~2400+ unit. Coverage de SonarQube sigue en 96.4% (no re-corrido en Phase-7/8). |
-| **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). |
+| **SonarQube** | https://sonar.netzi.dev — quality gate **PASSED** sobre el MVP v0.1.0: coverage 96.4%, new_coverage 99.1%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. Phase-7/8/9 mantuvieron los 5 checks EXIT=0 sin re-correr SonarQube (cambios incrementales o solo bump de version). |
+| **Tests** | **2501 passing** en 205 archivos test (sin cambios en Phase-9 — el bump beta no toca codigo). Coverage de SonarQube sigue en 96.4%. **Gap conocido**: los E2E validan SHAPE de response, no VALORES; esa metodologia enmascaro B-MCP-1, B-MCP-2, B-MCP-3. Regla durable adoptada en Phase-9: cada nuevo E2E debe (a) crear estado conocido, (b) invocar tool, (c) asertar valores reales. |
+| **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). **Caveat Phase-9**: los benchmarks miden los caminos felices con embedder mockeado; no detectan que en produccion el embedder NO se carga (B-MCP-3). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
-| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. |
-| **Paquete npm** | **`@netzi/recall@0.1.1`** (scope publico). `publishConfig.access=public`. Bins `recall` y `recall-server`. v0.1.0 deprecado en npm con redirect note. Paquete predecesor `@netzi/mcp-memoria@0.1.0` tambien deprecado por rename (Phase-7). |
+| **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. **Phase-9 hallazgo**: el embedder fastembed nunca se carga en produccion (B-MCP-3), asi que el path vulnerable de tar tampoco se ejerce — pero esto NO es mitigacion, es bug. |
+| **Paquete npm** | **Canal beta**: `@netzi/recall@0.1.2-beta.0` (npm dist-tag `beta`, opt-in). **Canal latest**: `@netzi/recall@0.1.1` deprecada con warning ("Dogfood found defects B-MCP-2..5... ships via @beta until v0.1.2 stable"). `v0.1.0` deprecada por B-MCP-1 (Phase-8). Paquete predecesor `@netzi/mcp-memoria@0.1.0` tambien deprecado por rename (Phase-7). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Estado del release** | **PUBLICADO Y VALIDADO END-TO-END.** `@netzi/recall@0.1.1` en npm (https://www.npmjs.com/package/@netzi/recall). GitHub release `v0.1.1` (https://github.com/NetziTech/recall/releases/tag/v0.1.1). Tag `v0.1.1` → commit `20111d2` (= `main` HEAD). Smoke E2E real confirmado contra `dist/server.js` v0.1.1: `tools/call mem.health` con `arguments: {}` (SIN `workspace_id` — patron de Claude Code y todo cliente MCP estandar) retorna response JSON-RPC valido con el `workspace_id` resuelto desde `.recall/config.json`. MCP registrado en Claude Code como `recall: recall-server - ✓ Connected`. |
-| **Proximo paso** | Mantenimiento + features v0.5+ (multi-key envelope flow `export-key`/`rekey`/`add-key`, encrypted cold start `<500ms` via OS keychain, perf hardening >10K entries, posible swap a `@huggingface/transformers` para cerrar las 2 highs upstream). Detalles en `docs/09-roadmap.md`, `docs/RELEASE-NOTES-v0.1.1.md`, §6.13 y §8. |
+| **Estado del release** | **CANAL BETA CORTADO TRAS DOGFOOD.** `@netzi/recall@0.1.2-beta.0` en npm beta channel (https://www.npmjs.com/package/@netzi/recall). GitHub pre-release `v0.1.2-beta.0` (https://github.com/NetziTech/recall/releases/tag/v0.1.2-beta.0) — `prerelease: true`. Tag `v0.1.2-beta.0` → commit `9219c3f` (= `main` HEAD). Mismo codigo que `v0.1.1` (no hay fixes); solo bump de version + release notes documentando los 4 bugs y plan de salida del beta. **Wire protocol + persistencia + BM25 lexical SI funcionan**; **semantic recall (B-MCP-3), mem.health diagnostics (B-MCP-2), decision content storage (B-MCP-4) NO funcionan**. |
+| **Issues GitHub abiertos** | 4 — todos creados en Phase-9 con repro steps + root cause + fix proposal: [#1 B-MCP-2 mem.health hardcoded](https://github.com/NetziTech/recall/issues/1) (high), [#2 B-MCP-3 worker not instantiated](https://github.com/NetziTech/recall/issues/2) (**critical**), [#3 B-MCP-4 decision content dropped](https://github.com/NetziTech/recall/issues/3) (**critical, data loss**), [#4 B-MCP-5 docs drift min_score](https://github.com/NetziTech/recall/issues/4) (low). |
+| **Memoria propia** | **POBLADA por dogfood** — `<repo>/.recall/recall.db` tiene ~33 entries (16 decisions + 14 learnings + 5 entities + 2 turns + 1 session). Incluye los 6 hallazgos del dogfood como `learnings` (3 critical, 2 warning, 1 tip), la decision del corte beta, la entity `@netzi/recall@beta`, y la decision de la deprecacion. La proxima sesion puede recuperar todo via `mem.recall`/`mem.context` (BM25-only hasta que B-MCP-3 cierre). |
+| **Proximo paso** | **v0.1.2-beta.1: cerrar B-MCP-3** (~5 lineas en `mcp-server-entrypoint.ts` + cli-entrypoint + E2E de value-validation). Luego `beta.2` cierra B-MCP-2, `beta.3` cierra B-MCP-4 + B-MCP-5 (B-MCP-4 requiere ADR Option A vs B). Promote a `0.1.2` stable cuando todos los issues cierren con E2E que asertan VALORES. Ver `docs/RELEASE-NOTES-v0.1.2-beta.0.md` plan de salida + §6.14 + §8. |
 
 ---
 
@@ -1255,6 +1257,220 @@ el bug porque pasaban explicitamente
 
 ---
 
+## 6.14 Phase-9 — Primer dogfood real + corte beta + 4 bugs descubiertos
+
+**Cierre:** 2026-04-28, ~6 horas despues del `npm publish` de v0.1.1.
+Phase-9 fue **disparada por el primer uso real del MCP `recall`
+desde una sesion de Claude Code humana** (no smoke E2E
+automatizado): cargar la memoria del propio repo con decisiones,
+learnings y entities representativas para validar que el sistema
+hace lo que dice.
+
+### Contexto del dogfood
+
+El usuario abrio una sesion de Claude Code en
+`/Users/h2devx/proyects/netzi-tech/mcp/memoria/`, pidio `mem.health`
+para verificar conectividad, luego propuso "llenemos la memoria con
+todo lo que sabemos para validar si funciona correctamente". La carga
+inicial fue 18 entries via JSON-RPC stdio sobre `recall-server`:
+
+- 8 decisions (D-001, D-003, D-005, D-008, D-013, D-017, D-021, D-801)
+- 4 learnings (worktrees, E2E mascaran bugs, tar/fastembed wontfix, npm passkey)
+- 5 entities (WorkspaceId, recall-server, MCP server facades,
+  validate-modules.ts, curator)
+- 1 turn de cierre
+
+Las 19 frames JSON-RPC respondieron `id, kind, upserted: true,
+embedding_status: queued` correctamente. Pero **luego, al validar el
+estado real**, salieron los bugs.
+
+### Bugs descubiertos en orden de aparicion
+
+#### B-MCP-2 — `mem.health` retorna 8 campos hardcoded
+[Issue #1](https://github.com/NetziTech/recall/issues/1) — severidad **high**.
+
+`CheckHealthFacadeAdapter` en
+`code/src/composition/facades/mcp-server-facades.ts:677-741` retorna
+literales hardcoded en lugar de leer estado real de la DB:
+
+| Campo | Hardcoded | DB real |
+|---|---|---|
+| `mode` | `"shared"` | `private` |
+| `total_entries` | `0` | 31 |
+| `entries_by_kind` | `{}` | poblado por kind |
+| `size_bytes.{memoria_db,vectors_db}` | `0, 0` | 364 KB + WAL |
+| `active_session` | `null` | sesion activa |
+| `last_curator_run` | `null` | fila en `curator_runs` |
+| `embedding_queue_pending` | `0` | 31 |
+| `encryption_status` | `"n/a"` | depende del modo |
+
+El helper `modeToWire(mode)` (linea 745) ya existe pero NUNCA se
+invoca. El use case `HealthCheckUseCase` solo corre probes (database
+openable, embedder loadable); no tiene puerto para querying de
+estado real.
+
+**Por que escapo**: Phase-8 §6.13 valido `mem.health` confirmando
+que retornaba "response valido con `embedding_model: ...`" — pero
+NUNCA verifico que `total_entries` correspondiera a la realidad. Es
+el patron exacto que enmascaro B-MCP-1.
+
+#### B-MCP-3 — `AsyncEmbeddingWorker` nunca instanciado en produccion
+[Issue #2](https://github.com/NetziTech/recall/issues/2) — severidad **CRITICAL**.
+
+Audit de codigo:
+
+```bash
+$ grep -rn "new AsyncEmbeddingWorker\|AsyncEmbeddingWorker(" code/src
+# (NINGUNA coincidencia en src/)
+
+$ grep -rn "new AsyncEmbeddingWorker" code/tests
+code/tests/unit/retrieval/infrastructure/async-embedding-worker.test.ts:45
+```
+
+La clase esta implementada y testeada al 100%, pero **ningun
+archivo de produccion la instancia**. `bootstrap/composition-root.ts`,
+`bootstrap/mcp-server-entrypoint.ts`, `bootstrap/cli-entrypoint.ts`,
+`composition/container.ts`: cero referencias a `AsyncEmbeddingWorker`,
+`embedding worker`, o `drain`. La unica mencion en produccion es un
+JSDoc comment en `composition/wiring/retrieval-wiring.ts:31` que la
+documenta como consumidora de `embedAndPersist` — sin instanciarla.
+
+**Cascada de fallas**:
+1. `mem.remember` enqueue → `embedding_queue` SQL row
+2. Nada drena la queue → modelo `BGESmallEN15` nunca descarga (lazy
+   load via `embedBatch()` que solo el worker llama)
+3. Cache `~/.cache/recall/models/` **no existe**
+4. `mem.recall` invoca `embedder.embed()` → fastembed lazy-load falla
+   silenciosa → `fallback_reason: "embedder_unavailable"` → BM25 puro
+5. `mem.remember` no puede computar cosine similarity → `similar_existing`
+   vacio → decisions/learnings duplican libremente (cascada B-MCP-6)
+6. Curador self-healing (consolidacion, embedding drift) inalcanzable
+
+**Evidencia**:
+- `embedding_queue` con 31 rows, todos `attempts=0`
+- `~/.cache/recall/models/` no existe
+- `mem.recall` con queries paraphraseadas devolvio 0 hits en 4 de 5
+  tests; el unico hit fue match exacto BM25 ("Memoria-en-proyecto"
+  con 2 duplicados, score 0.4)
+
+**Fix propuesto** (5 lineas en `mcp-server-entrypoint.ts` post-
+`buildContainer()`):
+
+```ts
+import { AsyncEmbeddingWorker } from "../modules/retrieval/infrastructure/index.ts";
+
+const worker = new AsyncEmbeddingWorker(
+  container.retrieval.embedAndPersist,
+  { workspaceId: container.workspaceId, logger: container.logger },
+);
+worker.start();
+// En shutdown handler: await worker.stop();
+```
+
+Mismo wiring en `cli-entrypoint.ts` para comandos long-running.
+
+#### B-MCP-4 — `mem.remember` para `kind: "decision"` descarta `content`
+[Issue #3](https://github.com/NetziTech/recall/issues/3) — severidad **CRITICAL** (data loss).
+
+Wire schema en `docs/02 §4.4` documenta `content: string` como campo
+top-level obligatorio para todas las kinds. Pero la tabla `decisions`
+no tiene columna `content` — solo `title + rationale +
+alternatives_rejected`. El campo `content` enviado por el cliente se
+**descarta silenciosamente**. Para mas confusion, `mem.recall`
+retorna `rationale` en el campo wire `content` de la response.
+
+`learnings` y `entities` SI tienen columna `content`, asi que el bug
+es decision-especifico. `turns` y `tasks` necesitan auditoria
+similar.
+
+**Fix**: ADR pendiente entre Opcion A (eliminar `content` del wire
+schema para decisions, alinear docs) o Opcion B (agregar columna +
+migracion 008 + reindex FTS).
+
+#### B-MCP-5 — docs/02 §4.4 documenta `min_score` que Zod rechaza
+[Issue #4](https://github.com/NetziTech/recall/issues/4) — severidad low.
+
+`mem.recall` con `min_score: 0` devuelve `-32602` con
+`Unrecognized key: "min_score"`. docs/02 es aspirational, Zod es la
+verdad. Fix trivial: agregar al schema o quitar del doc.
+
+#### B-MCP-6 — dedup en insert depende del embedder (cascada de B-MCP-3)
+Documentado dentro de Issue #2 como cascada. Sin embedder no hay
+cosine similarity, asi que `similar_existing` siempre vacio para
+decisions/learnings. Solo `entities` (dedup por `name+entity_kind`,
+sin embedder) sobrevive. **Evidencia**: corri el batch dos veces;
+entities=5 (correcto), decisions=16 (8x2, sin dedup), learnings=8
+(4x2, sin dedup). Cierre automatico cuando B-MCP-3 cierre.
+
+### Decisiones del orquestador en Phase-9
+
+| # | Decision | Razon |
+|---|---|---|
+| **D-901** | Documentar los 4 bugs como issues GitHub publicos antes de cualquier fix | Trazabilidad publica + permite triage por terceros |
+| **D-902** | Cortar canal beta `v0.1.2-beta.0` con MISMO codigo que v0.1.1 (no hay fixes en este release) | Alinear comunicacion con realidad sin esperar el primer fix material; usuarios actuales no se rompen porque `latest` sigue en 0.1.1 |
+| **D-903** | Deprecar v0.1.1 en npm con mensaje apuntando al canal beta | Coherencia con la posicion "todo en beta porque hay errores"; sin esto, usuarios nuevos instalaban codigo defectuoso silenciosamente |
+| **D-904** | NO mover dist-tag `latest` a `0.1.2-beta.0` (Opcion A pura) | Beta debe ser opt-in; mover `latest` rompe a usuarios actuales sin avisarles |
+| **D-905** | Registrar los 6 hallazgos en la propia memoria del MCP como `learnings` (3 critical, 2 warning, 1 tip) + el corte beta como `decision` + la deprecacion como `decision` | Dogfood completo del producto; la proxima sesion recupera todo via `mem.recall`/`mem.context` |
+| **D-906** | Regla durable: "validar VALORES de response, no solo SHAPE" — meta-learning con severity critical | Patron repetido 3 veces (B-MCP-1, B-MCP-2, B-MCP-3 enmascarados por la misma metodologia); regla codifica el aprendizaje para futuros PRs |
+
+### Plan de salida del beta
+
+| Beta | Cierra | Test E2E que debe acompañar |
+|---|---|---|
+| `v0.1.2-beta.1` | B-MCP-3 (worker wiring) | recall con paraphrase debe retornar hits semanticos sin fallback |
+| `v0.1.2-beta.2` | B-MCP-2 (mem.health real) | mem.health debe reflejar entries_by_kind real tras inserts conocidos |
+| `v0.1.2-beta.3` | B-MCP-4 (ADR + fix) + B-MCP-5 (docs/Zod) | decision con content debe persistir y volver intacto en recall |
+| Promote a `0.1.2` | Mover `latest` de 0.1.1 a 0.1.2; dejar `beta` apuntando a la siguiente serie | Suite completa de value-validation E2E + 5 EXIT=0 |
+
+### Sub-fases de Phase-9 (cronologico)
+
+| # | Accion | Resultado |
+|---|---|---|
+| 1 | Smoke test inicial: `mem.health` desde sesion limpia | ✓ workspace_id resuelto desde config.json (B-MCP-1 fix funciona) |
+| 2 | Batch load de 18 entries via JSON-RPC stdio | 19/19 frames OK, todas upserted: true (primer signo de problema cuando la 2a corrida no dedup decisions/learnings) |
+| 3 | Validar via `mem.health` post-insert | total_entries: 0 (B-MCP-2 detectado) |
+| 4 | Validar via SQL directo | DB tiene 31 entries, 31 en queue, modo: private (confirma B-MCP-2 + descubre cascada potencial) |
+| 5 | Validar via `mem.recall` | 0 hits en queries paraphraseadas, fallback_reason: embedder_unavailable (B-MCP-3 detectado) |
+| 6 | Investigar root cause de B-MCP-3 | Audit grep confirma worker no instanciado en produccion (5 archivos, cero coincidencias en src/) |
+| 7 | Investigar B-MCP-4 via SQL schema | Tabla decisions sin columna `content`; `learnings` y `entities` SI tienen — bug decision-especifico |
+| 8 | Registrar 6 hallazgos como `learnings` en la propia memoria via mem.remember | 6/6 OK, severities corretas |
+| 9 | Abrir 4 issues GitHub (B-MCP-2/3/4/5) con repro + root cause + fix proposal | #1, #2, #3, #4 publicos |
+| 10 | Bump version 0.1.1 → 0.1.2-beta.0 en `package.json` + `composition-root.ts` | commit `9219c3f` |
+| 11 | Crear `docs/RELEASE-NOTES-v0.1.2-beta.0.md` con plan de salida del beta | en `main` |
+| 12 | Correr 5 EXIT=0 (typecheck/lint/validate:modules/build/test) | 5/5 verde, 2501 tests passing |
+| 13 | Tag `v0.1.2-beta.0` annotated apuntando a `9219c3f` | local + push |
+| 14 | `git push origin main && git push origin v0.1.2-beta.0` | usuario manual |
+| 15 | `gh release create v0.1.2-beta.0 --prerelease` | usuario manual; pre-release marcado |
+| 16 | `cd code && npm publish --tag beta --auth-type=web` | usuario manual con WebAuthn passkey |
+| 17 | `npm deprecate @netzi/recall@0.1.1 "..."` | usuario manual con WebAuthn passkey |
+| 18 | Registrar corte beta + entity `@netzi/recall@beta` + decision deprecacion en memoria | 3 entries via mem.remember |
+
+### Archivos tocados en Phase-9
+
+| Archivo | Cambio |
+|---|---|
+| `code/package.json` | `version: "0.1.1"` → `"0.1.2-beta.0"` |
+| `code/src/bootstrap/composition-root.ts` | `version: "0.1.1"` → `"0.1.2-beta.0"` (default `serverInfo.version`) |
+| `docs/RELEASE-NOTES-v0.1.2-beta.0.md` | NUEVO — release notes del corte beta + plan de salida |
+| `<repo>/.recall/recall.db` | Pobladado con ~33 entries (primer dogfood real) |
+
+### Lecciones durables registradas
+
+1. **Validar VALORES de response, no solo SHAPE.** Tres bugs (B-MCP-1
+   en v0.1.0, B-MCP-2 + B-MCP-3 ahora) escaparon por la misma
+   metodologia. Cada nuevo E2E debe (a) crear estado conocido, (b)
+   invocar tool, (c) asertar valores reales.
+2. **Dogfood real != tests automatizados.** 2501 tests passing no
+   garantizan que el producto haga lo que dice. La sesion humana
+   con cliente MCP real encontro 4 bugs en ~30 minutos que escaparon
+   a 6+ semanas de validacion automatizada.
+3. **Beta channel + deprecation con mensaje** alinea la senalizacion
+   en npm con la realidad del producto sin forzar migraciones.
+4. **El bug ironico**: el primer dogfood del MCP `recall` se uso
+   para validar el propio MCP `recall`. Y encontro bugs.
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -1262,10 +1478,22 @@ el bug porque pasaban explicitamente
 ```bash
 cd /Users/h2devx/proyects/netzi-tech/mcp/memoria
 claude
-> lee HANDOFF.md §0 + §6.10 (Fase 6 release). El MVP v0.1.0 esta
-  PUBLICADO en npm + GitHub. El workflow multi-agente esta CERRADO.
-  Para nuevas features (v0.1.1 / v0.5+), lanza al mcp-orchestrator
-  con scope acotado a una sola tarea (no abrir nueva fase entera).
+> lee HANDOFF.md §0 + §6.14 (Phase-9 dogfood + corte beta). El paquete
+  esta en CANAL BETA por bugs descubiertos en dogfood real. La proxima
+  tarea es v0.1.2-beta.1: cerrar B-MCP-3 (issue #2). Es el bug critico
+  que rompe la promesa central del producto. Fix: ~5 lineas en
+  bootstrap/mcp-server-entrypoint.ts + cli-entrypoint.ts + un test E2E
+  que valide VALORES (no shape). Ver docs/RELEASE-NOTES-v0.1.2-beta.0.md
+  plan de salida del beta.
+
+  El MCP recall ya esta conectado a Claude Code (claude mcp list lo
+  reporta como Connected). Antes de hacer nada, prueba:
+    mem.context({query: "estado actual del proyecto"})
+  Eso debe traer las decisiones D-901..D-906 + los 6 learnings del
+  dogfood (3 critical: B-MCP-3, B-MCP-4, meta-leccion validate-values).
+  Si solo trae BM25 hits, el embedder sigue caido (B-MCP-3 abierto);
+  ese es el primer fix.
+
   NUNCA usar git worktrees — trabajar siempre directo en el repo
   principal (regla durable; ver memoria de feedback).
 ```
@@ -1275,34 +1503,59 @@ claude
 ```bash
 git clone git@github.com:NetziTech/recall.git
 cd recall
-git checkout v0.1.0          # release inicial publico
-cat HANDOFF.md               # §0 + §6.5..§6.10 (historial fases 1-6)
-cat .claude/workflow-state.json   # estado: phase-6-release done
-cat docs/README.md           # producto
-cat docs/12-lineamientos-arquitectura.md   # ADR-001/ADR-002/ADR-003
-cat docs/13-workflow-agentes.md            # quien hace que
+git checkout v0.1.2-beta.0   # corte beta tras dogfood
+cat HANDOFF.md               # §0 + §6.14 (Phase-9 dogfood) + §8 (bugs abiertos)
+cat .claude/workflow-state.json
+cat docs/README.md
+cat docs/12-lineamientos-arquitectura.md   # ADR-001..004
+cat docs/13-workflow-agentes.md
+cat docs/RELEASE-NOTES-v0.1.2-beta.0.md    # plan de salida del beta
 cd code && npm install && npm run typecheck && npm run lint && \
   npm run validate:modules && npm run build && npm run test
-# Los 5 EXIT=0.
+# Los 5 EXIT=0 (2501 tests passing).
 ```
 
-### Estado del repo git (post-release v0.1.0)
+### Issues abiertos a tomar (ordenados por ROI)
 
-- **Commit del release**: `7da553a` — `fix(release): drop leading ./ from package.json bin paths` (commit final tras dos rondas de re-tag por temas de coherencia release engineering — ver §6.10).
-- **Tag**: `v0.1.0` annotated apuntando a `7da553a`.
+1. [#2 B-MCP-3](https://github.com/NetziTech/recall/issues/2)
+   (critical) — wirear `AsyncEmbeddingWorker` en bootstrap. ~5 lineas
+   de codigo + E2E de value-validation. Cierra cascada B-MCP-6.
+2. [#1 B-MCP-2](https://github.com/NetziTech/recall/issues/1) (high)
+   — implementar `WorkspaceStateQuery` y reemplazar 8 hardcoded
+   values en `CheckHealthFacadeAdapter`.
+3. [#3 B-MCP-4](https://github.com/NetziTech/recall/issues/3)
+   (critical, data loss) — ADR Option A vs B; A es no-risk, B
+   honra docs.
+4. [#4 B-MCP-5](https://github.com/NetziTech/recall/issues/4) (low)
+   — alinear docs/02 §4.4 con Zod schema (1 linea).
+
+### Estado del repo git (post-Phase-9 corte beta)
+
+- **HEAD de `main`**: `9219c3f` — `chore(release): cut v0.1.2-beta.0 — reclassify channel as beta after dogfood findings`
+- **Tags**: `v0.1.0` (deprecada), `v0.1.1` (deprecada), `v0.1.2-beta.0` (canal beta activo, apunta a `9219c3f`).
 - **Branch principal**: `main` (sincronizado con `origin/main`).
 - **Remoto**: `git@github.com:NetziTech/recall.git`.
-- **Paquete npm**: https://registry.npmjs.org/@netzi/recall → `@netzi/recall@0.1.0` (publicado por `h2devx`, owner de org `netzi`, via WebAuthn passkey).
-- **GitHub release**: https://github.com/NetziTech/recall/releases/tag/v0.1.0 (notes desde `docs/RELEASE-NOTES-v0.1.0.md`).
-- **Archivos tracked**: ~700 (8 docs, 13 agents, 71 validations, 8 migrations, ~570 .ts source, ~210 tests, configs, LICENSE).
+- **Paquetes npm**:
+  - `latest`: `@netzi/recall@0.1.1` — **deprecada** con mensaje "Dogfood found defects B-MCP-2..5... ships via @beta until v0.1.2 stable".
+  - `beta`: `@netzi/recall@0.1.2-beta.0` — opt-in para fixes en progreso.
+  - `0.1.0`: deprecada (Phase-8) por B-MCP-1.
+  - Org `netzi`, owner `h2devx`, publicado via WebAuthn passkey.
+- **GitHub releases**: `v0.1.0`, `v0.1.1`, `v0.1.2-beta.0` (este ultimo marcado `prerelease: true`).
+- **Issues abiertos**: 4 (B-MCP-2/3/4/5 — todos creados en Phase-9).
+- **Archivos tracked**: ~705 (incluye los 3 release notes, +6.14 en HANDOFF, +RELEASE-NOTES-v0.1.2-beta.0.md).
 - **`.gitignore`** (raiz): excluye `.DS_Store`, IDE files, secrets locales, **`.claude/worktrees/`** (auto-worktree del harness — el usuario quiere trabajar siempre en el repo principal, NO en worktrees).
 - **`code/.gitignore`**: excluye `node_modules/`, `dist/`, `coverage/`, etc.
 
 ### Smoke test del release (cualquier maquina con Node 20+)
 
 ```bash
-npx --yes @netzi/recall@0.1.0 --help
-# Esperado: imprime el help completo del CLI con sus 20 comandos.
+# Canal beta (recomendado para colaboradores)
+npx --yes @netzi/recall@beta --help
+# o:
+npm install -g @netzi/recall@beta && recall --help
+
+# Canal latest (deprecado, muestra warning)
+npx --yes @netzi/recall@0.1.1 --help
 ```
 
 ### Roadmap v0.5+ (resumen — detalle en §8)
@@ -1330,10 +1583,40 @@ npx --yes @netzi/recall@0.1.0 --help
 
 ### Bloqueadores activos
 
-**Ninguno.** Todos los bloqueadores resueltos o documentados como
-wontfix-con-workaround. **`@netzi/recall@0.1.1` PUBLICADO Y
-VALIDADO END-TO-END** con cliente MCP real (ver §6.13). El paquete
-v0.1.0 esta deprecado en npm por B-MCP-1; v0.1.1 es la version viva.
+**4 bugs descubiertos via dogfood real (Phase-9)** — todos en
+GitHub issues con repro + root cause + fix proposal. Ninguno bloquea
+el wire protocol o la persistencia, pero juntos rompen la promesa
+central del producto (hybrid search semantico).
+
+| # | Issue | Severidad | Bloqueante de | Fix mas alto en ROI |
+|---|---|---|---|---|
+| **B-MCP-2** | [#1](https://github.com/NetziTech/recall/issues/1) | high | confianza en diagnosticos | `WorkspaceStateQuery` port + wiring |
+| **B-MCP-3** | [#2](https://github.com/NetziTech/recall/issues/2) | **critical** | semantic recall, dedup en insert, curador | **5 lineas en mcp-server-entrypoint.ts** + cli-entrypoint + E2E |
+| **B-MCP-4** | [#3](https://github.com/NetziTech/recall/issues/3) | **critical** | persistencia de decisiones con prosa rica | ADR Option A (no migrar) o B (agregar columna) |
+| **B-MCP-5** | [#4](https://github.com/NetziTech/recall/issues/4) | low | docs accuracy | 1 linea: agregar Zod o quitar doc |
+
+**Estado del canal**: `latest=0.1.1` (deprecada con warning),
+`beta=0.1.2-beta.0` (mismo codigo, opt-in, plan de salida en
+`docs/RELEASE-NOTES-v0.1.2-beta.0.md`). v0.1.0 deprecada por
+B-MCP-1.
+
+**Caveat sobre MVP**: 2501 tests passing no detectaron estos 4 bugs
+porque la metodologia de E2E del MVP validaba SHAPE, no VALORES.
+Regla durable adoptada en Phase-9 (ver §6.14): cada nuevo E2E debe
+crear estado conocido + invocar tool + asertar valores reales.
+
+### Hallazgos de Phase-9 (dogfood + corte beta) — todos en GitHub issues
+
+| # | Item | Tracking | Resuelto / accion tomada |
+|---|---|---|---|
+| **D-901..D-906** | Decisiones del orquestador en Phase-9 | §6.14 | Documentadas en HANDOFF + memoria propia del MCP |
+| **Corte beta v0.1.2-beta.0** | Reclasificar canal sin romper a usuarios | commit `9219c3f` | Publicado en npm dist-tag `beta`; GitHub pre-release; tag remoto |
+| **Deprecacion v0.1.1** | Senalizar codigo defectuoso a usuarios nuevos | npm metadata | `npm deprecate @netzi/recall@0.1.1 "..."` con mensaje apuntando a `@beta` |
+| **B-MCP-2** (high) | mem.health hardcoded values | [#1](https://github.com/NetziTech/recall/issues/1) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.2` |
+| **B-MCP-3** (critical) | AsyncEmbeddingWorker no instanciado | [#2](https://github.com/NetziTech/recall/issues/2) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.1` (proximo) |
+| **B-MCP-4** (critical) | decision content silently dropped | [#3](https://github.com/NetziTech/recall/issues/3) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.3` (requiere ADR) |
+| **B-MCP-5** (low) | docs/02 §4.4 vs Zod min_score | [#4](https://github.com/NetziTech/recall/issues/4) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.3` (trivial) |
+| **B-MCP-6** (warning, cascada) | dedup decisions/learnings depende de embedder | dentro de [#2](https://github.com/NetziTech/recall/issues/2) | OPEN — cierra automaticamente cuando B-MCP-3 cierre |
 
 ### Bloqueadores resueltos en Phase-7 + Phase-8 (rename + recall v0.1.0/v0.1.1)
 
