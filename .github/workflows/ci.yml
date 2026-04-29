@@ -63,5 +63,10 @@ jobs:
         with:
           projectBaseDir: code
         env:
+          # SONAR_TOKEN stays a repo secret (rotates ~30d).
+          # SONAR_HOST_URL is hardcoded: it is public information already
+          # exposed in README badges and SECURITY.md, and putting it as a
+          # secret triggered GitHub Actions log-masking that corrupted
+          # the URL the Java scanner saw ("no scheme was found").
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_HOST_URL: https://sonar.netzi.dev
