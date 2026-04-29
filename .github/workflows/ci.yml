@@ -58,19 +58,6 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
-      - name: Debug — verify SONAR_TOKEN reaches the runner intact
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          echo "len=${#SONAR_TOKEN}"
-          echo "first_char_class=$(echo -n "${SONAR_TOKEN:0:1}" | od -c | head -1 | awk '{print $2}')"
-          echo "ends_with_newline=$(echo -n "$SONAR_TOKEN" | tail -c1 | od -c | head -1 | awk '{print $2}')"
-          # call the same endpoint the scanner calls, with explicit Basic + Bearer
-          echo "--- basic auth call:"
-          curl -s -o /dev/null -w "  HTTP=%{http_code}\n" -u "$SONAR_TOKEN:" https://sonar.netzi.dev/api/v2/analysis/version
-          echo "--- bearer auth call:"
-          curl -s -o /dev/null -w "  HTTP=%{http_code}\n" -H "Authorization: Bearer $SONAR_TOKEN" https://sonar.netzi.dev/api/v2/analysis/version
-
       - name: SonarQube scan + quality gate
         uses: SonarSource/sonarqube-scan-action@v6
         with:

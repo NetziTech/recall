@@ -131,7 +131,7 @@ export class FilesystemPreCommitHookUninstaller
    */
   private makeReceiptPath(
     sanitisedRoot: SanitizedPath,
-    absoluteHookPath: string,
+    _absoluteHookPath: string,
   ): SanitizedPath {
     const root = sanitisedRoot.toString();
     const suffix = path.posix.join(".git", "hooks", "pre-commit");
@@ -145,7 +145,6 @@ export class FilesystemPreCommitHookUninstaller
         `internal error: cannot wrap sanitised hook path in SanitizedPath: ${wrapped.error.message}`,
       );
     }
-    void absoluteHookPath;
     return wrapped.value;
   }
 }

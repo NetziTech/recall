@@ -135,6 +135,18 @@ export class SqliteTaskRepository implements TaskRepository {
     return Promise.resolve();
   }
 
+  /**
+   * The `TaskRepository` port returns `Promise<boolean>` for parity
+   * with every other repository method (which DO need to be async to
+   * await the embedder/queue). The body here happens to be synchronous
+   * because better-sqlite3 is sync, but downgrading the signature to
+   * `boolean` would force every caller to special-case `delete` and
+   * bleed the synchronous nature of the storage layer into the use
+   * case. We avoid `return Promise.resolve(...)` to satisfy SonarQube
+   * S7746 ("prefer `return value` over `return Promise.resolve(value)`")
+   * and silence the dual rule `require-await` here only.
+   */
+  // eslint-disable-next-line @typescript-eslint/require-await
   public async delete(id: TaskId): Promise<boolean> {
     const stmt = this.db.prepare(SQL_DELETE_BY_ID);
     let changes: number;
@@ -147,7 +159,7 @@ export class SqliteTaskRepository implements TaskRepository {
       // `INSERT ... ON CONFLICT` semantics involved).
       throw MemoryInfrastructureError.queryFailed("tasks", cause);
     }
-    return Promise.resolve(changes > 0);
+    return changes > 0;
   }
 
   public async findOpenByWorkspace(
