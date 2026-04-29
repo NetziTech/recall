@@ -27,13 +27,15 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # vitest + @vitest/coverage-v8 ALWAYS ship together — same release
+      # cadence, peer-dep'd by version. We group ALL update-types so that
+      # a vitest 4.x major never lands on its own without coverage-v8 4.x;
+      # closing them as separate PRs would cause one to break against
+      # the other on develop.
       vitest:
         patterns:
           - "vitest"
           - "@vitest/*"
-        update-types:
-          - "minor"
-          - "patch"
     ignore:
       # tar / fastembed: wontfix con ADR-004 hasta v0.5 (swap embedder).
       # Bumps automaticos no resuelven el problema y solo crean ruido.
@@ -55,3 +57,11 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    ignore:
+      # SonarSource/sonarqube-scan-action: ignore major bumps. v7 changed
+      # the token contract and reproducibly returns HTTP 401 against our
+      # self-hosted SonarQube 26.4 instance with the same SONAR_TOKEN that
+      # works on v6. Re-evaluate when SonarQube server is upgraded.
+      - dependency-name: "SonarSource/sonarqube-scan-action"
+        update-types:
+          - "version-update:semver-major"
