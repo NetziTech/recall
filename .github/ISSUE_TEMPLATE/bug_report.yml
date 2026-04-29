@@ -1,0 +1,107 @@
+name: Bug report
+description: Reporta un bug en `@netzi/recall`
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar. Antes de continuar:
+        - Si es un problema de **seguridad** (RCE, key leak, data corruption), NO lo reportes aqui — usa [SECURITY.md](https://github.com/NetziTech/recall/blob/develop/SECURITY.md).
+        - Si es un duplicado, comenta en el issue existente en vez de abrir uno nuevo.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version de `@netzi/recall`
+      description: Output de `recall --version` o `npm list -g @netzi/recall`
+      placeholder: "0.1.2-beta.0"
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node version
+      description: Output de `node --version`
+      placeholder: "v20.x.x"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Sistema operativo
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Linux (x86_64)
+        - Linux (arm64)
+        - Windows
+        - Otro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: Cliente MCP usado
+      options:
+        - Claude Code
+        - Cursor
+        - Cline
+        - Otro cliente MCP
+        - CLI directo (sin cliente MCP)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Modo de privacidad del workspace
+      options:
+        - shared (default)
+        - encrypted
+        - private
+        - no aplica
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Pasos para reproducir
+      description: Lista numerada. Si involucra el cliente MCP, incluye los `tools/call` JSON-RPC.
+      placeholder: |
+        1. `recall init` en un repo limpio
+        2. `mem.remember` con `kind: "decision"` y `content: "..."`
+        3. `mem.recall` con `query: "..."`
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamiento real
+      description: Incluye stderr, response JSON-RPC, exit code, lo que sea relevante.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / stack trace (opcional)
+      description: Pega salida de `RECALL_LOG_LEVEL=debug recall ...` si tienes. **Redacta paths sensibles antes.**
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Contexto adicional (opcional)

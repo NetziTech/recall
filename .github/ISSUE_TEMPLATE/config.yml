@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar vulnerabilidad de seguridad
+    url: https://github.com/NetziTech/recall/security/advisories/new
+    about: NO uses issues publicos para vulnerabilidades. Usa Private Vulnerability Reporting.
+  - name: Pregunta o discusion general
+    url: https://github.com/NetziTech/recall/discussions
+    about: Para dudas de uso, ideas en exploracion, ayuda con configuracion.
