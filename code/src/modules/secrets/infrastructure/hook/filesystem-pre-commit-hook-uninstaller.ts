@@ -202,7 +202,7 @@ function removeWrappedBlock(content: string): string {
   // the whole "# >>> recall pre-commit >>>" line, not just the
   // marker text.
   let lineStart = beginIdx;
-  while (lineStart > 0 && content.charCodeAt(lineStart - 1) !== 0x0a) {
+  while (lineStart > 0 && content.codePointAt(lineStart - 1) !== 0x0a) {
     lineStart -= 1;
   }
 
@@ -210,7 +210,7 @@ function removeWrappedBlock(content: string): string {
   // hosts the closing marker (consume the trailing `\n` so the
   // remainder does not start with a blank line).
   let lineEnd = endStartIdx + HOOK_BLOCK_END_MARKER.length;
-  while (lineEnd < content.length && content.charCodeAt(lineEnd) !== 0x0a) {
+  while (lineEnd < content.length && content.codePointAt(lineEnd) !== 0x0a) {
     lineEnd += 1;
   }
   if (lineEnd < content.length) {
