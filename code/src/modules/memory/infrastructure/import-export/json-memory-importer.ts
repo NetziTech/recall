@@ -32,6 +32,7 @@ import { LearningText } from "../../domain/value-objects/learning-text.ts";
 import { LinkedDecisionIds } from "../../domain/value-objects/linked-decision-ids.ts";
 import { LinkedLearningIds } from "../../domain/value-objects/linked-learning-ids.ts";
 import { OpenQuestion } from "../../domain/value-objects/open-question.ts";
+import { DecisionContent } from "../../domain/value-objects/decision-content.ts";
 import { Rationale } from "../../domain/value-objects/rationale.ts";
 import { RelationEndpoint } from "../../domain/value-objects/relation-endpoint.ts";
 import { RelationId } from "../../domain/value-objects/relation-id.ts";
@@ -69,6 +70,10 @@ const DecisionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
   rationale: z.string(),
+  // Optional in the import schema for backward compat with v0.1.0/0.1.1
+  // exports that predate the `content` column (B-MCP-4). When absent,
+  // `buildDecision` falls back to `rationale`.
+  content: z.string().optional(),
   tags: z.array(z.string().min(1)),
   status: z.string().min(1),
   supersededBy: z.string().nullable(),
@@ -269,6 +274,9 @@ export class JsonMemoryImporter implements MemoryImporter {
       sessionId: null,
       title: DecisionTitle.from(d.title),
       rationale: Rationale.from(d.rationale),
+      // Legacy exports (pre-B-MCP-4) lack `content`; fall back to
+      // rationale so the rehydration preserves the searchable text.
+      content: DecisionContent.from(d.content ?? d.rationale),
       tags: this.buildTags(d.tags),
       status: DecisionStatus.create(d.status),
       supersededBy:

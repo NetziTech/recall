@@ -8,6 +8,7 @@ import { DecisionSelfSupersessionError } from "../errors/decision-self-supersess
 import { DecisionRecorded } from "../events/decision-recorded.ts";
 import { DecisionSuperseded } from "../events/decision-superseded.ts";
 import { DecisionUsed } from "../events/decision-used.ts";
+import type { DecisionContent } from "../value-objects/decision-content.ts";
 import type { DecisionId } from "../value-objects/decision-id.ts";
 import { DecisionStatus } from "../value-objects/decision-status.ts";
 import type { DecisionTitle } from "../value-objects/decision-title.ts";
@@ -64,6 +65,22 @@ export class Decision {
   private readonly sessionId: SessionId | null;
   private readonly title: DecisionTitle;
   private readonly rationale: Rationale;
+  /**
+   * Long-form body of the decision. Mirrors `decisions.content` as
+   * added by migration `008__decisions-content.sql`. The wire schema
+   * (`docs/02 §4.4`) has always required this field; the original
+   * schema lacked the column and the facade silently dropped it
+   * (Bug B-MCP-4 / issue #3). Now persisted verbatim, recall returns
+   * it intact in the wire response.
+   *
+   * Relationship with `rationale`:
+   * - `rationale` is the SHORT WHY (capped 5,000 chars).
+   * - `content` is the LONG BODY (capped 50,000 chars).
+   * - When the wire client supplies only `rationale`, the facade
+   *   reuses it as content; the aggregate sees both fields populated
+   *   either way.
+   */
+  private readonly content: DecisionContent;
   private readonly tags: Tags;
   private status: DecisionStatus;
   private supersededBy: SupersededBy | null;
@@ -82,6 +99,7 @@ export class Decision {
     sessionId: SessionId | null;
     title: DecisionTitle;
     rationale: Rationale;
+    content: DecisionContent;
     tags: Tags;
     status: DecisionStatus;
     supersededBy: SupersededBy | null;
@@ -99,6 +117,7 @@ export class Decision {
     this.sessionId = input.sessionId;
     this.title = input.title;
     this.rationale = input.rationale;
+    this.content = input.content;
     this.tags = input.tags;
     this.status = input.status;
     this.supersededBy = input.supersededBy;
@@ -136,6 +155,7 @@ export class Decision {
     sessionId: SessionId | null;
     title: DecisionTitle;
     rationale: Rationale;
+    content: DecisionContent;
     tags: Tags;
     confidence: Confidence;
     scope: Scope;
@@ -153,6 +173,7 @@ export class Decision {
       sessionId: input.sessionId,
       title: input.title,
       rationale: input.rationale,
+      content: input.content,
       tags: input.tags,
       status: DecisionStatus.active(),
       supersededBy: null,
@@ -177,6 +198,7 @@ export class Decision {
     sessionId: SessionId | null;
     title: DecisionTitle;
     rationale: Rationale;
+    content: DecisionContent;
     tags: Tags;
     status: DecisionStatus;
     supersededBy: SupersededBy | null;
@@ -194,6 +216,7 @@ export class Decision {
       sessionId: input.sessionId,
       title: input.title,
       rationale: input.rationale,
+      content: input.content,
       tags: input.tags,
       status: input.status,
       supersededBy: input.supersededBy,
@@ -284,6 +307,10 @@ export class Decision {
 
   public getRationale(): Rationale {
     return this.rationale;
+  }
+
+  public getContent(): DecisionContent {
+    return this.content;
   }
 
   public getTags(): Tags {

@@ -31,7 +31,7 @@ describe("integration / smoke / container wiring", () => {
     expect(ctx.secrets.scanText).toBeDefined();
   });
 
-  it("applied every shipped migration (000-007)", () => {
+  it("applied every shipped migration (000-008)", () => {
     const stmt = ctx.database.prepare(
       "SELECT version FROM schema_migrations ORDER BY version ASC",
     );
@@ -44,7 +44,10 @@ describe("integration / smoke / container wiring", () => {
     // triggers to only fire when an FTS-mirrored column changes, so
     // the curator's `applyDecayBatch` UPDATEs do not pay a full FTS5
     // reindex per row.
-    expect(versions).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // Migration 008 (B-MCP-4 / issue #3) adds the `decisions.content`
+    // column and rebuilds the FTS5 index over it so the wire `content`
+    // field stops being silently dropped on `mem.remember`.
+    expect(versions).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
   });
 
   it("registered the six MVP tools on the registry", () => {
