@@ -448,6 +448,12 @@ export class RememberFacadeAdapter implements RememberFacade {
           sessionId: null,
           title: input.title ?? deriveTitleFromContent(input.content),
           rationale: input.rationale ?? input.content,
+          // B-MCP-4 fix (issue #3): always pass `content` through to
+          // the aggregate so the long-form body is persisted in the
+          // new `decisions.content` column. Previously the field was
+          // silently dropped — clients lost data when supplying both
+          // rationale and content.
+          content: input.content,
           tags,
           scope,
         });

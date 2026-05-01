@@ -7,6 +7,7 @@ import { Entity } from "../../../../src/modules/memory/domain/aggregates/entity.
 import { DecisionId } from "../../../../src/modules/memory/domain/value-objects/decision-id.ts";
 import { EntityId } from "../../../../src/modules/memory/domain/value-objects/entity-id.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
 import { EntityName } from "../../../../src/modules/memory/domain/value-objects/entity-name.ts";
 import { EntityKind } from "../../../../src/modules/memory/domain/value-objects/entity-kind.ts";
@@ -86,6 +87,7 @@ describe("JsonMemoryImporter.parse", () => {
       sessionId: null,
       title: DecisionTitle.from("T"),
       rationale: Rationale.from("R"),
+      content: DecisionContent.from("Long-form body"),
       tags: makeTags(["a"]),
       confidence: Confidence.full(),
       scope: Scope.project(),
@@ -131,6 +133,7 @@ describe("JsonMemoryImporter.parse", () => {
       sessionId: null,
       title: DecisionTitle.from("T"),
       rationale: Rationale.from("R"),
+      content: DecisionContent.from("Long-form body"),
       tags: makeTags(),
       confidence: Confidence.full(),
       scope: Scope.project(),

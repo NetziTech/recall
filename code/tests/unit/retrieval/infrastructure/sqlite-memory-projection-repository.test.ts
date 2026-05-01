@@ -39,6 +39,7 @@ const SCHEMA = `
       id              TEXT    PRIMARY KEY,
       title           TEXT    NOT NULL,
       rationale       TEXT    NOT NULL,
+      content         TEXT    NOT NULL DEFAULT '',
       scope           TEXT    NOT NULL,
       module          TEXT,
       tags_json       TEXT    NOT NULL DEFAULT '[]',

@@ -11,6 +11,7 @@ import { SessionId } from "../../../../src/modules/memory/domain/value-objects/s
 import { RelationId } from "../../../../src/modules/memory/domain/value-objects/relation-id.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { LearningText } from "../../../../src/modules/memory/domain/value-objects/learning-text.ts";
 import { LearningSeverity } from "../../../../src/modules/memory/domain/value-objects/learning-severity.ts";
 import { EntityName } from "../../../../src/modules/memory/domain/value-objects/entity-name.ts";
@@ -100,6 +101,34 @@ describe("Rationale", () => {
 
   it("rejects too-long (>5000 chars)", () => {
     expect(() => Rationale.from("x".repeat(5001))).toThrow(InvalidInputError);
+  });
+});
+
+describe("DecisionContent (B-MCP-4)", () => {
+  it("trims and accepts multi-line long-form text", () => {
+    expect(DecisionContent.from("paragraph 1\n\nparagraph 2").toString()).toBe(
+      "paragraph 1\n\nparagraph 2",
+    );
+  });
+
+  it("rejects empty", () => {
+    expect(() => DecisionContent.from("")).toThrow(InvalidInputError);
+  });
+
+  it("rejects whitespace-only", () => {
+    expect(() => DecisionContent.from("   \n\t")).toThrow(InvalidInputError);
+  });
+
+  it("accepts up to 50,000 chars (the cap is well above Rationale's 5,000)", () => {
+    expect(DecisionContent.from("x".repeat(50_000)).toString().length).toBe(
+      50_000,
+    );
+  });
+
+  it("rejects too-long (>50,000 chars)", () => {
+    expect(() => DecisionContent.from("x".repeat(50_001))).toThrow(
+      InvalidInputError,
+    );
   });
 });
 

@@ -46,6 +46,11 @@ const DecisionRowSchema = z.object({
   id: z.string(),
   title: z.string(),
   rationale: z.string(),
+  // B-MCP-4: migration 008 added this column. Optional in the schema
+  // because legacy snapshots from before the migration may still be
+  // around in tests; the load path falls back to rationale when
+  // absent so the preview never goes empty.
+  content: z.string().optional(),
   scope: z.string(),
   module: z.string().nullable(),
   confidence: z.number(),
@@ -124,7 +129,7 @@ const SessionRowSchema = z.object({
 // ─── SQL ───────────────────────────────────────────────────────────────
 
 const SQL_LIST_ACTIVE_DECISIONS = `
-SELECT id, title, rationale, scope, module, confidence,
+SELECT id, title, rationale, content, scope, module, confidence,
        last_used_ms, use_count, tags_json, created_at_ms
 FROM decisions
 WHERE superseded_by IS NULL
@@ -498,7 +503,7 @@ WHERE id IN (${placeholders})
   private loadDecisions(ids: readonly string[], out: MemoryProjection[]): void {
     const placeholders = ids.map(() => "?").join(", ");
     const sql = `
-SELECT id, title, rationale, scope, module, confidence,
+SELECT id, title, rationale, content, scope, module, confidence,
        last_used_ms, use_count, tags_json, created_at_ms
 FROM decisions
 WHERE id IN (${placeholders})
@@ -511,7 +516,12 @@ WHERE id IN (${placeholders})
         kind: "decision",
         id: parsed.id,
         title: parsed.title,
-        preview: truncatePreview(parsed.rationale),
+        // B-MCP-4 (issue #3): the wire `content` field now reflects the
+        // full body the client supplied to `mem.remember`. Pre-migration
+        // rows fall back to `rationale` (which migration 008 also
+        // copied into `content` during backfill, so the two paths
+        // converge for legacy data).
+        preview: truncatePreview(parsed.content ?? parsed.rationale),
         tags: parseTags(parsed.tags_json),
         confidence: Confidence.of(parsed.confidence),
         useCount: UseCount.of(parsed.use_count),

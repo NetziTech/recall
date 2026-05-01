@@ -54,6 +54,14 @@ export interface RecordDecision {
     sessionId: SessionId | null;
     title: string;
     rationale: string;
+    /**
+     * Long-form body of the decision. Mirrors the wire `content`
+     * field (`docs/02 §4.4`) introduced into the `decisions.content`
+     * column by migration 008 (B-MCP-4 / issue #3). When absent the
+     * use case falls back to `rationale` so the persisted column
+     * stays non-empty.
+     */
+    content?: string;
     tags: Tags;
     scope: Scope;
   }): Promise<RecordDecisionResult>;

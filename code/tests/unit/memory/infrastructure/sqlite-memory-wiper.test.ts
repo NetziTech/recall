@@ -7,6 +7,7 @@ import { Session } from "../../../../src/modules/memory/domain/aggregates/sessio
 import { DecisionId } from "../../../../src/modules/memory/domain/value-objects/decision-id.ts";
 import { SessionId } from "../../../../src/modules/memory/domain/value-objects/session-id.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
 import { Scope } from "../../../../src/modules/memory/domain/value-objects/scope.ts";
 import { EmbeddingStatus } from "../../../../src/modules/memory/domain/value-objects/embedding-status.ts";
@@ -52,6 +53,7 @@ describe("SqliteMemoryWiper.wipe", () => {
       sessionId: null,
       title: DecisionTitle.from("D"),
       rationale: Rationale.from("R"),
+      content: DecisionContent.from("body"),
       tags: makeTags(),
       confidence: Confidence.full(),
       scope: Scope.project(),
