@@ -113,6 +113,7 @@ import {
   buildWorkspaceWiring,
 } from "./wiring/workspace-wiring.ts";
 import { MemoryWipeFacadeAdapter } from "./facades/workspace-memory-facades.ts";
+import { SqliteWorkspaceStateReader } from "./queries/sqlite-workspace-state-reader.ts";
 
 /**
  * Public surface of the container the bootstrap entrypoints consume.
@@ -359,6 +360,8 @@ export function buildContainer(options: ContainerOptions): Container {
     task: new TrackTaskFacadeAdapter(memory.trackTask, workspaceId),
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
+      new SqliteWorkspaceStateReader(options.database, logger),
+      options.workspaceRoot,
       options.schemaVersion,
       "fastembed:BGESmallEN15",
       workspaceId,

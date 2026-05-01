@@ -99,6 +99,7 @@ import { WorkspaceMode } from "../../modules/workspace/domain/value-objects/work
 import { WorkspacePath } from "../../modules/workspace/domain/value-objects/workspace-path.ts";
 import type { InitializeWorkspaceUseCase } from "../../modules/workspace/application/use-cases/initialize-workspace.use-case.ts";
 import type { HealthCheckUseCase } from "../../modules/workspace/application/use-cases/health-check.use-case.ts";
+import type { WorkspaceStateReader } from "../../modules/mcp-server/application/ports/out/workspace-state-reader.port.ts";
 
 /**
  * Tagged error used by the `mcp-server` adapter layer when a wire
@@ -677,13 +678,23 @@ export class TrackTaskFacadeAdapter implements TrackTaskFacade {
 export class CheckHealthFacadeAdapter implements CheckHealthFacade {
   public constructor(
     private readonly healthCheck: HealthCheckUseCase,
+    private readonly stateReader: WorkspaceStateReader,
+    private readonly workspaceRoot: string,
     private readonly schemaVersion: string,
     private readonly embeddingModel: string,
     private readonly defaultWorkspaceId: WorkspaceId,
   ) {}
 
   public async health(input: HealthInputWire): Promise<HealthOutputWire> {
-    const rawPath = process.cwd();
+    // Use the bootstrap-resolved workspace root rather than
+    // `process.cwd()` so the facade is independent of the cwd at
+    // request time. In production the bootstrap entrypoint resolves
+    // the root from `process.cwd()` once at startup; in tests the
+    // root is the test container's tmp dir. Keeping this injection
+    // explicit also lets the reader's `fs.statSync` of `recall.db`
+    // hit the right file when the binary is launched from a parent
+    // directory (some harnesses do this).
+    const rawPath = this.workspaceRoot;
     const rootPath = WorkspacePath.create(rawPath);
     const probe = await this.healthCheck.check({ rootPath });
 
@@ -700,29 +711,47 @@ export class CheckHealthFacadeAdapter implements CheckHealthFacade {
       input.workspace_id,
     );
 
-    const mode: WorkspaceModeWire = "shared";
-    const encryption: EncryptionStatusWire = "n/a";
+    // Read live workspace state through the cross-module reader. The
+    // reader swallows per-query failures (returning safe defaults)
+    // because `mem.health` is the diagnostic of last resort and must
+    // not throw on a partial database (Bug B-MCP-2).
+    const state = await this.stateReader.readState({
+      workspaceId,
+      workspaceRoot: rawPath,
+    });
+
+    const modeWire: WorkspaceModeWire = modeToWireFromString(state.mode);
+    const encryptionWire: EncryptionStatusWire = state.encryptionStatus;
 
     return {
       schema_version: this.schemaVersion,
       workspace_id: workspaceId.toString(),
       workspace_path: rootPath.toString(),
-      mode,
-      encryption_status: encryption,
+      mode: modeWire,
+      encryption_status: encryptionWire,
 
-      total_entries: 0,
-      entries_by_kind: Object.freeze({}),
+      total_entries: state.totalEntries,
+      entries_by_kind: Object.freeze({ ...state.entriesByKind }),
       // `memoria_db` (rather than `recall_db`) is preserved as the
       // wire field name for back-compat with v0.1.0 clients that may
       // have snapshotted the shape. The wire schema in
       // `docs/02-protocolo-mcp.md §4.6` documents this name. Tracked
       // as wire-schema debt: a future major version may rename it.
-      size_bytes: { memoria_db: 0, vectors_db: 0 },
+      size_bytes: {
+        memoria_db: state.sizeBytes.recallDb,
+        vectors_db: state.sizeBytes.vectorsDb,
+      },
 
-      active_session: null,
-      last_curator_run: null,
+      active_session:
+        state.activeSession === null
+          ? null
+          : {
+              id: state.activeSession.id,
+              started_at: state.activeSession.startedAtMs,
+            },
+      last_curator_run: state.lastCuratorRunAtMs,
       embedding_model: this.embeddingModel,
-      embedding_queue_pending: 0,
+      embedding_queue_pending: state.embeddingQueuePending,
 
       fts_health: ftsHealthy,
       vector_index_health: vectorIndexHealthy,
@@ -738,6 +767,22 @@ export class CheckHealthFacadeAdapter implements CheckHealthFacade {
           }),
     };
   }
+}
+
+/**
+ * Narrow a primitive `mode` (as returned by the `WorkspaceStateReader`
+ * port — already constrained by SQL CHECK) to the {@link WorkspaceModeWire}
+ * union expected by the wire DTO. Unknown values fall back to
+ * `"shared"`; the reader logs a warning when the persisted value is
+ * not in the expected set, so this is purely a type-narrowing
+ * convenience for the facade's TypeScript caller.
+ */
+function modeToWireFromString(
+  raw: "shared" | "encrypted" | "private",
+): WorkspaceModeWire {
+  if (raw === "encrypted") return "encrypted";
+  if (raw === "private") return "private";
+  return "shared";
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
