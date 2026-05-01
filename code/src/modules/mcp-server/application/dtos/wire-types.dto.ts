@@ -209,6 +209,25 @@ export interface RecallInputWire {
   scope?: ScopeWire | undefined;
   module?: string | undefined;
   include_superseded?: boolean | undefined;
+  /**
+   * Optional minimum relevance score (`0..1`) applied post-hoc to the
+   * ranked results. Entries whose final `score` is strictly below this
+   * threshold are filtered out before the response is built.
+   *
+   * Use cases:
+   * - Drop low-confidence hits when bandwidth is precious (mobile MCP
+   *   clients, summarisation pipelines).
+   * - Pin a quality bar for downstream consumers that cannot easily
+   *   filter on their side.
+   *
+   * Notes:
+   * - The filter runs AFTER scoring and ranking; `total_candidates`
+   *   still reflects the pre-filter pool so the caller can detect
+   *   "found 12 candidates, kept 3 above threshold".
+   * - When `min_score` is omitted, no filter is applied (the previous
+   *   behaviour).
+   */
+  min_score?: number | undefined;
 }
 
 export interface RecallOutputWire {

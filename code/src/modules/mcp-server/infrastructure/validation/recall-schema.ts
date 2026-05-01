@@ -34,6 +34,10 @@ export const RecallInputSchema = z
     scope: z.enum(["project", "module"]).optional(),
     module: z.string().min(1).optional(),
     include_superseded: z.boolean().optional(),
+    // Optional minimum relevance threshold for the final score.
+    // Applied AFTER ranking; `total_candidates` reflects the
+    // pre-filter pool so callers can detect aggressive thresholds.
+    min_score: z.number().min(0).max(1).optional(),
   })
   .strict();
 

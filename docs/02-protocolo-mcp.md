@@ -185,10 +185,19 @@ Busqueda flexible. Reemplaza `recall_relevant` + `recall_by_kind` +
   scope?: "project" | "module";
   module?: string;
   include_superseded?: boolean;      // default false
+  min_score?: number;                // 0..1; filtra entries cuyo score final sea < threshold (post-hoc)
 }
 
 type Kind = "decision" | "learning" | "turn" | "entity" | "task" | "any";
 ```
+
+**Notas sobre `min_score`:**
+- Rango `[0, 1]`. Validado por Zod; valores fuera de rango devuelven
+  `-32602 INVALID_PARAMS`.
+- Aplicado **despues** del scoring y ranking. `total_candidates` sigue
+  reflejando el pool completo PRE-filtro, asi el cliente detecta
+  thresholds demasiado agresivos ("12 candidatos, 3 sobre threshold").
+- Si se omite, no se aplica filtro (comportamiento original).
 
 **Output:**
 ```typescript

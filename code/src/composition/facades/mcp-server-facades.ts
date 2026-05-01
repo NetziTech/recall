@@ -369,7 +369,7 @@ export class RecallMemoryFacadeAdapter implements RecallMemoryFacade {
       weights: RelevanceWeights.defaults(),
     });
 
-    const entries: MemoryEntryWire[] = result.getEntries().map((entry) => ({
+    const allEntries: MemoryEntryWire[] = result.getEntries().map((entry) => ({
       id: entry.id,
       kind: queryKindToWire(entry.kind.value),
       content: entry.preview.toString(),
@@ -384,6 +384,17 @@ export class RecallMemoryFacadeAdapter implements RecallMemoryFacade {
           : entry.lastUsedAt.toEpochMs(),
       tags: Object.freeze([...entry.tags.toArray()]),
     }));
+
+    // Apply the optional `min_score` filter post-hoc. The Zod schema
+    // validates the range (0..1); the use case is unaware of the
+    // threshold so this stays a wire-only concern. `total_candidates`
+    // continues to reflect the PRE-filter pool so a caller can detect
+    // an aggressive threshold ("found 12 candidates, kept 3").
+    const minScore = input.min_score;
+    const entries =
+      minScore === undefined
+        ? allEntries
+        : allEntries.filter((e) => e.score >= minScore);
 
     const out: RecallOutputWire = {
       results: Object.freeze(entries),
