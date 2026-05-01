@@ -347,6 +347,7 @@ export async function buildTestContainer(
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
       new SqliteWorkspaceStateReader(database, logger),
+      workspaceRoot,
       "1.0.0",
       "fastembed:BGESmallEN15",
       workspaceId,

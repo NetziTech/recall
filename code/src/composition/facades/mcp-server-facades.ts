@@ -679,13 +679,22 @@ export class CheckHealthFacadeAdapter implements CheckHealthFacade {
   public constructor(
     private readonly healthCheck: HealthCheckUseCase,
     private readonly stateReader: WorkspaceStateReader,
+    private readonly workspaceRoot: string,
     private readonly schemaVersion: string,
     private readonly embeddingModel: string,
     private readonly defaultWorkspaceId: WorkspaceId,
   ) {}
 
   public async health(input: HealthInputWire): Promise<HealthOutputWire> {
-    const rawPath = process.cwd();
+    // Use the bootstrap-resolved workspace root rather than
+    // `process.cwd()` so the facade is independent of the cwd at
+    // request time. In production the bootstrap entrypoint resolves
+    // the root from `process.cwd()` once at startup; in tests the
+    // root is the test container's tmp dir. Keeping this injection
+    // explicit also lets the reader's `fs.statSync` of `recall.db`
+    // hit the right file when the binary is launched from a parent
+    // directory (some harnesses do this).
+    const rawPath = this.workspaceRoot;
     const rootPath = WorkspacePath.create(rawPath);
     const probe = await this.healthCheck.check({ rootPath });
 

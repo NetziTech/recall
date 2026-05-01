@@ -128,6 +128,7 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
       buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -140,6 +141,7 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
       buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -152,6 +154,7 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
       buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -173,6 +176,7 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
       buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(PLACEHOLDER_WORKSPACE_ID),
@@ -188,6 +192,7 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
       buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),

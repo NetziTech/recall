@@ -361,6 +361,7 @@ export function buildContainer(options: ContainerOptions): Container {
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
       new SqliteWorkspaceStateReader(options.database, logger),
+      options.workspaceRoot,
       options.schemaVersion,
       "fastembed:BGESmallEN15",
       workspaceId,
