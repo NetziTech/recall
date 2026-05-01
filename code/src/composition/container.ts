@@ -129,6 +129,18 @@ export interface Container {
 
   readonly database: DatabaseConnection;
 
+  /**
+   * Canonical workspace id pinned at construction time. Bootstrap
+   * entrypoints resolve it from `<root>/.recall/config.json` BEFORE
+   * `buildContainer` is called and pass it as
+   * {@link ContainerOptions.workspaceId}; when absent (the
+   * `skipDatabase: true` pre-init path), a deterministic placeholder
+   * UUID v7 is supplied. Exposed so the bootstrap can wire process
+   * lifecycle helpers (e.g. drive `retrieval.embeddingWorker`) without
+   * re-resolving the id.
+   */
+  readonly workspaceId: WorkspaceId;
+
   readonly workspace: WorkspaceWiring;
   readonly encryption: EncryptionWiring;
   readonly secrets: SecretsWiring;
@@ -270,6 +282,7 @@ export function buildContainer(options: ContainerOptions): Container {
     idGenerator: shared.idGenerator,
     database: options.database,
     embedder: shared.retrievalEmbedder,
+    workspaceId,
   });
   const memory = buildMemoryWiring({
     logger,
@@ -423,6 +436,7 @@ export function buildContainer(options: ContainerOptions): Container {
     idGenerator: shared.idGenerator,
     embedder: shared.embedder,
     database: options.database,
+    workspaceId,
     workspace: fullWorkspaceWiring,
     encryption,
     secrets,

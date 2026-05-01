@@ -279,6 +279,7 @@ export async function buildTestContainer(
     idGenerator,
     database,
     embedder: retrievalEmbedder,
+    workspaceId,
   });
   const memory = buildMemoryWiring({
     logger,
