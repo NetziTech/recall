@@ -9,15 +9,16 @@
 [![ci](https://github.com/NetziTech/recall/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/NetziTech/recall/actions/workflows/ci.yml)
 [![sonarqube](https://img.shields.io/badge/sonarqube-quality_gate_passed-brightgreen)](https://sonar.netzi.dev/dashboard?id=recall)
 
-> **Estado del canal:** beta. `v0.1.2-beta.4` cierra **B-MCP-7**
-> (worker tolera el cold-start de fastembed sin quemar attempts;
-> nuevo comando `recall reset-queue` para recovery), encima de los
-> 4 bugs de Phase-9 ya cerrados en `v0.1.2-beta.3` (B-MCP-2/3/4/5 —
-> semantic recall, mem.health real state, decision content
-> persistence, mem.recall min_score). La version `0.1.1` (canal
+> **Estado del canal:** beta. `v0.1.2-beta.5` cierra **B-MCP-8**
+> (`mem.recall` ya no devuelve `hits=0` cuando hay candidates; el
+> filtro de token budget ahora siempre devuelve el top hit y usa
+> `continue` en vez de `break` para no truncar hits chicos detras de
+> uno grande; default `max_tokens` alineado con `mem.context` en
+> 8000), encima de B-MCP-7 cerrado en beta.4 y los 4 bugs de Phase-9
+> cerrados en beta.3 (B-MCP-2/3/4/5). La version `0.1.1` (canal
 > `latest`) sigue deprecada hasta que `0.1.2` stable salga. Ver
-> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.4.md) +
-> [HANDOFF.md §6.18](./HANDOFF.md).
+> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.5.md) +
+> [HANDOFF.md §6.20](./HANDOFF.md).
 
 ---
 
@@ -47,8 +48,8 @@ turns) en vez de "facts" planos.
 ## Quick start
 
 ```bash
-# Canal beta (v0.1.2-beta.4 — los 4 bugs de Phase-9 + B-MCP-7 cerrados;
-# pendiente de smoke post-publish antes de promover a stable)
+# Canal beta (v0.1.2-beta.5 — los 4 bugs de Phase-9 + B-MCP-7 + B-MCP-8
+# cerrados; pendiente de smoke post-publish antes de promover a stable)
 npm install -g @netzi/recall@beta
 
 cd /tu/proyecto
@@ -138,8 +139,9 @@ Detalle: [docs/06-stack-tecnico.md](./docs/06-stack-tecnico.md).
 ## Issues / bugs / preguntas
 
 - [Issues abiertos](https://github.com/NetziTech/recall/issues) — **0**
-  al cierre de Phase-11 (los 4 bugs B-MCP-2..5 cerrados en
-  `v0.1.2-beta.3` via PRs #17/#18/#19/#20)
+  al cierre de Phase-15 (B-MCP-2..5 cerrados en `v0.1.2-beta.3`
+  via PRs #17/#18/#19/#20; B-MCP-7 cerrado en `v0.1.2-beta.4` via
+  PR #27; B-MCP-8 cerrado en `v0.1.2-beta.5` via PR #33)
 - Reportar vulnerabilidades de seguridad: ver
   [SECURITY.md](./SECURITY.md)
 - Discusiones generales:
