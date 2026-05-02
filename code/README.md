@@ -28,12 +28,15 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 ## Install
 
 ```bash
-# Beta channel (recommended) — v0.1.2-beta.4 closes B-MCP-7 (the
-# embedding worker now tolerates the fastembed cold-start without
-# burning per-item retries) on top of the four Phase-9 dogfood
-# defects already closed in beta.3 (B-MCP-2/3/4/5). The `latest`
-# dist-tag is still pinned at v0.1.1 and is deprecated until v0.1.2
-# stable lands; new installs should explicitly request `@beta`.
+# Beta channel (recommended) — v0.1.2-beta.5 closes B-MCP-8 (the
+# `mem.recall` post-rank token-budget filter now always returns the
+# top hit and uses `continue` (not `break`) on overflow, plus the
+# default `max_tokens` is bumped 4000 → 8000 to match `mem.context`).
+# Beta.4 closed B-MCP-7 (embedding worker tolerates fastembed
+# cold-start). Beta.3 closed the four Phase-9 dogfood defects
+# (B-MCP-2/3/4/5). The `latest` dist-tag is still pinned at v0.1.1
+# and is deprecated until v0.1.2 stable lands; new installs should
+# explicitly request `@beta`.
 npm install -g @netzi/recall@beta
 # or on demand:
 npx @netzi/recall@beta --help

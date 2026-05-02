@@ -7,15 +7,16 @@ Solo el canal `beta` recibe fixes activamente. `latest` (`0.1.1`) y
 
 | Version | Soportada | Razon |
 |---|---|---|
-| `0.1.2-beta.4` | si | canal activo en npm dist-tag `beta`; cierra B-MCP-7 (worker tolera cold-start de fastembed) encima de los 4 bugs B-MCP-2..5 de Phase-9 |
+| `0.1.2-beta.5` | si | canal activo en npm dist-tag `beta`; cierra B-MCP-8 (`mem.recall` ya no devuelve `hits=0` con `total_candidates>0`; default `max_tokens` 4000 → 8000) encima de B-MCP-7 (beta.4) y los 4 bugs B-MCP-2..5 de Phase-9 (beta.3) |
+| `0.1.2-beta.4` | no | superseded por `0.1.2-beta.5` (mismo canal beta) |
 | `0.1.2-beta.3` | no | superseded por `0.1.2-beta.4` (mismo canal beta) |
 | `0.1.2-beta.0` | no | superseded por `0.1.2-beta.3` |
-| `0.1.1` (latest) | no | deprecada por bugs B-MCP-2..5 (cerrados en `0.1.2-beta.3`) y B-MCP-7 (cerrado en `0.1.2-beta.4`); el dist-tag `latest` se actualiza cuando salga `0.1.2` stable |
+| `0.1.1` (latest) | no | deprecada por bugs B-MCP-2..5 (cerrados en `0.1.2-beta.3`), B-MCP-7 (cerrado en `0.1.2-beta.4`) y B-MCP-8 (cerrado en `0.1.2-beta.5`); el dist-tag `latest` se actualiza cuando salga `0.1.2` stable |
 | `0.1.0` | no | deprecada por B-MCP-1 (Phase-8) |
 
 Roadmap de fixes + promote a `0.1.2` stable: ver
-[HANDOFF.md §6.18](./HANDOFF.md) +
-[release notes](./docs/RELEASE-NOTES-v0.1.2-beta.4.md).
+[HANDOFF.md §6.20](./HANDOFF.md) +
+[release notes](./docs/RELEASE-NOTES-v0.1.2-beta.5.md).
 
 ---
 
