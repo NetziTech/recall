@@ -120,7 +120,11 @@ ADRs vigentes:
 ## Issues y bugs
 
 - Reportes en https://github.com/NetziTech/recall/issues
-- 4 issues abiertos hoy (B-MCP-2..5) — ver [`HANDOFF.md`](./HANDOFF.md) §6.14 + §8.
+- **0 issues abiertos** al cierre de Phase-11 (los 4 bugs B-MCP-2..5
+  detectados en el dogfood de Phase-9 quedaron cerrados en
+  `v0.1.2-beta.3` via PRs #17/#18/#19/#20). Ver
+  [`HANDOFF.md`](./HANDOFF.md) §6.16 +
+  [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.3.md).
 
 ---
 
