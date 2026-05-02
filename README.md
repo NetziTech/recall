@@ -9,10 +9,13 @@
 [![ci](https://github.com/NetziTech/recall/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/NetziTech/recall/actions/workflows/ci.yml)
 [![sonarqube](https://img.shields.io/badge/sonarqube-quality_gate_passed-brightgreen)](https://sonar.netzi.dev/dashboard?id=recall)
 
-> **Estado del canal:** beta. La version `0.1.1` (canal `latest`) esta
-> deprecada por bugs descubiertos durante dogfood real. Trabajo activo en
-> `0.1.2-beta.x`. Ver [HANDOFF.md §6.14](./HANDOFF.md) y los
-> [4 issues abiertos](https://github.com/NetziTech/recall/issues).
+> **Estado del canal:** beta. `v0.1.2-beta.3` cierra **los 4 bugs**
+> descubiertos en el dogfood de Phase-9 (B-MCP-2/3/4/5 — semantic
+> recall, mem.health real state, decision content persistence,
+> mem.recall min_score). La version `0.1.1` (canal `latest`) sigue
+> deprecada hasta que `0.1.2` stable salga. Ver
+> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.3.md) +
+> [HANDOFF.md §6.16](./HANDOFF.md).
 
 ---
 
@@ -42,7 +45,8 @@ turns) en vez de "facts" planos.
 ## Quick start
 
 ```bash
-# Canal beta (recomendado mientras 0.1.2 sigue en desarrollo)
+# Canal beta (v0.1.2-beta.3 — los 4 bugs de Phase-9 cerrados; pendiente
+# de validacion via dogfood antes de promover a stable)
 npm install -g @netzi/recall@beta
 
 cd /tu/proyecto
@@ -131,8 +135,9 @@ Detalle: [docs/06-stack-tecnico.md](./docs/06-stack-tecnico.md).
 
 ## Issues / bugs / preguntas
 
-- [Issues abiertos](https://github.com/NetziTech/recall/issues) — actualmente
-  4 (B-MCP-2..5), todos descubiertos en dogfood real
+- [Issues abiertos](https://github.com/NetziTech/recall/issues) — **0**
+  al cierre de Phase-11 (los 4 bugs B-MCP-2..5 cerrados en
+  `v0.1.2-beta.3` via PRs #17/#18/#19/#20)
 - Reportar vulnerabilidades de seguridad: ver
   [SECURITY.md](./SECURITY.md)
 - Discusiones generales:

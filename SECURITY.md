@@ -7,13 +7,14 @@ Solo el canal `beta` recibe fixes activamente. `latest` (`0.1.1`) y
 
 | Version | Soportada | Razon |
 |---|---|---|
-| `0.1.2-beta.x` | si | canal activo en npm dist-tag `beta` |
-| `0.1.1` (latest) | no | deprecada por bugs B-MCP-2..5 (Phase-9) |
+| `0.1.2-beta.3` | si | canal activo en npm dist-tag `beta`; cierra los 4 bugs B-MCP-2..5 de Phase-9 |
+| `0.1.2-beta.0` | no | superseded por `0.1.2-beta.3` (mismo canal beta) |
+| `0.1.1` (latest) | no | deprecada por bugs B-MCP-2..5 (cerrados en `0.1.2-beta.3`); el dist-tag `latest` se actualiza cuando salga `0.1.2` stable |
 | `0.1.0` | no | deprecada por B-MCP-1 (Phase-8) |
 
-Roadmap de fixes y promote a `0.1.2` stable: ver
-[HANDOFF.md §6.14](./HANDOFF.md) y los
-[issues abiertos](https://github.com/NetziTech/recall/issues).
+Roadmap de fixes + promote a `0.1.2` stable: ver
+[HANDOFF.md §6.16](./HANDOFF.md) +
+[release notes](./docs/RELEASE-NOTES-v0.1.2-beta.3.md).
 
 ---
 
