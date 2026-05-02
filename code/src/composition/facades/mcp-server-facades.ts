@@ -321,7 +321,16 @@ export class GetContextFacadeAdapter implements GetContextFacade {
  */
 export class RecallMemoryFacadeAdapter implements RecallMemoryFacade {
   private static readonly DEFAULT_TOP_K = 8;
-  private static readonly DEFAULT_MAX_TOKENS = 4000;
+  /**
+   * Default token budget for `mem.recall` when the caller omits
+   * `max_tokens`. Aligned with `GetContextFacadeAdapter` (8000) for
+   * consistency: a recall request typically returns full ranked entries
+   * with previews, so a tighter budget than the bundle would force the
+   * use case to drop hits that the user expected. See B-MCP-8 (issue
+   * #31) — the previous 4000 default left zero hits on the dogfood DB
+   * for queries whose top-ranked entry exceeded the budget alone.
+   */
+  private static readonly DEFAULT_MAX_TOKENS = 8000;
 
   public constructor(
     private readonly useCase: RecallMemory,
