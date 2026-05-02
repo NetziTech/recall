@@ -58,6 +58,11 @@ import type {
   CuratorRunFacadeOutput,
 } from "../../src/modules/cli/application/ports/out/curator-facade.port.ts";
 import type {
+  ResetQueueFacade,
+  ResetQueueFacadeInput,
+  ResetQueueFacadeOutput,
+} from "../../src/modules/cli/application/ports/out/embedding-queue-facade.port.ts";
+import type {
   ExportFacade,
   ExportFacadeInput,
   ExportFacadeOutput,
@@ -342,6 +347,18 @@ export class StubCuratorLogFacade implements CuratorLogFacade {
   public log(
     input: CuratorLogFacadeInput,
   ): Promise<CuratorLogFacadeOutput> {
+    this.lastInput = input;
+    return Promise.resolve(this.output);
+  }
+}
+
+export class StubResetQueueFacade implements ResetQueueFacade {
+  public lastInput?: ResetQueueFacadeInput;
+  public output: ResetQueueFacadeOutput = {
+    resetCount: 0,
+    thresholdApplied: 5,
+  };
+  public reset(input: ResetQueueFacadeInput): Promise<ResetQueueFacadeOutput> {
     this.lastInput = input;
     return Promise.resolve(this.output);
   }

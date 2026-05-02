@@ -15,6 +15,7 @@ const KNOWN = [
   "sanitize",
   "curator-run",
   "curator-log",
+  "reset-queue",
   "import-handoff",
   "export",
   "import",

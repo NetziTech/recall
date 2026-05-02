@@ -88,6 +88,22 @@ SELECT COUNT(*) AS n FROM embedding_queue WHERE workspace_id = ?
 const CountRowSchema = z.object({ n: z.number().int().min(0) });
 
 /**
+ * Reset path for B-MCP-7 recovery
+ * ([issue #24](https://github.com/NetziTech/recall/issues/24)). Clears
+ * `attempts` and `last_error` for every row in the workspace whose
+ * attempts have reached or exceeded the threshold the CLI passes
+ * (`MAX_ATTEMPTS = 5` by default). The UPDATE is per-workspace and
+ * atomic — no read-modify-write loop.
+ */
+const SQL_RESET_PERMANENT_FAILURES = `
+UPDATE embedding_queue
+SET attempts = 0,
+    last_error = NULL
+WHERE workspace_id = ?
+  AND attempts >= ?
+`.trim();
+
+/**
  * SQLite adapter for the asynchronous embedding queue and the vec0
  * vector store.
  *
@@ -218,6 +234,23 @@ export class SqliteEmbeddingQueueRepository
     if (raw === undefined) return Promise.resolve(0);
     const parsed = CountRowSchema.parse(raw);
     return Promise.resolve(parsed.n);
+  }
+
+  public resetPermanentFailures(input: {
+    workspaceId: WorkspaceId;
+    attemptsAtLeast: number;
+  }): Promise<number> {
+    const stmt = this.db.prepare(SQL_RESET_PERMANENT_FAILURES);
+    const result = stmt.run(
+      input.workspaceId.toString(),
+      input.attemptsAtLeast,
+    );
+    // The SqliteDatabase wrapper returns `changes` from better-sqlite3
+    // as a number; defensive parse via Zod keeps the contract honest
+    // for stub repositories (in-memory implementations may report it
+    // differently).
+    const changes = z.number().int().min(0).parse(result.changes);
+    return Promise.resolve(changes);
   }
 
   // -- internals --------------------------------------------------------

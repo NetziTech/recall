@@ -9,13 +9,15 @@
 [![ci](https://github.com/NetziTech/recall/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/NetziTech/recall/actions/workflows/ci.yml)
 [![sonarqube](https://img.shields.io/badge/sonarqube-quality_gate_passed-brightgreen)](https://sonar.netzi.dev/dashboard?id=recall)
 
-> **Estado del canal:** beta. `v0.1.2-beta.3` cierra **los 4 bugs**
-> descubiertos en el dogfood de Phase-9 (B-MCP-2/3/4/5 — semantic
-> recall, mem.health real state, decision content persistence,
-> mem.recall min_score). La version `0.1.1` (canal `latest`) sigue
-> deprecada hasta que `0.1.2` stable salga. Ver
-> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.3.md) +
-> [HANDOFF.md §6.16](./HANDOFF.md).
+> **Estado del canal:** beta. `v0.1.2-beta.4` cierra **B-MCP-7**
+> (worker tolera el cold-start de fastembed sin quemar attempts;
+> nuevo comando `recall reset-queue` para recovery), encima de los
+> 4 bugs de Phase-9 ya cerrados en `v0.1.2-beta.3` (B-MCP-2/3/4/5 —
+> semantic recall, mem.health real state, decision content
+> persistence, mem.recall min_score). La version `0.1.1` (canal
+> `latest`) sigue deprecada hasta que `0.1.2` stable salga. Ver
+> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.4.md) +
+> [HANDOFF.md §6.18](./HANDOFF.md).
 
 ---
 
@@ -45,8 +47,8 @@ turns) en vez de "facts" planos.
 ## Quick start
 
 ```bash
-# Canal beta (v0.1.2-beta.3 — los 4 bugs de Phase-9 cerrados; pendiente
-# de validacion via dogfood antes de promover a stable)
+# Canal beta (v0.1.2-beta.4 — los 4 bugs de Phase-9 + B-MCP-7 cerrados;
+# pendiente de smoke post-publish antes de promover a stable)
 npm install -g @netzi/recall@beta
 
 cd /tu/proyecto
