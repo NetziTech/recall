@@ -3,7 +3,6 @@ import { KdfSpec } from "../../../../../src/modules/encryption/domain/value-obje
 import { KdfAlgorithm } from "../../../../../src/modules/encryption/domain/value-objects/kdf-algorithm.ts";
 import { KdfParams } from "../../../../../src/modules/encryption/domain/value-objects/kdf-params.ts";
 import { SaltBytes } from "../../../../../src/modules/encryption/domain/value-objects/salt-bytes.ts";
-import { InvariantViolationError } from "../../../../../src/shared/domain/errors/invariant-violation-error.ts";
 
 const salt = (): SaltBytes => SaltBytes.from(new Uint8Array(16).fill(7));
 

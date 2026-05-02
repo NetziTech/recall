@@ -126,19 +126,19 @@ export class ScriptedPrompt implements Prompt {
     this.passphrases = [...(opts.passphrases ?? [])];
     this.confirms = [...(opts.confirms ?? [])];
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public confirm(_q: string): Promise<boolean> {
     const v = this.confirms[this.confirmIndex];
     this.confirmIndex += 1;
     return Promise.resolve(v ?? false);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public readLine(_q: string): Promise<string> {
     const v = this.lines[this.lineIndex];
     this.lineIndex += 1;
     return Promise.resolve(v ?? "");
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public readPassphrase(_q: string): Promise<string> {
     const v = this.passphrases[this.passIndex];
     this.passIndex += 1;

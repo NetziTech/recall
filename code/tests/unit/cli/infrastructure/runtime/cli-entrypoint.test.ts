@@ -37,7 +37,7 @@ class FakeParser {
     nonInteractive: false,
   };
   public throws: unknown = null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public parse(_argv: readonly string[]): CliInvocation {
     if (this.throws !== null) {
       const t = this.throws;

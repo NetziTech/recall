@@ -12,6 +12,7 @@ import { EntityId } from "../../../../src/modules/memory/domain/value-objects/en
 import { TaskId } from "../../../../src/modules/memory/domain/value-objects/task-id.ts";
 import { SessionId } from "../../../../src/modules/memory/domain/value-objects/session-id.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
 import { LearningSeverity } from "../../../../src/modules/memory/domain/value-objects/learning-severity.ts";
 import { LearningText } from "../../../../src/modules/memory/domain/value-objects/learning-text.ts";
@@ -69,6 +70,7 @@ describe("JsonMemoryExporter.serialise", () => {
       sessionId: null,
       title: DecisionTitle.from("T"),
       rationale: Rationale.from("R"),
+      content: DecisionContent.from("Long-form content body"),
       tags: makeTags(["a"]),
       confidence: Confidence.full(),
       scope: Scope.module("auth"),

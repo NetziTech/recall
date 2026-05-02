@@ -112,6 +112,34 @@ describe("RecallInputSchema", () => {
       false,
     );
   });
+
+  // B-MCP-5: min_score is the post-hoc relevance threshold applied
+  // by the facade after ranking. Range is [0, 1]; out-of-range
+  // values must be rejected at the wire boundary so the facade can
+  // assume valid input.
+  it("accepts min_score within [0, 1]", () => {
+    for (const v of [0, 0.5, 1]) {
+      expect(RecallInputSchema.safeParse({ min_score: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects min_score below 0", () => {
+    expect(
+      RecallInputSchema.safeParse({ min_score: -0.0001 }).success,
+    ).toBe(false);
+  });
+
+  it("rejects min_score above 1", () => {
+    expect(
+      RecallInputSchema.safeParse({ min_score: 1.0001 }).success,
+    ).toBe(false);
+  });
+
+  it("accepts query + min_score in the same call", () => {
+    expect(
+      RecallInputSchema.safeParse({ query: "x", min_score: 0.7 }).success,
+    ).toBe(true);
+  });
 });
 
 describe("RememberInputSchema", () => {

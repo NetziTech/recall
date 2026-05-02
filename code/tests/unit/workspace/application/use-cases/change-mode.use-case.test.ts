@@ -32,7 +32,7 @@ const FIXED_UUID = "00000000-0000-7000-8000-000000000001";
 
 class StubDetect implements DetectWorkspace {
   public constructor(private readonly out: DetectWorkspaceOutput) {}
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public detect(_input: DetectWorkspaceInput): Promise<DetectWorkspaceOutput> {
     return Promise.resolve(this.out);
   }

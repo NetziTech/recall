@@ -66,6 +66,9 @@ export class JsonMemoryExporter implements MemoryExporter {
       id: d.getId().toString(),
       title: d.getTitle().toString(),
       rationale: d.getRationale().toString(),
+      // Migration 008 (B-MCP-4) added the canonical long-form body.
+      // Surfacing it here keeps round-trip exports/imports lossless.
+      content: d.getContent().toString(),
       tags: d.getTags().toArray(),
       status: d.getStatus().toString(),
       supersededBy: d.getSupersededBy()?.decisionId.toString() ?? null,

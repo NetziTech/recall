@@ -22,7 +22,7 @@ interface FakeModelOptions {
 function makeFakeModel(opts: FakeModelOptions): FlagEmbedding {
   async function* embedGen(
     texts: string[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     _batchSize: number,
   ): AsyncGenerator<number[][], void, unknown> {
     await Promise.resolve();
@@ -63,7 +63,7 @@ describe("FastembedEmbedder", () => {
 
   it("embed() lazy-loads the model exactly once across concurrent calls", async () => {
     let callCount = 0;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     FlagEmbedding.init = async (_opts) => {
       callCount += 1;
       // small delay to highlight the race window

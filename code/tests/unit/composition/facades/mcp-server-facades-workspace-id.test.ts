@@ -59,6 +59,10 @@ import type { RecallResult } from "../../../../src/modules/retrieval/domain/aggr
 import { DecisionId } from "../../../../src/modules/memory/domain/value-objects/decision-id.ts";
 import { TaskId } from "../../../../src/modules/memory/domain/value-objects/task-id.ts";
 import { WorkspaceId } from "../../../../src/shared/domain/value-objects/workspace-id.ts";
+import type {
+  WorkspaceStateReader,
+  WorkspaceStateSnapshot,
+} from "../../../../src/modules/mcp-server/application/ports/out/workspace-state-reader.port.ts";
 
 const BOOTSTRAP_WORKSPACE_ID = "01940000-0000-7000-8000-000000000001";
 const OVERRIDE_WORKSPACE_ID = "01940000-0000-7000-8000-000000000002";
@@ -85,6 +89,37 @@ function buildHealthUseCase(): {
   return { useCase: fake as unknown as HealthCheckUseCase };
 }
 
+/**
+ * Stub `WorkspaceStateReader` used by the workspace-id-resolution
+ * tests. The shape assertions in this file (the back-compat
+ * `size_bytes` field names, the workspace_id resolution logic) do
+ * not depend on the underlying state values, so the stub returns a
+ * deterministic empty snapshot. The real value-validation lives in
+ * `tests/integration/L-mem-health-real-state.test.ts` (the
+ * regression for B-MCP-2).
+ */
+function buildEmptyStateReader(): WorkspaceStateReader {
+  const snapshot: WorkspaceStateSnapshot = {
+    mode: "shared",
+    encryptionStatus: "n/a",
+    entriesByKind: Object.freeze({
+      decision: 0,
+      learning: 0,
+      entity: 0,
+      task: 0,
+      turn: 0,
+    }),
+    totalEntries: 0,
+    sizeBytes: { recallDb: 0, vectorsDb: 0 },
+    activeSession: null,
+    lastCuratorRunAtMs: null,
+    embeddingQueuePending: 0,
+  };
+  return {
+    readState: () => Promise.resolve(snapshot),
+  };
+}
+
 describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () => {
   const SCHEMA_VERSION = "1.0.0";
   const EMBEDDING_MODEL = "fastembed:BGESmallEN15";
@@ -92,6 +127,8 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
   it("uses the constructor-injected workspace id when wire input omits it", async () => {
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
+      buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -103,6 +140,8 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
   it("uses the wire `workspace_id` when present and valid", async () => {
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
+      buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -114,6 +153,8 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
   it("rejects a malformed wire `workspace_id` with a typed DomainError", async () => {
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
+      buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),
@@ -134,6 +175,8 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     // this placeholder, so a successful boundary is harmless).
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
+      buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(PLACEHOLDER_WORKSPACE_ID),
@@ -148,6 +191,8 @@ describe("CheckHealthFacadeAdapter — workspace id resolution (B-MCP-1)", () =>
     // Tracked as wire-schema debt; this assertion pins the contract.
     const adapter = new CheckHealthFacadeAdapter(
       buildHealthUseCase().useCase,
+      buildEmptyStateReader(),
+      process.cwd(),
       SCHEMA_VERSION,
       EMBEDDING_MODEL,
       WorkspaceId.from(BOOTSTRAP_WORKSPACE_ID),

@@ -84,7 +84,7 @@ afterEach(async () => {
 describe("SqliteWorkspaceProjectionWriter.upsert — happy paths", () => {
   it("inserts the row when no prior row exists", async () => {
     const writer = new SqliteWorkspaceProjectionWriter({
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- shared mode → null key
+       
       keyResolver: async (_input) => null,
       logger,
     });

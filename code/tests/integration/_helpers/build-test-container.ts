@@ -98,6 +98,7 @@ import {
 } from "../../../src/composition/wiring/workspace-wiring.ts";
 import type { WorkspaceWiring } from "../../../src/composition/wiring/workspace-wiring.ts";
 import { MemoryWipeFacadeAdapter } from "../../../src/composition/facades/workspace-memory-facades.ts";
+import { SqliteWorkspaceStateReader } from "../../../src/composition/queries/sqlite-workspace-state-reader.ts";
 import { SilentLogger } from "../../helpers/test-doubles.ts";
 import type { DomainEventBus } from "../../../src/composition/event-bus/in-memory-event-bus.ts";
 import { StubRawEmbedder } from "./stub-embedder.ts";
@@ -279,6 +280,7 @@ export async function buildTestContainer(
     idGenerator,
     database,
     embedder: retrievalEmbedder,
+    workspaceId,
   });
   const memory = buildMemoryWiring({
     logger,
@@ -344,6 +346,8 @@ export async function buildTestContainer(
     task: new TrackTaskFacadeAdapter(memory.trackTask, workspaceId),
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
+      new SqliteWorkspaceStateReader(database, logger),
+      workspaceRoot,
       "1.0.0",
       "fastembed:BGESmallEN15",
       workspaceId,

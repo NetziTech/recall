@@ -7,6 +7,7 @@ import type { WorkspaceId } from "../../../../shared/domain/value-objects/worksp
 import { Confidence } from "../../../../shared/domain/value-objects/confidence.ts";
 import { Decision } from "../../domain/aggregates/decision.ts";
 import type { DecisionRepository } from "../../domain/repositories/decision-repository.ts";
+import { DecisionContent } from "../../domain/value-objects/decision-content.ts";
 import { DecisionId } from "../../domain/value-objects/decision-id.ts";
 import { DecisionTitle } from "../../domain/value-objects/decision-title.ts";
 import { EmbeddingStatus } from "../../domain/value-objects/embedding-status.ts";
@@ -68,17 +69,28 @@ export class RecordDecisionUseCase implements RecordDecision {
     sessionId: SessionId | null;
     title: string;
     rationale: string;
+    /**
+     * Long-form body for the decision. Wire callers always supply
+     * this (the Zod schema requires `content: z.string().min(1)`).
+     * When the caller omits it (e.g. internal workflows that build
+     * a decision from a CLI prompt), the use case falls back to
+     * `rationale` so the persisted column is never empty (Bug
+     * B-MCP-4 / issue #3, Option B).
+     */
+    content?: string;
     tags: Tags;
     scope: Scope;
   }): Promise<RecordDecisionResult> {
     const now = this.clock.now();
     const decisionId = DecisionId.from(this.idGen.generateString());
+    const contentRaw = input.content ?? input.rationale;
     const decision = Decision.record({
       id: decisionId,
       workspaceId: input.workspaceId,
       sessionId: input.sessionId,
       title: DecisionTitle.from(input.title),
       rationale: Rationale.from(input.rationale),
+      content: DecisionContent.from(contentRaw),
       tags: input.tags,
       confidence: Confidence.full(),
       scope: input.scope,

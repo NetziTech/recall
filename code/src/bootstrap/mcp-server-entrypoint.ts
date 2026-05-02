@@ -41,6 +41,14 @@ async function main(): Promise<number> {
     stdout: process.stdout,
   });
 
+  // Drain the embedding queue in the background. Without this the
+  // `embedding_queue` rows that `mem.remember` enqueues never get
+  // embedded — `mem.recall` silently falls back to BM25-only and the
+  // semantic-recall guarantee of the product is broken (Bug B-MCP-3).
+  // The worker is constructed by `buildRetrievalWiring`; the bootstrap
+  // entrypoint only owns its lifecycle.
+  container.retrieval.embeddingWorker.start();
+
   // The closure mutates `value` through the `state` object so the
   // narrow analysis in TypeScript / ESLint cannot prove the field is
   // always `false` at the `try`/`finally` boundary below.
@@ -50,9 +58,15 @@ async function main(): Promise<number> {
     state.value = true;
     container.logger.info({ signal }, "mcp-server received signal; shutting down");
     server.stop();
-    void shutdown().finally(() => {
-      process.exit(signal === "SIGTERM" ? 143 : 130);
-    });
+    // Stop the embedding worker before closing the database. The
+    // worker awaits any in-flight `drainBatch` so we cannot pull the
+    // SQLite connection out from under it.
+    void container.retrieval.embeddingWorker
+      .stop()
+      .finally(() => shutdown())
+      .finally(() => {
+        process.exit(signal === "SIGTERM" ? 143 : 130);
+      });
   };
   process.on("SIGINT", onSignal);
   process.on("SIGTERM", onSignal);
@@ -75,7 +89,10 @@ async function main(): Promise<number> {
     );
     return 1;
   } finally {
-    if (!state.value) await shutdown();
+    if (!state.value) {
+      await container.retrieval.embeddingWorker.stop();
+      await shutdown();
+    }
   }
 }
 

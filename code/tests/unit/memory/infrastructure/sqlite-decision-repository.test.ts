@@ -4,6 +4,7 @@ import { Decision } from "../../../../src/modules/memory/domain/aggregates/decis
 import { DecisionId } from "../../../../src/modules/memory/domain/value-objects/decision-id.ts";
 import { DecisionStatus } from "../../../../src/modules/memory/domain/value-objects/decision-status.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
 import { Scope } from "../../../../src/modules/memory/domain/value-objects/scope.ts";
 import { EmbeddingStatus } from "../../../../src/modules/memory/domain/value-objects/embedding-status.ts";
@@ -51,6 +52,9 @@ function buildDecision(args: {
     sessionId: null,
     title: DecisionTitle.from(args.title ?? "Adopt SQLCipher"),
     rationale: Rationale.from("encryption at rest"),
+    content: DecisionContent.from(
+      "Encryption at rest using SQLCipher. Long-form body explaining the choice.",
+    ),
     tags: makeTags(["db"]),
     confidence: Confidence.full(),
     scope: args.scope ?? Scope.project(),
@@ -183,6 +187,7 @@ describe("SqliteDecisionRepository.findActiveByTags", () => {
       sessionId: null,
       title: DecisionTitle.from("T1"),
       rationale: Rationale.from("r"),
+      content: DecisionContent.from("Body 1"),
       tags: makeTags(["db", "perf"]),
       confidence: Confidence.full(),
       scope: Scope.project(),
@@ -196,6 +201,7 @@ describe("SqliteDecisionRepository.findActiveByTags", () => {
       sessionId: null,
       title: DecisionTitle.from("T2"),
       rationale: Rationale.from("r"),
+      content: DecisionContent.from("Body 2"),
       tags: makeTags(["sec"]),
       confidence: Confidence.full(),
       scope: Scope.project(),

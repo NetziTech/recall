@@ -1,0 +1,72 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: code
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # SonarQube needs full history for accurate blame and new-code detection.
+          fetch-depth: 0
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: code/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (src)
+        run: npm run lint
+
+      - name: Lint (tests + scripts)
+        run: npm run lint:tests
+
+      - name: Validate module boundaries (ADR-001)
+        run: npm run validate:modules
+
+      - name: Build
+        run: npm run build
+
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: SonarQube scan + quality gate
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          projectBaseDir: code
+        env:
+          # SONAR_TOKEN stays a repo secret (rotates ~30d).
+          # SONAR_HOST_URL is hardcoded: it is public information already
+          # exposed in README badges and SECURITY.md, and putting it as a
+          # secret triggered GitHub Actions log-masking that corrupted
+          # the URL the Java scanner saw ("no scheme was found").
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonar.netzi.dev

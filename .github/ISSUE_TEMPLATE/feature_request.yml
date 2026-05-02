@@ -1,0 +1,59 @@
+name: Feature request
+description: Propon una nueva funcionalidad
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de proponer, revisa:
+        - [docs/09-roadmap.md](https://github.com/NetziTech/recall/blob/develop/docs/09-roadmap.md) — items v0.5+ ya planeados
+        - [HANDOFF.md §7-8](https://github.com/NetziTech/recall/blob/develop/HANDOFF.md) — backlog explicito
+        - Issues abiertos para evitar duplicados
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Que problema resuelve
+      description: Describe el caso de uso, no la solucion. ¿Quien lo necesita y por que?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Solucion propuesta
+      description: Si tienes una idea concreta de API/wire schema/UX, descrbila. Si no, dejalo en blanco y dejamos el diseño abierto.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: ¿Hay otra forma de resolver el problema (incluso fuera de `recall`)? ¿Por que no son suficientes?
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Modulo afectado
+      multiple: true
+      options:
+        - workspace
+        - memory
+        - retrieval
+        - curator
+        - secrets
+        - encryption
+        - mcp-server
+        - cli
+        - shared
+        - composition
+        - docs
+        - tooling/CI
+        - no estoy seguro
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Contexto adicional (opcional)

@@ -207,4 +207,56 @@ describe("integration / D / mem.recall — hybrid retrieval", () => {
       expect(typeof r.created_at).toBe("number");
     }
   });
+
+  // B-MCP-5: post-hoc `min_score` threshold trims low-confidence
+  // hits without affecting `total_candidates`. The contract:
+  //   1. `min_score=0` is a no-op (same length as baseline).
+  //   2. Every survivor under any threshold has `score >= threshold`.
+  //   3. The filtered length is monotonically non-increasing as the
+  //      threshold rises.
+  //   4. `total_candidates` reflects the PRE-filter pool — it stays
+  //      constant even when the survivor list shrinks.
+  it("via wire facade — `min_score` filters results without changing total_candidates", async () => {
+    const baseline = await ctx.mcpServer.useCases.recall.recall({
+      workspace_id: ctx.workspaceId.toString(),
+      query: "hexagonal",
+      top_k: 5,
+      max_tokens: 2000,
+    });
+    expect(baseline.results.length).toBeGreaterThan(0);
+    const baselineCandidates = baseline.total_candidates;
+
+    // (1) Threshold of zero → identical to omitting the filter.
+    const allowAll = await ctx.mcpServer.useCases.recall.recall({
+      workspace_id: ctx.workspaceId.toString(),
+      query: "hexagonal",
+      top_k: 5,
+      max_tokens: 2000,
+      min_score: 0,
+    });
+    expect(allowAll.results).toHaveLength(baseline.results.length);
+    expect(allowAll.total_candidates).toBe(baselineCandidates);
+
+    // (2) + (3) + (4): pick a threshold at the median baseline score.
+    // Every survivor must be at or above it; the count must not grow;
+    // the candidate pool must be unchanged.
+    const sortedScores = [...baseline.results.map((r) => r.score)].sort(
+      (a, b) => a - b,
+    );
+    const median = sortedScores[Math.floor(sortedScores.length / 2)] ?? 0;
+    const filtered = await ctx.mcpServer.useCases.recall.recall({
+      workspace_id: ctx.workspaceId.toString(),
+      query: "hexagonal",
+      top_k: 5,
+      max_tokens: 2000,
+      min_score: median,
+    });
+    expect(filtered.total_candidates).toBe(baselineCandidates);
+    expect(filtered.results.length).toBeLessThanOrEqual(
+      baseline.results.length,
+    );
+    for (const r of filtered.results) {
+      expect(r.score).toBeGreaterThanOrEqual(median);
+    }
+  });
 });

@@ -19,7 +19,7 @@ class StatsHandler implements CommandHandler<"stats"> {
   public callCount = 0;
   public output: CommandOutput = CommandOutput.stdoutOnly("ok");
   public throws: unknown = null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   public handle(_inv: CliStatsInvocation): Promise<CommandOutput> {
     this.callCount += 1;
     if (this.throws !== null) {

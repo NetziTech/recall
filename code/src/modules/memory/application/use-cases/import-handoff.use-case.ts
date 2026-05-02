@@ -16,6 +16,7 @@ import { EmbeddingStatus } from "../../domain/value-objects/embedding-status.ts"
 import { LearningId } from "../../domain/value-objects/learning-id.ts";
 import { LearningSeverity } from "../../domain/value-objects/learning-severity.ts";
 import { LearningText } from "../../domain/value-objects/learning-text.ts";
+import { DecisionContent } from "../../domain/value-objects/decision-content.ts";
 import { Rationale } from "../../domain/value-objects/rationale.ts";
 import { Scope } from "../../domain/value-objects/scope.ts";
 import { TaskDescription } from "../../domain/value-objects/task-description.ts";
@@ -92,6 +93,10 @@ export class ImportHandoffUseCase implements ImportHandoff {
         sessionId: null,
         title: DecisionTitle.from(d.title),
         rationale: Rationale.from(d.rationale),
+        // Handoff parser predates the `content` column (B-MCP-4 fix);
+        // reuse rationale as the long-form body so the rehydration
+        // path stays well-formed.
+        content: DecisionContent.from(d.rationale),
         tags: d.tags,
         confidence: Confidence.of(d.confidence),
         scope: projectScope,

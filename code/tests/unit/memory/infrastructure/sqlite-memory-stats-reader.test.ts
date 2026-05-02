@@ -13,6 +13,7 @@ import { LearningId } from "../../../../src/modules/memory/domain/value-objects/
 import { EntityId } from "../../../../src/modules/memory/domain/value-objects/entity-id.ts";
 import { SessionId } from "../../../../src/modules/memory/domain/value-objects/session-id.ts";
 import { DecisionTitle } from "../../../../src/modules/memory/domain/value-objects/decision-title.ts";
+import { DecisionContent } from "../../../../src/modules/memory/domain/value-objects/decision-content.ts";
 import { Rationale } from "../../../../src/modules/memory/domain/value-objects/rationale.ts";
 import { LearningText } from "../../../../src/modules/memory/domain/value-objects/learning-text.ts";
 import { LearningSeverity } from "../../../../src/modules/memory/domain/value-objects/learning-severity.ts";
@@ -81,6 +82,7 @@ describe("SqliteMemoryStatsReader.read", () => {
       sessionId: null,
       title: DecisionTitle.from("d1"),
       rationale: Rationale.from("r"),
+      content: DecisionContent.from("body"),
       tags: makeTags(),
       confidence: Confidence.full(),
       scope: Scope.project(),
@@ -94,6 +96,7 @@ describe("SqliteMemoryStatsReader.read", () => {
       sessionId: null,
       title: DecisionTitle.from("d2"),
       rationale: Rationale.from("r"),
+      content: DecisionContent.from("body"),
       tags: makeTags(),
       confidence: Confidence.full(),
       scope: Scope.project(),

@@ -12,6 +12,8 @@
  *                                   learnings, entities, relations,
  *                                   tasks + their FTS5 shadows)
  *   - 005__perf-indexes.sql        (post-release perf indexes)
+ *   - 008__decisions-content.sql   (B-MCP-4: adds `decisions.content`
+ *                                   + rebuilds the FTS5 index over it)
  *
  * The `embedding_queue` table from migration 002 is created in a
  * minimal stub form so the `SqliteEmbeddingEnqueuer` adapter can
@@ -85,6 +87,7 @@ const REQUIRED_MIGRATIONS: readonly string[] = Object.freeze([
   "000__bootstrap.sql",
   "004__core-memory-schema.sql",
   "005__perf-indexes.sql",
+  "008__decisions-content.sql",
 ]);
 
 /**

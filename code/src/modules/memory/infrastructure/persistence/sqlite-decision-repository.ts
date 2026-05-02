@@ -7,6 +7,7 @@ import { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts"
 import type { WorkspaceId } from "../../../../shared/domain/value-objects/workspace-id.ts";
 import { Decision } from "../../domain/aggregates/decision.ts";
 import type { DecisionRepository } from "../../domain/repositories/decision-repository.ts";
+import { DecisionContent } from "../../domain/value-objects/decision-content.ts";
 import { DecisionId } from "../../domain/value-objects/decision-id.ts";
 import { DecisionStatus } from "../../domain/value-objects/decision-status.ts";
 import { DecisionTitle } from "../../domain/value-objects/decision-title.ts";
@@ -31,6 +32,10 @@ const DecisionRowSchema = z.object({
   created_at_ms: z.number().int().min(0),
   title: z.string().min(1),
   rationale: z.string(),
+  // Migration 008 (B-MCP-4) added this column. Existing rows were
+  // backfilled with `rationale`, so the read path always sees a
+  // non-empty string here on a properly-migrated database.
+  content: z.string(),
   scope: z.string().min(1),
   module: z.string().nullable(),
   superseded_by: z.string().nullable(),
@@ -44,12 +49,13 @@ const TagsArraySchema = z.array(z.string().min(1));
 
 const SQL_UPSERT = `
 INSERT INTO decisions (
-  id, created_at_ms, title, rationale, alternatives_rejected,
+  id, created_at_ms, title, rationale, content, alternatives_rejected,
   scope, module, superseded_by, confidence, last_used_ms, use_count, tags_json
-) VALUES (?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   title          = excluded.title,
   rationale      = excluded.rationale,
+  content        = excluded.content,
   scope          = excluded.scope,
   module         = excluded.module,
   superseded_by  = excluded.superseded_by,
@@ -60,7 +66,7 @@ ON CONFLICT(id) DO UPDATE SET
 `.trim();
 
 const SQL_SELECT_BY_ID = `
-SELECT id, created_at_ms, title, rationale, scope, module,
+SELECT id, created_at_ms, title, rationale, content, scope, module,
        superseded_by, confidence, last_used_ms, use_count, tags_json
 FROM decisions
 WHERE id = ?
@@ -68,14 +74,14 @@ LIMIT 1
 `.trim();
 
 const SQL_SELECT_ALL = `
-SELECT id, created_at_ms, title, rationale, scope, module,
+SELECT id, created_at_ms, title, rationale, content, scope, module,
        superseded_by, confidence, last_used_ms, use_count, tags_json
 FROM decisions
 ORDER BY created_at_ms DESC, id DESC
 `.trim();
 
 const SQL_SELECT_BY_STATUS_ACTIVE = `
-SELECT id, created_at_ms, title, rationale, scope, module,
+SELECT id, created_at_ms, title, rationale, content, scope, module,
        superseded_by, confidence, last_used_ms, use_count, tags_json
 FROM decisions
 WHERE superseded_by IS NULL
@@ -83,7 +89,7 @@ ORDER BY created_at_ms DESC, id DESC
 `.trim();
 
 const SQL_SELECT_BY_STATUS_SUPERSEDED = `
-SELECT id, created_at_ms, title, rationale, scope, module,
+SELECT id, created_at_ms, title, rationale, content, scope, module,
        superseded_by, confidence, last_used_ms, use_count, tags_json
 FROM decisions
 WHERE superseded_by IS NOT NULL
@@ -154,6 +160,7 @@ export class SqliteDecisionRepository implements DecisionRepository {
         decision.getCreatedAt().toEpochMs(),
         decision.getTitle().toString(),
         decision.getRationale().toString(),
+        decision.getContent().toString(),
         decision.getScope().kind,
         moduleValue,
         supersededByValue,
@@ -266,6 +273,10 @@ export class SqliteDecisionRepository implements DecisionRepository {
       sessionId: null,
       title: DecisionTitle.from(parsed.title),
       rationale: Rationale.from(parsed.rationale),
+      // Migration 008 backfilled `content` from `rationale` for legacy
+      // rows; new rows always carry the wire content. Either way the
+      // VO's non-empty invariant holds at the boundary.
+      content: DecisionContent.from(parsed.content),
       tags,
       status,
       supersededBy,

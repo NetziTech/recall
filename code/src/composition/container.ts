@@ -113,6 +113,7 @@ import {
   buildWorkspaceWiring,
 } from "./wiring/workspace-wiring.ts";
 import { MemoryWipeFacadeAdapter } from "./facades/workspace-memory-facades.ts";
+import { SqliteWorkspaceStateReader } from "./queries/sqlite-workspace-state-reader.ts";
 
 /**
  * Public surface of the container the bootstrap entrypoints consume.
@@ -128,6 +129,18 @@ export interface Container {
   readonly embedder: RawEmbedder;
 
   readonly database: DatabaseConnection;
+
+  /**
+   * Canonical workspace id pinned at construction time. Bootstrap
+   * entrypoints resolve it from `<root>/.recall/config.json` BEFORE
+   * `buildContainer` is called and pass it as
+   * {@link ContainerOptions.workspaceId}; when absent (the
+   * `skipDatabase: true` pre-init path), a deterministic placeholder
+   * UUID v7 is supplied. Exposed so the bootstrap can wire process
+   * lifecycle helpers (e.g. drive `retrieval.embeddingWorker`) without
+   * re-resolving the id.
+   */
+  readonly workspaceId: WorkspaceId;
 
   readonly workspace: WorkspaceWiring;
   readonly encryption: EncryptionWiring;
@@ -270,6 +283,7 @@ export function buildContainer(options: ContainerOptions): Container {
     idGenerator: shared.idGenerator,
     database: options.database,
     embedder: shared.retrievalEmbedder,
+    workspaceId,
   });
   const memory = buildMemoryWiring({
     logger,
@@ -346,6 +360,8 @@ export function buildContainer(options: ContainerOptions): Container {
     task: new TrackTaskFacadeAdapter(memory.trackTask, workspaceId),
     health: new CheckHealthFacadeAdapter(
       workspace.healthCheck,
+      new SqliteWorkspaceStateReader(options.database, logger),
+      options.workspaceRoot,
       options.schemaVersion,
       "fastembed:BGESmallEN15",
       workspaceId,
@@ -423,6 +439,7 @@ export function buildContainer(options: ContainerOptions): Container {
     idGenerator: shared.idGenerator,
     embedder: shared.embedder,
     database: options.database,
+    workspaceId,
     workspace: fullWorkspaceWiring,
     encryption,
     secrets,
