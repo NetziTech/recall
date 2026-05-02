@@ -191,6 +191,20 @@ describe("AsyncEmbeddingWorker", () => {
     await worker.stop();
   });
 
+  it("recovers from a non-Error rejection (covers String() coercion path)", async () => {
+    const uc = new StubUseCase();
+    // Reject with a primitive, NOT an Error instance — this exercises
+    // the `String(cause)` branch of the worker's logger payload.
+    uc.error = "synthetic-string-rejection" as unknown as Error;
+    const worker = newWorker(uc, { idlePollMs: 100 });
+
+    worker.start();
+    await vi.runOnlyPendingTimersAsync();
+    expect(uc.calls.length).toBeGreaterThanOrEqual(1);
+
+    await worker.stop();
+  });
+
   it("start() is a no-op when already running", async () => {
     const uc = new StubUseCase();
     const worker = newWorker(uc);

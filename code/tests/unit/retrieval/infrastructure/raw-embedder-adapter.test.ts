@@ -224,5 +224,25 @@ describe("RawEmbedderAdapter", () => {
         EmbedderUnavailableError,
       );
     });
+
+    it("wraps a non-Error rejection (e.g. string) as EmbedFailedError using String() coercion", async () => {
+      // Misbehaving adapters can reject with non-Error values (string,
+      // plain object, etc.). The translation layer MUST handle this to
+      // avoid leaking `undefined.message` errors to the caller.
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          // deliberately reject with a primitive
+          Promise.reject("legacy adapter threw a string"),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 3,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      const err = await adapter.embed("x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbedFailedError);
+      expect((err as EmbedFailedError).message).toBe(
+        "legacy adapter threw a string",
+      );
+    });
   });
 });

@@ -549,6 +549,28 @@ describe("EmbedAndPersistUseCase.drainBatch", () => {
       }
     });
 
+    it("records a non-Error rejection as a per-item failure with String() coercion", async () => {
+      // An adapter that rejects with a primitive (string, plain object)
+      // MUST still produce a meaningful `last_error` on the queue row.
+      // This covers the `String(cause)` branch of the per-item path.
+      queue.items = [queueItem({ id: Q_A, targetRowId: ID_A, attempts: 0 })];
+      projections.projections = [projection("decision", ID_A)];
+      embedder.embed = (): Promise<EmbeddingVector> =>
+        // deliberately reject with a primitive (NOT an Error instance)
+        Promise.reject("synthetic-non-error-cause");
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.embedderUnavailable).toBe(false);
+      expect(result.failed).toEqual([Q_A]);
+      expect(queue.items[0]?.attempts).toBe(1);
+      expect(queue.items[0]?.lastError).toBe("synthetic-non-error-cause");
+    });
+
     it("keeps the unavailable signal when a permanent-failure row is followed by an unavailable trip", async () => {
       // Items: A=permanent (attempts=5), B=transient unavailable, C=skipped.
       queue.items = [
