@@ -47,7 +47,7 @@ export class EmbedderUnavailableError extends RetrievalDomainError {
   ) {
     super(
       message,
-      options?.cause !== undefined ? { cause: options.cause } : undefined,
+      options?.cause === undefined ? undefined : { cause: options.cause },
     );
     this.retryAfterMs = options?.retryAfterMs ?? null;
   }

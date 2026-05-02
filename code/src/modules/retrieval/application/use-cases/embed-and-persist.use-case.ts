@@ -118,150 +118,193 @@ export class EmbedAndPersistUseCase {
     batchSize: number;
     backoffWindowMs: number;
   }): Promise<EmbedAndPersistResult> {
+    const items = await this.dequeueItems(input);
+    if (items.length === 0) return EMPTY_RESULT;
+
+    const projIndex = await this.hydrateProjections(input.workspaceId, items);
+    const acc = newAccumulator();
+
+    for (const item of items) {
+      if (acc.embedderUnavailable) {
+        // An earlier item in this batch tripped a transport-level
+        // failure. Skip the rest of the batch WITHOUT bumping any
+        // queue counters — the worker will back off and retry the
+        // same items once the embedder recovers (B-MCP-7).
+        acc.skipped.push(item.id);
+        continue;
+      }
+      await this.processItem(item, projIndex, acc);
+    }
+
+    return Object.freeze({
+      processed: Object.freeze([...acc.processed]),
+      failed: Object.freeze([...acc.failed]),
+      permanentFailures: Object.freeze([...acc.permanent]),
+      embedderUnavailable: acc.embedderUnavailable,
+      unavailableRetryAfterMs: acc.unavailableRetryAfterMs,
+      skipped: Object.freeze([...acc.skipped]),
+    });
+  }
+
+  // -- per-item pipeline (extracted from drainBatch to keep its
+  //    cognitive complexity ≤ 15 per Sonar S3776) -----------------------
+
+  private async dequeueItems(input: {
+    workspaceId: WorkspaceId;
+    batchSize: number;
+    backoffWindowMs: number;
+  }): Promise<readonly EmbeddingQueueItem[]> {
     const now = this.clock.now();
     const availableAfter = now.subtract(input.backoffWindowMs);
-
-    const items = await this.queue.dequeueBatch({
+    return this.queue.dequeueBatch({
       workspaceId: input.workspaceId,
       limit: input.batchSize,
       availableAfter,
     });
+  }
 
-    if (items.length === 0) {
-      return Object.freeze({
-        processed: Object.freeze([]),
-        failed: Object.freeze([]),
-        permanentFailures: Object.freeze([]),
-        embedderUnavailable: false,
-        unavailableRetryAfterMs: null,
-        skipped: Object.freeze([]),
-      });
-    }
-
-    const processed: string[] = [];
-    const failed: string[] = [];
-    const permanent: string[] = [];
-    const skipped: string[] = [];
-    let embedderUnavailable = false;
-    let unavailableRetryAfterMs: number | null = null;
-
-    // Hydrate source projections for the whole batch in one round trip.
+  private async hydrateProjections(
+    workspaceId: WorkspaceId,
+    items: readonly EmbeddingQueueItem[],
+  ): Promise<Map<string, MemoryProjection>> {
     const hits = items.map((it) => ({
       kind: it.targetKind,
       id: it.targetRowId,
     }));
     const projections = await this.projections.loadProjectionsByHits({
-      workspaceId: input.workspaceId,
+      workspaceId,
       hits,
     });
-    const projIndex = new Map<string, (typeof projections)[number]>();
+    const out = new Map<string, MemoryProjection>();
     for (const p of projections) {
-      projIndex.set(this.indexKey(p.kind, p.id), p);
+      out.set(this.indexKey(p.kind, p.id), p);
     }
+    return out;
+  }
 
-    for (const item of items) {
-      if (embedderUnavailable) {
-        // An earlier item in this batch tripped a transport-level
-        // failure. Skip the rest of the batch WITHOUT bumping any
-        // queue counters — the worker will back off and retry the
-        // same items once the embedder recovers (B-MCP-7).
-        skipped.push(item.id);
-        continue;
-      }
-
-      if (item.attempts >= MAX_ATTEMPTS) {
-        permanent.push(item.id);
-        this.logger.error(
-          {
-            queueId: item.id,
-            workspaceId: item.workspaceId.toString(),
-            attempts: item.attempts,
-          },
-          "embedding queue item reached permanent failure",
-        );
-        continue;
-      }
-
-      const projection = projIndex.get(
-        this.indexKey(item.targetKind, item.targetRowId),
-      );
-      if (projection === undefined) {
-        // The underlying row was pruned between enqueue and dequeue.
-        // Acknowledge the queue row so we do not retry forever.
-        await this.queue.acknowledge(item.id);
-        processed.push(item.id);
-        this.logger.debug(
-          {
-            queueId: item.id,
-            targetKind: item.targetKind,
-            targetRowId: item.targetRowId,
-          },
-          "embedding queue item ack'd: target row no longer exists",
-        );
-        continue;
-      }
-
-      const embeddedText = this.searchableTextFor(projection);
-      try {
-        const vector = await this.embedder.embed(embeddedText);
-        await this.queue.persistEmbedding({
-          workspaceId: item.workspaceId,
-          targetKind: item.targetKind,
-          targetRowId: item.targetRowId,
-          embeddedText,
-          modelName: this.modelName,
-          vector,
-          persistedAt: this.clock.now(),
-        });
-        await this.queue.acknowledge(item.id);
-        processed.push(item.id);
-      } catch (cause: unknown) {
-        if (cause instanceof EmbedderUnavailableError) {
-          // Transport-level failure: the embedder is currently down
-          // for EVERY input. Mark the batch for back-off and skip
-          // the remaining items WITHOUT bumping their attempts —
-          // burning the per-item retry budget while the model is
-          // still loading is exactly the bug B-MCP-7 fixes.
-          embedderUnavailable = true;
-          unavailableRetryAfterMs = cause.retryAfterMs;
-          skipped.push(item.id);
-          this.logger.warn(
-            {
-              queueId: item.id,
-              workspaceId: item.workspaceId.toString(),
-              retryAfterMs: cause.retryAfterMs,
-              err: cause.message,
-            },
-            "embedder unavailable; aborting batch without bumping attempts",
-          );
-          continue;
-        }
-        const message =
-          cause instanceof Error ? cause.message : String(cause);
-        await this.queue.recordFailure({
-          queueId: item.id,
-          errorMessage: message,
-        });
-        failed.push(item.id);
-        this.logger.warn(
-          {
-            queueId: item.id,
-            attempts: item.attempts + 1,
-            err: message,
-          },
-          "embedding attempt failed; queued for retry",
-        );
-      }
+  private async processItem(
+    item: EmbeddingQueueItem,
+    projIndex: Map<string, MemoryProjection>,
+    acc: DrainAccumulator,
+  ): Promise<void> {
+    if (item.attempts >= MAX_ATTEMPTS) {
+      this.markPermanentFailure(item, acc);
+      return;
     }
+    const projection = projIndex.get(
+      this.indexKey(item.targetKind, item.targetRowId),
+    );
+    if (projection === undefined) {
+      await this.ackPrunedItem(item, acc);
+      return;
+    }
+    await this.embedAndStore(item, projection, acc);
+  }
 
-    return Object.freeze({
-      processed: Object.freeze([...processed]),
-      failed: Object.freeze([...failed]),
-      permanentFailures: Object.freeze([...permanent]),
-      embedderUnavailable,
-      unavailableRetryAfterMs,
-      skipped: Object.freeze([...skipped]),
+  private markPermanentFailure(
+    item: EmbeddingQueueItem,
+    acc: DrainAccumulator,
+  ): void {
+    acc.permanent.push(item.id);
+    this.logger.error(
+      {
+        queueId: item.id,
+        workspaceId: item.workspaceId.toString(),
+        attempts: item.attempts,
+      },
+      "embedding queue item reached permanent failure",
+    );
+  }
+
+  private async ackPrunedItem(
+    item: EmbeddingQueueItem,
+    acc: DrainAccumulator,
+  ): Promise<void> {
+    // The underlying row was pruned between enqueue and dequeue.
+    // Acknowledge the queue row so we do not retry forever.
+    await this.queue.acknowledge(item.id);
+    acc.processed.push(item.id);
+    this.logger.debug(
+      {
+        queueId: item.id,
+        targetKind: item.targetKind,
+        targetRowId: item.targetRowId,
+      },
+      "embedding queue item ack'd: target row no longer exists",
+    );
+  }
+
+  private async embedAndStore(
+    item: EmbeddingQueueItem,
+    projection: MemoryProjection,
+    acc: DrainAccumulator,
+  ): Promise<void> {
+    const embeddedText = this.searchableTextFor(projection);
+    try {
+      const vector = await this.embedder.embed(embeddedText);
+      await this.queue.persistEmbedding({
+        workspaceId: item.workspaceId,
+        targetKind: item.targetKind,
+        targetRowId: item.targetRowId,
+        embeddedText,
+        modelName: this.modelName,
+        vector,
+        persistedAt: this.clock.now(),
+      });
+      await this.queue.acknowledge(item.id);
+      acc.processed.push(item.id);
+    } catch (cause: unknown) {
+      await this.recordEmbedFailure(item, cause, acc);
+    }
+  }
+
+  private async recordEmbedFailure(
+    item: EmbeddingQueueItem,
+    cause: unknown,
+    acc: DrainAccumulator,
+  ): Promise<void> {
+    if (cause instanceof EmbedderUnavailableError) {
+      this.markBatchUnavailable(item, cause, acc);
+      return;
+    }
+    const message = cause instanceof Error ? cause.message : String(cause);
+    await this.queue.recordFailure({
+      queueId: item.id,
+      errorMessage: message,
     });
+    acc.failed.push(item.id);
+    this.logger.warn(
+      {
+        queueId: item.id,
+        attempts: item.attempts + 1,
+        err: message,
+      },
+      "embedding attempt failed; queued for retry",
+    );
+  }
+
+  private markBatchUnavailable(
+    item: EmbeddingQueueItem,
+    cause: EmbedderUnavailableError,
+    acc: DrainAccumulator,
+  ): void {
+    // Transport-level failure: the embedder is currently down for
+    // EVERY input. Mark the batch for back-off and skip the
+    // remaining items WITHOUT bumping their attempts — burning the
+    // per-item retry budget while the model is still loading is
+    // exactly the bug B-MCP-7 fixes.
+    acc.embedderUnavailable = true;
+    acc.unavailableRetryAfterMs = cause.retryAfterMs;
+    acc.skipped.push(item.id);
+    this.logger.warn(
+      {
+        queueId: item.id,
+        workspaceId: item.workspaceId.toString(),
+        retryAfterMs: cause.retryAfterMs,
+        err: cause.message,
+      },
+      "embedder unavailable; aborting batch without bumping attempts",
+    );
   }
 
   // -- helpers ----------------------------------------------------------
@@ -285,6 +328,46 @@ export class EmbedAndPersistUseCase {
     return `${projection.title}\n${projection.preview}`;
   }
 }
+
+/**
+ * Mutable bag the per-item helpers in {@link EmbedAndPersistUseCase}
+ * write into. Local to this module — kept separate from
+ * {@link EmbedAndPersistResult} (immutable, read-only by callers) so
+ * the helpers stay simple `void`-returning routines.
+ */
+interface DrainAccumulator {
+  readonly processed: string[];
+  readonly failed: string[];
+  readonly permanent: string[];
+  readonly skipped: string[];
+  embedderUnavailable: boolean;
+  unavailableRetryAfterMs: number | null;
+}
+
+function newAccumulator(): DrainAccumulator {
+  return {
+    processed: [],
+    failed: [],
+    permanent: [],
+    skipped: [],
+    embedderUnavailable: false,
+    unavailableRetryAfterMs: null,
+  };
+}
+
+/**
+ * Pre-frozen empty result returned when the dequeue brings back zero
+ * items. Hoisted to module scope so `drainBatch` does not allocate it
+ * on every empty-poll iteration.
+ */
+const EMPTY_RESULT: EmbedAndPersistResult = Object.freeze({
+  processed: Object.freeze([]),
+  failed: Object.freeze([]),
+  permanentFailures: Object.freeze([]),
+  embedderUnavailable: false,
+  unavailableRetryAfterMs: null,
+  skipped: Object.freeze([]),
+});
 
 /**
  * Re-export of the queue-item type so consumers that orchestrate

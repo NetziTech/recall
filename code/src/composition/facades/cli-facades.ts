@@ -556,9 +556,9 @@ export class CliResetQueueFacadeAdapter implements ResetQueueFacade {
     }
     const result = await this.useCase.execute({
       workspaceId: detection.workspace.getId(),
-      ...(input.threshold !== null
-        ? { attemptsAtLeast: input.threshold }
-        : {}),
+      ...(input.threshold === null
+        ? {}
+        : { attemptsAtLeast: input.threshold }),
     });
     return {
       resetCount: result.resetCount,

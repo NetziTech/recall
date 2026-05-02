@@ -1,6 +1,9 @@
 import type { Logger } from "../../../../shared/application/ports/logger.port.ts";
 import type { WorkspaceId } from "../../../../shared/domain/value-objects/workspace-id.ts";
-import type { EmbedAndPersistUseCase } from "../../application/use-cases/embed-and-persist.use-case.ts";
+import type {
+  EmbedAndPersistResult,
+  EmbedAndPersistUseCase,
+} from "../../application/use-cases/embed-and-persist.use-case.ts";
 
 /**
  * Construction options for {@link AsyncEmbeddingWorker}.
@@ -192,35 +195,34 @@ export class AsyncEmbeddingWorker {
   }
 
   private async runDrain(): Promise<void> {
-    let processedCount = 0;
-    let unavailable = false;
-    let unavailableHintMs: number | null = null;
+    const outcome = await this.invokeDrain();
+    if (!this.running) return;
+    if (outcome.embedderUnavailable) {
+      this.handleUnavailableBatch(outcome.unavailableRetryAfterMs);
+      return;
+    }
+    this.handleSuccessfulBatch(outcome.processedCount);
+  }
+
+  /**
+   * Invokes one batch of the use case and translates the result (or a
+   * thrown exception) into a flat record the scheduler can switch on.
+   * Extracted from `runDrain` to keep its cognitive complexity low —
+   * the catch path here logs but never re-throws.
+   */
+  private async invokeDrain(): Promise<DrainOutcome> {
     try {
       const result = await this.useCase.drainBatch({
         workspaceId: this.workspaceId,
         batchSize: this.batchSize,
         backoffWindowMs: this.backoffWindowMs,
       });
-      processedCount = result.processed.length;
-      unavailable = result.embedderUnavailable;
-      unavailableHintMs = result.unavailableRetryAfterMs;
-      if (
-        processedCount > 0 ||
-        result.failed.length > 0 ||
-        unavailable
-      ) {
-        this.logger.debug(
-          {
-            workspaceId: this.workspaceId.toString(),
-            processed: processedCount,
-            failed: result.failed.length,
-            permanentFailures: result.permanentFailures.length,
-            embedderUnavailable: unavailable,
-            skipped: result.skipped.length,
-          },
-          "embedding worker drain completed",
-        );
-      }
+      this.maybeLogDrainCompletion(result);
+      return {
+        processedCount: result.processed.length,
+        embedderUnavailable: result.embedderUnavailable,
+        unavailableRetryAfterMs: result.unavailableRetryAfterMs,
+      };
     } catch (cause: unknown) {
       // The use case is supposed to swallow per-item failures via
       // `recordFailure(...)`. A throw here means the queue read
@@ -234,28 +236,51 @@ export class AsyncEmbeddingWorker {
         },
         "embedding worker drain failed",
       );
+      return {
+        processedCount: 0,
+        embedderUnavailable: false,
+        unavailableRetryAfterMs: null,
+      };
     }
+  }
 
-    if (!this.running) return;
+  private maybeLogDrainCompletion(result: EmbedAndPersistResult): void {
+    const isInteresting =
+      result.processed.length > 0 ||
+      result.failed.length > 0 ||
+      result.embedderUnavailable;
+    if (!isInteresting) return;
+    this.logger.debug(
+      {
+        workspaceId: this.workspaceId.toString(),
+        processed: result.processed.length,
+        failed: result.failed.length,
+        permanentFailures: result.permanentFailures.length,
+        embedderUnavailable: result.embedderUnavailable,
+        skipped: result.skipped.length,
+      },
+      "embedding worker drain completed",
+    );
+  }
 
-    if (unavailable) {
-      this.consecutiveUnavailableBatches += 1;
-      const nextDelay = this.computeUnavailableBackoffMs(unavailableHintMs);
-      this.logger.warn(
-        {
-          workspaceId: this.workspaceId.toString(),
-          consecutiveUnavailableBatches: this.consecutiveUnavailableBatches,
-          nextDelayMs: nextDelay,
-          retryAfterHintMs: unavailableHintMs,
-        },
-        "embedder unavailable; backing off entire batch",
-      );
-      this.scheduleNextDrain(nextDelay);
-      return;
-    }
+  private handleUnavailableBatch(hintMs: number | null): void {
+    this.consecutiveUnavailableBatches += 1;
+    const nextDelay = this.computeUnavailableBackoffMs(hintMs);
+    this.logger.warn(
+      {
+        workspaceId: this.workspaceId.toString(),
+        consecutiveUnavailableBatches: this.consecutiveUnavailableBatches,
+        nextDelayMs: nextDelay,
+        retryAfterHintMs: hintMs,
+      },
+      "embedder unavailable; backing off entire batch",
+    );
+    this.scheduleNextDrain(nextDelay);
+  }
 
-    // Recovered (or never tripped this iteration): reset the streak so
-    // a future outage starts back-off from the initial delay again.
+  private handleSuccessfulBatch(processedCount: number): void {
+    // Reset the streak so a future outage starts back-off from the
+    // initial delay again.
     this.consecutiveUnavailableBatches = 0;
     // Hot loop when there was work; sleep when idle.
     const nextDelay = processedCount > 0 ? 0 : this.idlePollMs;
@@ -283,4 +308,10 @@ export class AsyncEmbeddingWorker {
       this.unavailableBackoffInitialMs * 2 ** safeExponent;
     return Math.min(exponential, this.maxUnavailableBackoffMs);
   }
+}
+
+interface DrainOutcome {
+  readonly processedCount: number;
+  readonly embedderUnavailable: boolean;
+  readonly unavailableRetryAfterMs: number | null;
 }

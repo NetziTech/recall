@@ -31,7 +31,7 @@ export class EmbedFailedError extends RetrievalDomainError {
   public constructor(message: string, options?: { cause?: unknown }) {
     super(
       message,
-      options?.cause !== undefined ? { cause: options.cause } : undefined,
+      options?.cause === undefined ? undefined : { cause: options.cause },
     );
   }
 }
