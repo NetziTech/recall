@@ -357,6 +357,17 @@ export class RecallMemoryUseCase implements RecallMemory {
 
     const limited = ranked.slice(0, input.filters.limit);
 
+    // Token budget application (B-MCP-8 fix):
+    //
+    // 1. The top-ranked hit is ALWAYS included even if it solo exceeds
+    //    `maxTokens`. Returning zero hits when there are candidates
+    //    surprises callers ("recall said total_candidates=2 but hits=0")
+    //    and degrades the semantic-recall promise; a slightly oversized
+    //    single result is strictly more useful than no result.
+    // 2. Subsequent hits use `continue` (not `break`) so a mid-loop
+    //    oversized hit doesn't suppress smaller hits later in the
+    //    ranking. Candidates are ordered by relevance, not size, so a
+    //    big hit at rank 3 should not hide a fitting hit at rank 4.
     const out: RankedEntry[] = [];
     let runningTokens = 0;
     const max = input.maxTokens.maxTokens;
@@ -364,7 +375,12 @@ export class RecallMemoryUseCase implements RecallMemory {
       const tokens = this.tokenCounter
         .count(this.renderTokenInput(candidate.entry))
         .toNumber();
-      if (runningTokens + tokens > max) break;
+      if (out.length === 0) {
+        out.push(candidate.entry);
+        runningTokens += tokens;
+        continue;
+      }
+      if (runningTokens + tokens > max) continue;
       runningTokens += tokens;
       out.push(candidate.entry);
     }
