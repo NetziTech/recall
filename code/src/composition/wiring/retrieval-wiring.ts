@@ -18,6 +18,7 @@ import { CountTokensUseCase } from "../../modules/retrieval/application/use-case
 import { EmbedAndPersistUseCase } from "../../modules/retrieval/application/use-cases/embed-and-persist.use-case.ts";
 import { GetContextBundleUseCase } from "../../modules/retrieval/application/use-cases/get-context-bundle.use-case.ts";
 import { RecallMemoryUseCase } from "../../modules/retrieval/application/use-cases/recall-memory.use-case.ts";
+import { ResetEmbeddingQueueUseCase } from "../../modules/retrieval/application/use-cases/reset-embedding-queue.use-case.ts";
 import type { Embedder as RetrievalEmbedder } from "../../modules/retrieval/domain/services/embedder.ts";
 import {
   AsyncEmbeddingWorker,
@@ -45,6 +46,7 @@ export interface RetrievalWiring {
   readonly recallMemory: RecallMemoryUseCase;
   readonly countTokens: CountTokensUseCase;
   readonly embedAndPersist: EmbedAndPersistUseCase;
+  readonly resetEmbeddingQueue: ResetEmbeddingQueueUseCase;
   readonly embeddingWorker: AsyncEmbeddingWorker;
   readonly projections: SqliteMemoryProjectionRepository;
   readonly embeddingQueue: SqliteEmbeddingQueueRepository;
@@ -113,6 +115,11 @@ export function buildRetrievalWiring(
     options.logger,
   );
 
+  const resetEmbeddingQueue = new ResetEmbeddingQueueUseCase(
+    embeddingQueue,
+    options.logger,
+  );
+
   const embeddingWorker = new AsyncEmbeddingWorker(embedAndPersist, {
     workspaceId: options.workspaceId,
     logger: options.logger,
@@ -123,6 +130,7 @@ export function buildRetrievalWiring(
     recallMemory,
     countTokens,
     embedAndPersist,
+    resetEmbeddingQueue,
     embeddingWorker,
     projections,
     embeddingQueue,

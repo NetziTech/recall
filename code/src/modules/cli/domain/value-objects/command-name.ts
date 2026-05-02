@@ -33,6 +33,7 @@ const COMMAND_NAMES = [
   "sanitize",
   "curator-run",
   "curator-log",
+  "reset-queue",
   // Migration
   "import-handoff",
   // Backup / restore

@@ -1,6 +1,7 @@
 import type { Clock } from "../../../../shared/application/ports/clock.port.ts";
 import type { Logger } from "../../../../shared/application/ports/logger.port.ts";
 import type { WorkspaceId } from "../../../../shared/domain/value-objects/workspace-id.ts";
+import { EmbedderUnavailableError } from "../../domain/errors/embedder-unavailable-error.ts";
 import type { Embedder } from "../../domain/services/embedder.ts";
 import type { QueryKindValue } from "../../domain/value-objects/query-kind.ts";
 import type {
@@ -17,19 +18,36 @@ import type {
  *
  * - `processed` — items the worker successfully embedded and
  *   persisted. The queue rows have been acknowledged.
- * - `failed` — items the worker could not embed (transient or
- *   permanent failure). The queue rows have been bumped via
- *   `recordFailure(...)` so the next dequeue will re-evaluate after
- *   the backoff window.
+ * - `failed` — items the worker could not embed (per-item rejection).
+ *   The queue rows have been bumped via `recordFailure(...)` so the
+ *   next dequeue will re-evaluate after the backoff window.
  * - `permanentFailures` — items whose `attempts` already reached the
  *   permanent-failure threshold. The queue rows are NOT acknowledged;
  *   a separate sweep is expected to promote them to a dead-letter
- *   audit log.
+ *   audit log, or `recall reset-queue` resets their counter.
+ * - `embedderUnavailable` — when `true`, the use case detected a
+ *   transport-level embedder failure
+ *   ({@link EmbedderUnavailableError}: model not loaded, network down,
+ *   cache corrupt). Processing of the batch was ABORTED at the failing
+ *   item; the items in `skipped` were NOT touched (their `attempts`
+ *   counter is unchanged). The worker MUST back off the WHOLE batch
+ *   before the next drain — see B-MCP-7
+ *   ([issue #24](https://github.com/NetziTech/recall/issues/24)).
+ *   `unavailableRetryAfterMs` carries the adapter's hint about how
+ *   long to wait before retrying (or `null` for "use your own
+ *   schedule").
+ * - `skipped` — items the use case dequeued but did NOT attempt to
+ *   embed because an earlier item in the batch tripped the
+ *   `embedderUnavailable` short-circuit. The queue rows are
+ *   untouched (no `attempts` bump, no acknowledge).
  */
 export interface EmbedAndPersistResult {
   readonly processed: readonly string[];
   readonly failed: readonly string[];
   readonly permanentFailures: readonly string[];
+  readonly embedderUnavailable: boolean;
+  readonly unavailableRetryAfterMs: number | null;
+  readonly skipped: readonly string[];
 }
 
 /**
@@ -114,12 +132,18 @@ export class EmbedAndPersistUseCase {
         processed: Object.freeze([]),
         failed: Object.freeze([]),
         permanentFailures: Object.freeze([]),
+        embedderUnavailable: false,
+        unavailableRetryAfterMs: null,
+        skipped: Object.freeze([]),
       });
     }
 
     const processed: string[] = [];
     const failed: string[] = [];
     const permanent: string[] = [];
+    const skipped: string[] = [];
+    let embedderUnavailable = false;
+    let unavailableRetryAfterMs: number | null = null;
 
     // Hydrate source projections for the whole batch in one round trip.
     const hits = items.map((it) => ({
@@ -136,6 +160,15 @@ export class EmbedAndPersistUseCase {
     }
 
     for (const item of items) {
+      if (embedderUnavailable) {
+        // An earlier item in this batch tripped a transport-level
+        // failure. Skip the rest of the batch WITHOUT bumping any
+        // queue counters — the worker will back off and retry the
+        // same items once the embedder recovers (B-MCP-7).
+        skipped.push(item.id);
+        continue;
+      }
+
       if (item.attempts >= MAX_ATTEMPTS) {
         permanent.push(item.id);
         this.logger.error(
@@ -183,6 +216,26 @@ export class EmbedAndPersistUseCase {
         await this.queue.acknowledge(item.id);
         processed.push(item.id);
       } catch (cause: unknown) {
+        if (cause instanceof EmbedderUnavailableError) {
+          // Transport-level failure: the embedder is currently down
+          // for EVERY input. Mark the batch for back-off and skip
+          // the remaining items WITHOUT bumping their attempts —
+          // burning the per-item retry budget while the model is
+          // still loading is exactly the bug B-MCP-7 fixes.
+          embedderUnavailable = true;
+          unavailableRetryAfterMs = cause.retryAfterMs;
+          skipped.push(item.id);
+          this.logger.warn(
+            {
+              queueId: item.id,
+              workspaceId: item.workspaceId.toString(),
+              retryAfterMs: cause.retryAfterMs,
+              err: cause.message,
+            },
+            "embedder unavailable; aborting batch without bumping attempts",
+          );
+          continue;
+        }
         const message =
           cause instanceof Error ? cause.message : String(cause);
         await this.queue.recordFailure({
@@ -205,6 +258,9 @@ export class EmbedAndPersistUseCase {
       processed: Object.freeze([...processed]),
       failed: Object.freeze([...failed]),
       permanentFailures: Object.freeze([...permanent]),
+      embedderUnavailable,
+      unavailableRetryAfterMs,
+      skipped: Object.freeze([...skipped]),
     });
   }
 

@@ -40,6 +40,7 @@ import type { Logger } from "../../shared/application/ports/logger.port.ts";
 import { CuratorRunTrigger } from "../../modules/curator/domain/value-objects/curator-run-trigger.ts";
 import type { RunCurator } from "../../modules/curator/application/ports/in/run-curator.port.ts";
 import type { SqliteCuratorRunRepository } from "../../modules/curator/infrastructure/persistence/sqlite-curator-run-repository.ts";
+import type { ResetEmbeddingQueueUseCase } from "../../modules/retrieval/application/use-cases/reset-embedding-queue.use-case.ts";
 import type { AuditMemory } from "../../modules/memory/application/ports/in/audit-memory.port.ts";
 import type { ExportMemory } from "../../modules/memory/application/ports/in/export-memory.port.ts";
 import type {
@@ -117,6 +118,11 @@ import type {
   CuratorRunFacadeInput,
   CuratorRunFacadeOutput,
 } from "../../modules/cli/application/ports/out/curator-facade.port.ts";
+import type {
+  ResetQueueFacade,
+  ResetQueueFacadeInput,
+  ResetQueueFacadeOutput,
+} from "../../modules/cli/application/ports/out/embedding-queue-facade.port.ts";
 import type {
   ExportFacade,
   ExportFacadeInput,
@@ -519,6 +525,44 @@ export class CliCuratorRunFacadeAdapter implements CuratorRunFacade {
       entriesPruned: stats.getEntriesPruned(),
       learningsConsolidated: stats.getLearningsConsolidated(),
       durationMs: stats.getDurationMs(),
+    };
+  }
+}
+
+/**
+ * Adapter for `ResetQueueFacade`. Forwards `recall reset-queue` to the
+ * retrieval module's `ResetEmbeddingQueueUseCase`.
+ *
+ * Recovery for B-MCP-7
+ * ([issue #24](https://github.com/NetziTech/recall/issues/24)).
+ */
+export class CliResetQueueFacadeAdapter implements ResetQueueFacade {
+  public constructor(
+    private readonly useCase: ResetEmbeddingQueueUseCase,
+    private readonly detectWorkspace: DetectWorkspace,
+  ) {}
+
+  public async reset(
+    input: ResetQueueFacadeInput,
+  ): Promise<ResetQueueFacadeOutput> {
+    const detection = await this.detectWorkspace.detect({
+      startPath: WorkspacePath.create(input.rootPath),
+    });
+    if (!detection.found) {
+      throw new CliFacadeNotImplementedError(
+        "ResetQueueFacade",
+        `no workspace at ${input.rootPath}`,
+      );
+    }
+    const result = await this.useCase.execute({
+      workspaceId: detection.workspace.getId(),
+      ...(input.threshold !== null
+        ? { attemptsAtLeast: input.threshold }
+        : {}),
+    });
+    return {
+      resetCount: result.resetCount,
+      thresholdApplied: result.attemptsAtLeast,
     };
   }
 }

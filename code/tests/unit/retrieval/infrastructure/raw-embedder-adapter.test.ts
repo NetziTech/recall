@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { RawEmbedderAdapter } from "../../../../src/modules/retrieval/infrastructure/embedder/raw-embedder-adapter.ts";
+import { EmbedFailedError } from "../../../../src/modules/retrieval/domain/errors/embed-failed-error.ts";
+import { EmbedderUnavailableError } from "../../../../src/modules/retrieval/domain/errors/embedder-unavailable-error.ts";
 import { EmbeddingVector } from "../../../../src/modules/retrieval/domain/value-objects/embedding-vector.ts";
+import { RawEmbedderAdapter } from "../../../../src/modules/retrieval/infrastructure/embedder/raw-embedder-adapter.ts";
 import type {
   Embedder as RawEmbedderPort,
   RawEmbedding,
 } from "../../../../src/shared/application/ports/embedder.port.ts";
+import { EmbedderError } from "../../../../src/shared/infrastructure/errors/embedder-error.ts";
 
 class StubRawEmbedder implements RawEmbedderPort {
   public lastTexts: string[] = [];
@@ -104,7 +107,7 @@ describe("RawEmbedderAdapter", () => {
     expect(Object.isFrozen(out)).toBe(true);
   });
 
-  it("throws when raw embedding lies about its dimension", async () => {
+  it("throws EmbedFailedError when raw embedding lies about its dimension", async () => {
     // dimension says 5 but vector length is 3 — the adapter MUST detect.
     const raw: RawEmbedderPort = {
       embed: (): Promise<RawEmbedding> =>
@@ -116,31 +119,110 @@ describe("RawEmbedderAdapter", () => {
       dimension: () => 5,
     };
     const adapter = new RawEmbedderAdapter(raw);
+    await expect(adapter.embed("x")).rejects.toBeInstanceOf(EmbedFailedError);
     await expect(adapter.embed("x")).rejects.toThrow(
       /vector of length 3.*dimension 5/i,
     );
   });
 
-  it("propagates errors from the raw embedder unchanged", async () => {
-    const raw: RawEmbedderPort = {
-      embed: (): Promise<RawEmbedding> =>
-        Promise.reject(new Error("backend down")),
-      embedBatch: (): Promise<readonly RawEmbedding[]> => Promise.resolve([]),
-      dimension: () => 3,
-    };
-    const adapter = new RawEmbedderAdapter(raw);
-    await expect(adapter.embed("x")).rejects.toThrow(/backend down/);
-  });
+  // ─── B-MCP-7: typed-error translation layer ───────────────────────────
 
-  it("propagates errors from raw embedBatch unchanged", async () => {
-    const raw: RawEmbedderPort = {
-      embed: (): Promise<RawEmbedding> =>
-        Promise.resolve(fixed(new Float32Array([1]))),
-      embedBatch: (): Promise<readonly RawEmbedding[]> =>
-        Promise.reject(new Error("batch failed")),
-      dimension: () => 1,
-    };
-    const adapter = new RawEmbedderAdapter(raw);
-    await expect(adapter.embedBatch(["x"])).rejects.toThrow(/batch failed/);
+  describe("B-MCP-7 typed error translation", () => {
+    it("wraps EmbedderError(initialisation-failed) as EmbedderUnavailableError", async () => {
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.reject(
+            EmbedderError.initialisationFailed(new Error("download timed out")),
+          ),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 3,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      const err = await adapter.embed("x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbedderUnavailableError);
+      const unavailable = err as EmbedderUnavailableError;
+      expect(unavailable.code).toBe("retrieval.embedder-unavailable");
+      // The shared cause is preserved on the domain error so callers
+      // that introspect it (e.g. logs) still see the original message.
+      expect(unavailable.cause).toBeInstanceOf(EmbedderError);
+      // No retry hint by default — the worker picks its own back-off.
+      expect(unavailable.retryAfterMs).toBeNull();
+    });
+
+    it("wraps EmbedderError(not-initialised) as EmbedderUnavailableError", async () => {
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.reject(EmbedderError.notInitialised("dimension")),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 3,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      const err = await adapter.embed("x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbedderUnavailableError);
+    });
+
+    it("wraps EmbedderError(embed-failed) as EmbedFailedError", async () => {
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.reject(
+            EmbedderError.embedFailed(new Error("input rejected by tokenizer")),
+          ),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 3,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      const err = await adapter.embed("x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbedFailedError);
+      // Specifically NOT an unavailable error — per-item rejections stay
+      // per-item so the worker bumps attempts as before.
+      expect(err).not.toBeInstanceOf(EmbedderUnavailableError);
+    });
+
+    it("wraps EmbedderError(dimension-mismatch) as EmbedFailedError", async () => {
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.reject(EmbedderError.dimensionMismatch(384, 768)),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 384,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      await expect(adapter.embed("x")).rejects.toBeInstanceOf(
+        EmbedFailedError,
+      );
+    });
+
+    it("wraps a non-EmbedderError cause as EmbedFailedError (conservative default)", async () => {
+      // Defaulting to per-item failure means a misbehaving adapter cannot
+      // accidentally trigger the worker-wide back-off.
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.reject(new Error("backend down")),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.resolve([]),
+        dimension: () => 3,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      const err = await adapter.embed("x").catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(EmbedFailedError);
+      expect((err as EmbedFailedError).message).toMatch(/backend down/);
+    });
+
+    it("translates errors thrown from embedBatch as well", async () => {
+      const raw: RawEmbedderPort = {
+        embed: (): Promise<RawEmbedding> =>
+          Promise.resolve(fixed(new Float32Array([1]))),
+        embedBatch: (): Promise<readonly RawEmbedding[]> =>
+          Promise.reject(EmbedderError.initialisationFailed(undefined)),
+        dimension: () => 1,
+      };
+      const adapter = new RawEmbedderAdapter(raw);
+      await expect(adapter.embedBatch(["x"])).rejects.toBeInstanceOf(
+        EmbedderUnavailableError,
+      );
+    });
   });
 });

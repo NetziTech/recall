@@ -17,6 +17,36 @@ interface DrainCall {
   readonly backoffWindowMs: number;
 }
 
+const emptyResult = (): EmbedAndPersistResult => ({
+  processed: [],
+  failed: [],
+  permanentFailures: [],
+  embedderUnavailable: false,
+  unavailableRetryAfterMs: null,
+  skipped: [],
+});
+
+const processedResult = (
+  ids: readonly string[],
+): EmbedAndPersistResult => ({
+  ...emptyResult(),
+  processed: ids,
+});
+
+const unavailableResult = (
+  options: {
+    skipped?: readonly string[];
+    retryAfterMs?: number | null;
+    processed?: readonly string[];
+  } = {},
+): EmbedAndPersistResult => ({
+  ...emptyResult(),
+  processed: options.processed ?? [],
+  embedderUnavailable: true,
+  unavailableRetryAfterMs: options.retryAfterMs ?? null,
+  skipped: options.skipped ?? [],
+});
+
 class StubUseCase
   implements Pick<EmbedAndPersistUseCase, "drainBatch">
 {
@@ -28,9 +58,7 @@ class StubUseCase
     this.calls.push(input);
     if (this.error !== null) return Promise.reject(this.error);
     const next = this.results.shift();
-    return Promise.resolve(
-      next ?? { processed: [], failed: [], permanentFailures: [] },
-    );
+    return Promise.resolve(next ?? emptyResult());
   }
 }
 
@@ -40,6 +68,8 @@ const newWorker = (
     batchSize: number;
     backoffWindowMs: number;
     idlePollMs: number;
+    unavailableBackoffInitialMs: number;
+    maxUnavailableBackoffMs: number;
   }> = {},
 ): AsyncEmbeddingWorker =>
   new AsyncEmbeddingWorker(uc as unknown as EmbedAndPersistUseCase, {
@@ -47,6 +77,8 @@ const newWorker = (
     batchSize: options.batchSize,
     backoffWindowMs: options.backoffWindowMs,
     idlePollMs: options.idlePollMs,
+    unavailableBackoffInitialMs: options.unavailableBackoffInitialMs,
+    maxUnavailableBackoffMs: options.maxUnavailableBackoffMs,
     logger: new SilentLogger(),
   });
 
@@ -94,9 +126,9 @@ describe("AsyncEmbeddingWorker", () => {
   it("immediately re-drains when there is work (processedCount > 0)", async () => {
     const uc = new StubUseCase();
     uc.results = [
-      { processed: ["q1"], failed: [], permanentFailures: [] },
-      { processed: ["q2"], failed: [], permanentFailures: [] },
-      { processed: [], failed: [], permanentFailures: [] },
+      processedResult(["q1"]),
+      processedResult(["q2"]),
+      emptyResult(),
     ];
     const worker = newWorker(uc, { idlePollMs: 5_000 });
 
@@ -205,9 +237,7 @@ describe("AsyncEmbeddingWorker", () => {
 
   it("does not re-schedule once stopped (running flag respected)", async () => {
     const uc = new StubUseCase();
-    uc.results = [
-      { processed: ["q1"], failed: [], permanentFailures: [] },
-    ];
+    uc.results = [processedResult(["q1"])];
     const worker = newWorker(uc, { idlePollMs: 50 });
 
     worker.start();
@@ -219,5 +249,146 @@ describe("AsyncEmbeddingWorker", () => {
     const totalAfter = uc.calls.length;
     await vi.advanceTimersByTimeAsync(1000);
     expect(uc.calls.length).toBe(totalAfter);
+  });
+
+  // ─── B-MCP-7: back-off on embedderUnavailable ─────────────────────────
+
+  describe("embedderUnavailable back-off (B-MCP-7)", () => {
+    it("waits the configured initial back-off after a single unavailable batch", async () => {
+      const uc = new StubUseCase();
+      uc.results = [
+        unavailableResult({ skipped: ["a", "b"] }),
+        emptyResult(),
+      ];
+      const worker = newWorker(uc, {
+        idlePollMs: 200,
+        unavailableBackoffInitialMs: 1_000,
+      });
+
+      worker.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(uc.calls.length).toBe(1);
+
+      // After the unavailable batch the worker MUST wait 1 000 ms (NOT
+      // the 200 ms idle poll). Verify the next drain is gated.
+      await vi.advanceTimersByTimeAsync(999);
+      expect(uc.calls.length).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(uc.calls.length).toBe(2);
+
+      await worker.stop();
+    });
+
+    it("doubles the back-off on consecutive unavailable batches", async () => {
+      const uc = new StubUseCase();
+      uc.results = [
+        unavailableResult(), // call 1 → wait 1000 ms
+        unavailableResult(), // call 2 → wait 2000 ms
+        unavailableResult(), // call 3 → wait 4000 ms
+        emptyResult(),
+      ];
+      const worker = newWorker(uc, {
+        idlePollMs: 200,
+        unavailableBackoffInitialMs: 1_000,
+        maxUnavailableBackoffMs: 60_000,
+      });
+
+      worker.start();
+      // First drain (call 1) — runs immediately.
+      await vi.advanceTimersByTimeAsync(0);
+      expect(uc.calls.length).toBe(1);
+
+      // Wait 1 000 ms → call 2 fires.
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(uc.calls.length).toBe(2);
+
+      // Wait 2 000 ms → call 3 fires.
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(uc.calls.length).toBe(3);
+
+      // Wait 4 000 ms → call 4 fires (this one returns empty result).
+      await vi.advanceTimersByTimeAsync(4_000);
+      expect(uc.calls.length).toBe(4);
+
+      await worker.stop();
+    });
+
+    it("caps the exponential back-off at maxUnavailableBackoffMs", async () => {
+      const uc = new StubUseCase();
+      // Pile up enough unavailable results that the exponential schedule
+      // would exceed the cap (initial 1 000, max 5 000 → caps at call 4).
+      uc.results = Array.from({ length: 8 }, () => unavailableResult());
+      const worker = newWorker(uc, {
+        unavailableBackoffInitialMs: 1_000,
+        maxUnavailableBackoffMs: 5_000,
+      });
+
+      worker.start();
+      await vi.advanceTimersByTimeAsync(0); // call 1
+      await vi.advanceTimersByTimeAsync(1_000); // call 2 (1 000 ms back-off)
+      await vi.advanceTimersByTimeAsync(2_000); // call 3 (2 000 ms back-off)
+      await vi.advanceTimersByTimeAsync(4_000); // call 4 (would be 4 000 ms; under cap)
+      // From here every back-off should be capped at 5 000 ms.
+      const callsBeforeCap = uc.calls.length;
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(uc.calls.length).toBe(callsBeforeCap);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(uc.calls.length).toBe(callsBeforeCap + 1);
+
+      await worker.stop();
+    });
+
+    it("prefers the use case's per-call retry hint over exponential schedule", async () => {
+      const uc = new StubUseCase();
+      uc.results = [
+        unavailableResult({ retryAfterMs: 4_000 }),
+        emptyResult(),
+      ];
+      const worker = newWorker(uc, {
+        unavailableBackoffInitialMs: 1_000,
+      });
+
+      worker.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(uc.calls.length).toBe(1);
+
+      // 1 000 ms (initial back-off) is NOT enough — the hint asked for
+      // 4 000 ms.
+      await vi.advanceTimersByTimeAsync(3_999);
+      expect(uc.calls.length).toBe(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(uc.calls.length).toBe(2);
+
+      await worker.stop();
+    });
+
+    it("resets the back-off streak after a recovered batch", async () => {
+      const uc = new StubUseCase();
+      uc.results = [
+        unavailableResult(), // burns 1 attempt → back-off 1 000 ms
+        unavailableResult(), // burns 2nd → back-off 2 000 ms
+        emptyResult(), // recovers
+        unavailableResult(), // back-off should be 1 000 ms again, NOT 4 000 ms
+        emptyResult(),
+      ];
+      const worker = newWorker(uc, {
+        idlePollMs: 200,
+        unavailableBackoffInitialMs: 1_000,
+      });
+
+      worker.start();
+      await vi.advanceTimersByTimeAsync(0); // call 1
+      await vi.advanceTimersByTimeAsync(1_000); // call 2 (1 000 ms)
+      await vi.advanceTimersByTimeAsync(2_000); // call 3 (2 000 ms) → recovers
+      // Recovered batch returned empty processed → idle poll (200 ms).
+      await vi.advanceTimersByTimeAsync(200); // call 4 (idle poll, unavailable again)
+      // After call 4 (unavailable), streak reset means initial 1 000 ms.
+      await vi.advanceTimersByTimeAsync(999);
+      expect(uc.calls.length).toBe(4);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(uc.calls.length).toBe(5);
+
+      await worker.stop();
+    });
   });
 });

@@ -41,6 +41,8 @@ export {
   CuratorLogCommandHandler,
 } from "./handlers/curator-handlers.ts";
 
+export { ResetQueueCommandHandler } from "./handlers/embedding-queue-handlers.ts";
+
 export {
   ImportHandoffCommandHandler,
   ExportCommandHandler,

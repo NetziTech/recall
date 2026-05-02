@@ -340,6 +340,87 @@ describe("SqliteEmbeddingQueueRepository - queue", () => {
     expect(Object.isFrozen(items)).toBe(true);
     expect(items.length).toBe(0);
   });
+
+  // ─── B-MCP-7: resetPermanentFailures (recall reset-queue) ─────────────
+
+  describe("resetPermanentFailures (B-MCP-7)", () => {
+    it("clears attempts and last_error on rows at or above the threshold", async () => {
+      const ws = makeWorkspaceId();
+      // Seed: 2 perma-failed rows + 1 partially-failed row (attempts=3) +
+      // 1 untouched row.
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-perm-1", ws.toString(), "decision", "r1", ANCHOR_TIME_MS, 5, "fastembed init failed");
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-perm-2", ws.toString(), "learning", "r2", ANCHOR_TIME_MS, 6, "model not loaded");
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-mid", ws.toString(), "decision", "r3", ANCHOR_TIME_MS, 3, "transient");
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-fresh", ws.toString(), "entity", "r4", ANCHOR_TIME_MS, 0, null);
+
+      const updated = await repo.resetPermanentFailures({
+        workspaceId: ws,
+        attemptsAtLeast: 5,
+      });
+      expect(updated).toBe(2);
+
+      const rowsById = (id: string): { attempts: number; last_error: string | null } =>
+        db
+          .prepare("SELECT attempts, last_error FROM embedding_queue WHERE id = ?")
+          .get(id) as { attempts: number; last_error: string | null };
+
+      expect(rowsById("q-perm-1").attempts).toBe(0);
+      expect(rowsById("q-perm-1").last_error).toBeNull();
+      expect(rowsById("q-perm-2").attempts).toBe(0);
+      expect(rowsById("q-perm-2").last_error).toBeNull();
+      // Mid-attempt row untouched.
+      expect(rowsById("q-mid").attempts).toBe(3);
+      expect(rowsById("q-mid").last_error).toBe("transient");
+      // Fresh row untouched.
+      expect(rowsById("q-fresh").attempts).toBe(0);
+    });
+
+    it("returns 0 when no rows meet the threshold", async () => {
+      const ws = makeWorkspaceId();
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-fresh", ws.toString(), "decision", "r1", ANCHOR_TIME_MS, 1, null);
+
+      const updated = await repo.resetPermanentFailures({
+        workspaceId: ws,
+        attemptsAtLeast: 5,
+      });
+      expect(updated).toBe(0);
+    });
+
+    it("scopes the reset to the requested workspaceId", async () => {
+      const wsA = makeWorkspaceId();
+      const wsB = "01952f3b-7d8c-7000-8000-bbbbbbbbbbbb";
+
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-a", wsA.toString(), "decision", "rA", ANCHOR_TIME_MS, 5, "boom");
+      db.prepare(
+        "INSERT INTO embedding_queue (id, workspace_id, target_kind, target_row_id, enqueued_at_ms, attempts, last_error) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      ).run("q-b", wsB, "decision", "rB", ANCHOR_TIME_MS, 5, "boom");
+
+      const updated = await repo.resetPermanentFailures({
+        workspaceId: wsA,
+        attemptsAtLeast: 5,
+      });
+      expect(updated).toBe(1);
+
+      // wsB row UNTOUCHED — defence in depth on top of schema-level scope.
+      const otherRow = db
+        .prepare("SELECT attempts, last_error FROM embedding_queue WHERE id = ?")
+        .get("q-b") as { attempts: number; last_error: string | null };
+      expect(otherRow.attempts).toBe(5);
+      expect(otherRow.last_error).toBe("boom");
+    });
+  });
 });
 
 describe("SqliteEmbeddingQueueRepository - persistEmbedding", () => {

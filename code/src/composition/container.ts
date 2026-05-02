@@ -74,6 +74,7 @@ import {
   CliInitializeWorkspaceFacadeAdapter,
   CliInstallHookFacadeAdapter,
   CliLockWorkspaceFacadeAdapter,
+  CliResetQueueFacadeAdapter,
   CliSanitizeFacadeAdapter,
   CliStatsFacadeAdapter,
   CliUninstallHookFacadeAdapter,
@@ -409,6 +410,10 @@ export function buildContainer(options: ContainerOptions): Container {
     ),
     curatorLog: new CliCuratorLogFacadeAdapter(
       curator.curatorRuns,
+      workspace.detectWorkspace,
+    ),
+    resetQueue: new CliResetQueueFacadeAdapter(
+      retrieval.resetEmbeddingQueue,
       workspace.detectWorkspace,
     ),
 

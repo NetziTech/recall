@@ -201,6 +201,24 @@ export class CommanderCliParser {
       });
 
     program
+      .command("reset-queue")
+      .description(
+        "reset perma-failed embedding queue rows so the worker re-tries them (B-MCP-7 recovery)",
+      )
+      .option(
+        "--threshold <n>",
+        "minimum attempts to reset (default 5 = the worker's MAX_ATTEMPTS)",
+      )
+      .action((_opts: unknown, cmd: Command) => {
+        const opts = cmd.opts<{ threshold?: string }>();
+        captured.value = {
+          command: "reset-queue",
+          ...commonOpts(cmd),
+          threshold: parsePositiveIntegerOrNull(opts.threshold, "--threshold"),
+        };
+      });
+
+    program
       .command("import-handoff")
       .description("seed memory from a legacy HANDOFF.md")
       .requiredOption("--handoff <file>", "path to the HANDOFF.md file")
