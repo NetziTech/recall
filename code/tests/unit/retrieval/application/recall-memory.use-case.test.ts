@@ -382,7 +382,7 @@ describe("RecallMemoryUseCase.recall", () => {
       weights: RelevanceWeights.defaults(),
     });
 
-    expect(result.getEntries().length).toBeLessThanOrEqual(2);
+    expect(result.getEntries().length).toBe(2);
     expect(result.totalCandidates).toBe(5);
   });
 
@@ -414,10 +414,91 @@ describe("RecallMemoryUseCase.recall", () => {
       weights: RelevanceWeights.defaults(),
     });
 
-    // Token counter is len/4 → ~200 tokens per entry; with 250 budget we
-    // should fit at most 1.
-    expect(result.getEntries().length).toBeLessThanOrEqual(1);
-    expect(result.totalTokens.toNumber()).toBeLessThanOrEqual(250);
+    // Each entry is ~200 tokens (title 400 + "\n" + preview 400 = 801
+    // chars / 4). Budget is 250. Top-ranked hit is always included
+    // (B-MCP-8 guarantee), and the next would put cumulative over 250
+    // (200 + 200 = 400 > 250) so the rest are skipped via `continue`.
+    expect(result.getEntries().length).toBe(1);
+    expect(result.getEntries()[0]?.id).toBe(
+      "01952f3b-7d8c-7000-8000-000000000001",
+    );
+  });
+
+  it("always includes the top-ranked hit even when it solo exceeds maxTokens (B-MCP-8)", async () => {
+    // Reproduces the bug observed against the dogfood DB on
+    // `@netzi/recall@0.1.2-beta.4`: a query found `total_candidates>0`
+    // but the recall returned zero hits because the top-ranked
+    // candidate's preview alone was larger than the default token
+    // budget. The token counter here is `len/4`, so an 8000-character
+    // entry costs 2000 tokens — twice the 1000-token budget below.
+    const huge = "Z".repeat(4000);
+    const tiny = "ok";
+    projections.projections = [
+      projection({ kind: "decision", id: ID_A, title: huge, preview: huge }),
+      projection({ kind: "decision", id: ID_B, title: tiny, preview: tiny }),
+    ];
+    lexical.hits = [
+      { kind: "decision", id: ID_A, score: BM25Score.of(2.0) },
+      { kind: "decision", id: ID_B, score: BM25Score.of(0.5) },
+    ];
+
+    const result = await useCase.recall({
+      workspaceId: makeWorkspaceId(),
+      query: makeQuery(),
+      filters: makeFilters(5),
+      maxTokens: TokenBudget.withMax(1000),
+      weights: RelevanceWeights.defaults(),
+    });
+
+    expect(result.totalCandidates).toBe(2);
+    const entries = result.getEntries();
+    // The top-ranked hit must come back even though it alone exceeds
+    // the budget — returning zero hits when there ARE candidates was
+    // exactly the regression behaviour reported in B-MCP-8. Subsequent
+    // hits are not expected to fit here because the top hit's tokens
+    // already drove `runningTokens` past the budget; the second test
+    // ("skips a mid-ranking oversized hit ...") covers the
+    // continue-vs-break case where the top hit DOES fit and a mid
+    // candidate is the one that overflows.
+    expect(entries.length).toBe(1);
+    expect(entries[0]?.id).toBe(ID_A);
+  });
+
+  it("skips a mid-ranking oversized hit and still includes smaller ones behind it (B-MCP-8)", async () => {
+    // Three candidates ranked by BM25:
+    //   1. ID_A  — small (fits)
+    //   2. ID_B  — huge (does NOT fit on its own AFTER ID_A)
+    //   3. ID_C  — small (would still fit if we don't `break` on ID_B)
+    // The pre-fix `break` semantics returned only [ID_A]; the fix uses
+    // `continue` so ID_C surfaces too.
+    const ID_C = "01952f3b-7d8c-7000-8000-aaaaaaaaaa03";
+    const huge = "Z".repeat(8000); // 8001 chars → ~2001 tokens alone
+    const tiny = "ok";
+    projections.projections = [
+      projection({ kind: "decision", id: ID_A, title: tiny, preview: tiny }),
+      projection({ kind: "decision", id: ID_B, title: huge, preview: huge }),
+      projection({ kind: "decision", id: ID_C, title: tiny, preview: tiny }),
+    ];
+    lexical.hits = [
+      { kind: "decision", id: ID_A, score: BM25Score.of(3.0) },
+      { kind: "decision", id: ID_B, score: BM25Score.of(2.0) },
+      { kind: "decision", id: ID_C, score: BM25Score.of(1.0) },
+    ];
+
+    const result = await useCase.recall({
+      workspaceId: makeWorkspaceId(),
+      query: makeQuery(),
+      filters: makeFilters(5),
+      maxTokens: TokenBudget.withMax(500),
+      weights: RelevanceWeights.defaults(),
+    });
+
+    const entries = result.getEntries();
+    const ids = entries.map((e) => e.id);
+    expect(ids).toContain(ID_A);
+    expect(ids).toContain(ID_C);
+    expect(ids).not.toContain(ID_B);
+    expect(entries.length).toBe(2);
   });
 
   it("calls bumpUsage after a successful recall", async () => {

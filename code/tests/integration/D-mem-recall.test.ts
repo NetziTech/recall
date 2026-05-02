@@ -259,4 +259,62 @@ describe("integration / D / mem.recall — hybrid retrieval", () => {
       expect(r.score).toBeGreaterThanOrEqual(median);
     }
   });
+
+  // B-MCP-8 (issue #31): the recall pipeline used to return
+  // `total_candidates>0` but `hits=0` whenever the top-ranked entry
+  // alone exceeded `max_tokens`. The dogfood DB tripped this because
+  // learning rows store the full content un-truncated (decisions and
+  // entities truncate at 600 chars; learnings and turns do not). The
+  // fix in `RecallMemoryUseCase.rankAndSlice` always includes the top
+  // hit and uses `continue` (not `break`) on overflow.
+  it("returns the top hit even when its preview alone exceeds maxTokens (B-MCP-8)", async () => {
+    // Seed a learning under the 2000-char domain cap (LearningText
+    // limit) but well over a tight token budget. With cl100k_base
+    // every ~3-4 chars is a token, so ~1800 chars ≈ 500+ tokens.
+    // Picking max_tokens=50 forces the top-ranked hit to overflow
+    // alone — exactly the dogfood scenario reported in the issue.
+    const longContent = `${"GitFlow".padEnd(200, " strict ")}\n`.repeat(9);
+    expect(longContent.length).toBeGreaterThan(1500);
+    expect(longContent.length).toBeLessThanOrEqual(2000);
+    await ctx.memory.recordLearning.record({
+      workspaceId: ctx.workspaceId,
+      text: longContent,
+      severity: LearningSeverity.warning(),
+      tags: Tags.create(["gitflow"]),
+      scope: Scope.project(),
+    });
+
+    const out = await ctx.mcpServer.useCases.recall.recall({
+      workspace_id: ctx.workspaceId.toString(),
+      query: "GitFlow",
+      top_k: 5,
+      max_tokens: 50,
+    });
+
+    // The bug surfaced exactly as the issue describes:
+    //   total_candidates >= 1   but   hits.length == 0
+    // The fix guarantees the top-ranked hit is always returned.
+    expect(out.total_candidates).toBeGreaterThanOrEqual(1);
+    expect(out.results.length).toBeGreaterThanOrEqual(1);
+    // The first surfaced hit must mention the query token in its
+    // preview (rules out a coincidental match on a different entry).
+    const firstPreview = out.results[0]?.content.toLowerCase() ?? "";
+    expect(firstPreview).toContain("gitflow");
+  });
+
+  it("default max_tokens (8000) lets multiple hits surface for a literal query (B-MCP-8)", async () => {
+    // Without an explicit `max_tokens`, the wire facade now applies
+    // 8000 (was 4000 pre-fix, which silently capped the dogfood).
+    // The seeded corpus has two `hexagonal` matches; both must come
+    // back so the caller sees the full set, not just the top one.
+    const out = await ctx.mcpServer.useCases.recall.recall({
+      workspace_id: ctx.workspaceId.toString(),
+      query: "hexagonal",
+      top_k: 5,
+      // max_tokens deliberately omitted to exercise the default.
+    });
+
+    expect(out.results.length).toBeGreaterThanOrEqual(2);
+    expect(out.total_candidates).toBeGreaterThanOrEqual(out.results.length);
+  });
 });
