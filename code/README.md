@@ -28,10 +28,12 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 ## Install
 
 ```bash
-# Beta channel (recommended) — v0.1.2-beta.3 closes the four
-# Phase-9 dogfood defects (B-MCP-2/3/4/5). The `latest` dist-tag
-# is still pinned at v0.1.1 and is deprecated until v0.1.2 stable
-# lands; new installs should explicitly request `@beta`.
+# Beta channel (recommended) — v0.1.2-beta.4 closes B-MCP-7 (the
+# embedding worker now tolerates the fastembed cold-start without
+# burning per-item retries) on top of the four Phase-9 dogfood
+# defects already closed in beta.3 (B-MCP-2/3/4/5). The `latest`
+# dist-tag is still pinned at v0.1.1 and is deprecated until v0.1.2
+# stable lands; new installs should explicitly request `@beta`.
 npm install -g @netzi/recall@beta
 # or on demand:
 npx @netzi/recall@beta --help
