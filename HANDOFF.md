@@ -14,27 +14,27 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-05-02 noche (post-Phase-14 cerrado — `@netzi/recall@0.1.2-beta.4` PUBLICADO en npm beta channel, B-MCP-7 validado end-to-end via smoke contra DB del dogfood (worker drena queue 64/64 sin perma-fails), **1 bug nuevo descubierto en smoke** (B-MCP-8, issue #31 — recall pipeline filtra todos los hits despite total_candidates>0). Ver §6.19) |
+| **Fecha del handoff** | 2026-05-02 noche (post-Phase-15 cerrado — `release/0.1.2-beta.5` cortado tras squash-merge de PR #33 (B-MCP-8 fix) a develop. Bumps de version en `code/package.json` + `code/sonar-project.properties` + `docs/RELEASE-NOTES-v0.1.2-beta.5.md` nueva + READMEs/SECURITY actualizados. PR a main pendiente. Ver §6.20) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **`@netzi/recall@0.1.2-beta.4` PUBLICADO en npm beta channel.** Smoke post-publish contra DB del dogfood (64 entries) valido el B-MCP-7 fix end-to-end: `recall reset-queue` (Option C shipped) limpio los 32 perma-failed legacy de beta.3, worker drena los 64/64 items sin logs de `embedder unavailable` ni perma-failures, `embedding_metadata` poblado completo (27 dec + 23 lrn + 11 ent + 3 turn = 64 vectores). Pero **descubierto nuevo bug B-MCP-8 (medium)**: `mem.recall` retorna `total_candidates>0` pero `hits=0` post-ranking — el pipeline encuentra candidates pero los filtra a cero (token budget / score threshold / hybrid scoring hipotesis). NO es regresion de B-MCP-7 (ese funciona); es bug separado en el pipeline de recall. Issue [#31](https://github.com/NetziTech/recall/issues/31) abierto. Proximo paso: cerrar B-MCP-8 en `v0.1.2-beta.5` antes de promover a `0.1.2` stable. |
-| **Lineas de codigo** | ~61,000 en `code/src/` + ~36,000 LOC de tests en **213 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-13 deltas (PR #27)**: +~1,500 LOC src (typed error union retrieval/domain/errors/, ResetEmbeddingQueueUseCase, worker back-off + extract-method refactor, RawEmbedderAdapter typed translation, EmbeddingQueueFacade port + reset-queue CLI handler/parser/wiring), +5 archivos test (O-embedder-cold-start integration + reset-embedding-queue + embedding-queue-handlers + augmentos a embed-and-persist/raw-embedder/sqlite-queue + worker). |
+| **Fase actual** | **`release/0.1.2-beta.5` cortada (B-MCP-8 cerrado via PR #33).** Fix shipped: `RecallMemoryUseCase.rankAndSlice` ahora (1) siempre incluye el top-ranked hit aun cuando solo excede `max_tokens`, (2) usa `continue` (no `break`) en overflow para que hits chicos detras de uno grande aun surfaceen, (3) wire facade default `max_tokens` 4000 → 8000 (alineado con `mem.context`). 4 nuevos tests (2 unit + 2 integration) con VALORES no SHAPE (assertion exact length, no `toBeLessThanOrEqual`). 5+1 EXIT=0 + SonarQube quality gate PASSED (coverage new code 100% / overall 96.4%). PR a main pendiente, luego tag + GitHub pre-release + `npm publish --tag beta` por usuario, luego smoke contra dogfood DB. Si smoke valida → cortar `release/0.1.2` stable + promote `latest`. |
+| **Lineas de codigo** | ~61,200 en `code/src/` + ~36,200 LOC de tests en **211 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-15 deltas (PR #33)**: +29 LOC src (B-MCP-8 fix en `recall-memory.use-case.ts:360-378` + JSDoc en `mcp-server-facades.ts:323-333`), +149 LOC test (4 tests nuevos en 2 archivos existentes; 2 assertions tightened). |
 | **Migraciones** | **9** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope, **008__decisions-content** — backfill rationale → content + rebuild FTS5 con la columna nueva). |
-| **Lineas de documentacion** | ~8,150 en `docs/` (incluye ADR-001..004, convencion `.port.ts` §3.1). **5 release notes** (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`, **`v0.1.2-beta.4.md`** — nueva). docs/02 §4.3 documenta `min_score`. |
+| **Lineas de documentacion** | ~8,400 en `docs/` (incluye ADR-001..004, convencion `.port.ts` §3.1). **6 release notes** (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`, `v0.1.2-beta.4.md`, **`v0.1.2-beta.5.md`** — nueva). docs/02 §4.3 documenta `min_score`. |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
 | **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7/8/9 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
 | **Tooling materializado** | `code/package.json` (eslint 10.2.1, commander 14.0.3, actions/checkout@v6, actions/setup-node@v6 tras auto-merges Phase-10), `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict; tests/scripts override ahora con `argsIgnorePattern: "^_"`), `code/vitest.config.ts` (thresholds locales 95%/100%/100%/90%; **deferidos a SonarQube en CI** via `process.env.CI` switch), `code/scripts/validate-modules.ts`, `code/sonar-project.properties` (key `recall`, version `0.1.2-beta.0`), `code/tsup.config.ts`. **Nuevo Phase-10**: `.github/workflows/ci.yml`, `.github/dependabot.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*` (bug + feature + config), `CONTRIBUTING.md`, `SECURITY.md`. |
 | **SonarQube** | https://sonar.netzi.dev/dashboard?id=recall — proyecto **renombrado** de `mcp-memoria-inteligente` → `recall` via API (preserva UUID + historial). Quality gate `MCP Memoria Strict` **PASSED Phase-13** post-fix de 4 nuevas violations introducidas por PR #27 antes del refactor (1 critical S3776 `drainBatch` complexity 17→ ≤15 via 8 metodos extraidos; 3 minor S7735 negated conditions invertidas en `cli-facades` + dos domain errors). Coverage **new 99.8% / overall 96.4%**, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical / 0 violations en new code**, sqale_debt_ratio 0.0%. **CI corre el gate en cada PR/push** desde Phase-10. **Token rotation Phase-13**: `recall-ci-2026-04-28` (Project) + `recall-ci-global-2026-04-28` (Global) + `mcp-memoria-setup` (User) revocados; nuevo `ci-github-actions-recall` (Project Analysis Token, scoped a recall, expira 2026-08-02) en GitHub Secret `SONAR_TOKEN`. Token User `claude-debug` en `~/.netzi-secrets/sonar.env` (0600) para queries API directas (memoria reference). |
-| **Tests** | **2553 passing** en 213 archivos test (+34 vs beta.3; +2 archivos: O-embedder-cold-start (integration, B-MCP-7 regression) + reset-embedding-queue.use-case + embedding-queue-handlers + augmentos en embed-and-persist (15 tests) / raw-embedder (14) / async-embedding-worker (17) / sqlite-embedding-queue (16)). Coverage SonarQube **new code 99.8% / overall 96.4%**. La regla "VALORES no SHAPE" reforzada: O-embedder-cold-start asserta que `attempts` permanece en 0 durante el cold-start window simulado (NO basta con asertar el shape del result). |
+| **Tests** | **2557 passing** en 211 archivos test (+4 vs beta.4; sin archivos nuevos — los 4 tests nuevos viven en archivos existentes: 2 unit en `recall-memory.use-case.test.ts` + 2 integration en `D-mem-recall.test.ts`). Coverage SonarQube **new code 100% / overall 96.4%**. La regla "VALORES no SHAPE" reforzada: PR #33 tighteneo 2 assertions `toBeLessThanOrEqual(N)` → `toBe(N)` que enmascaraban exactamente el bug B-MCP-8 (la primera asercion satisfacia length=0 silenciosamente). |
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). **Caveat Phase-9**: los benchmarks miden los caminos felices con embedder mockeado; no detectan que en produccion el embedder NO se carga (B-MCP-3). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. **Phase-14 confirmacion**: con B-MCP-7 cerrado el worker SI ejerce el path tar en produccion (el smoke poblo 64 vectores via `FlagEmbedding.init()` + `model.embed()`); el wontfix sigue siendo correcto (path tar no accesible al input del usuario, solo a tarballs descargados de GCS owned por Qdrant). |
-| **Paquete npm** | **Canal beta**: `@netzi/recall@0.1.2-beta.4` **PUBLICADO** (2026-05-02 tarde) — `npm view @netzi/recall dist-tags` retorna `{latest: '0.1.1', beta: '0.1.2-beta.4'}`. Tarball: ~6.6 MB, 16 archivos. **Canal latest**: `@netzi/recall@0.1.1` sigue deprecada (latest no se promueve hasta cerrar B-MCP-8 + cortar `0.1.2` stable). `v0.1.2-beta.3` superseded por beta.4 en mismo canal. `v0.1.0`/`v0.1.1` deprecadas historicamente. `publishConfig.access=public`. Bins `recall` y `recall-server`. **Caveat cosmetico**: `serverInfo.version` en el handshake JSON-RPC reporta `0.1.2-beta.3` (hardcoded somewhere), aunque el binario instalado ES beta.4 (`npm list -g` lo confirma). Bug menor a investigar en beta.5. |
+| **Paquete npm** | **Canal beta**: `@netzi/recall@0.1.2-beta.4` PUBLICADO (2026-05-02 tarde, sigue siendo el latest del canal hasta que beta.5 se publique). `release/0.1.2-beta.5` cortada local; PR a main + tag + GitHub pre-release + `npm publish --tag beta` pendientes. **Canal latest**: `@netzi/recall@0.1.1` sigue deprecada (latest no se promueve hasta cerrar smoke de beta.5 + cortar `0.1.2` stable). `v0.1.2-beta.3` superseded por beta.4. `v0.1.0`/`v0.1.1` deprecadas historicamente. `publishConfig.access=public`. Bins `recall` y `recall-server`. **Caveat cosmetico carryover**: `serverInfo.version` en el handshake JSON-RPC reporta `0.1.2-beta.3` (hardcoded somewhere), bug menor a investigar; busqueda inicial pendiente. |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Estado del release** | **PUBLICADO + smoke validado completo del B-MCP-7 fix.** `@netzi/recall@0.1.2-beta.4` en npm beta channel. Tag `v0.1.2-beta.4` → commit `53502c95` (= main HEAD). GitHub pre-release publicado: https://github.com/NetziTech/recall/releases/tag/v0.1.2-beta.4. Smoke post-publish con DB real del dogfood (64 entries pre-existentes): **`recall reset-queue` ✅** (32 perma-failed → 0, comando recovery shipped funciona), **worker drena 64/64 ✅** (sin logs de unavailable ni perma-failures, B-MCP-7 fix end-to-end), **embedding_metadata poblado ✅** (64 vectores, match exacto con entries). **B-MCP-8 (medium, NUEVO)**: `mem.recall` retorna `total_candidates>0` pero `hits=0` post-ranking — recall pipeline filtra todo despite vectors presentes. NO es regresion de B-MCP-7. Issue [#31](https://github.com/NetziTech/recall/issues/31) abierto, bloquea promote a `0.1.2` stable. |
-| **Issues GitHub abiertos** | **1** — [#31 B-MCP-8](https://github.com/NetziTech/recall/issues/31) (medium) descubierto en smoke post-publish de beta.4. [#24 B-MCP-7](https://github.com/NetziTech/recall/issues/24) cerrado en Phase-13 via PR #27. Los 4 originales (B-MCP-2/3/4/5) cerrados en Phase-11 via PRs #17/#18/#19/#20. |
-| **Memoria propia** | **POBLADA por dogfood, queue DRENADA tras smoke de beta.4** — `<repo>/.recall/recall.db` tiene 64 entries (27 decisions + 23 learnings + 11 entities + 0 tasks + 3 turns), `schema_version=8`, modo `private`. **embedding_queue: 0 pendientes** (drenado completo via worker durante smoke). **embedding_metadata: 64 vectores poblados** (27 decision + 23 learning + 11 entity + 3 turn — match 1:1 con entries). El semantic recall esta tecnicamente operativo (vectors + metadata listos), pero `mem.recall` retorna `hits=0` por B-MCP-8 — el bundle sigue funcionando con BM25-only para queries con literal match exacto. **Lecciona Phase-12 ya codificada en hooks (PR #26)**: pre-`Bash git commit` en main/develop aborta; pre-`Bash git commit` con cambios en `code/src/` corre `npm run typecheck`. Manual `UPDATE embedding_queue` SQL directo SIGUE siendo violacion CLAUDE.md, ahora cubierto por el comando CLI nuevo (`recall reset-queue`). |
-| **Repositorio GitHub** | https://github.com/NetziTech/recall — PUBLICO. `main` PR-only desde develop, CI required, enforce_admins. `develop` default branch (CI required, enforce_admins, push directo bloqueado por strict status check). Forks habilitados. Squash-only merges. **Pre-commit hooks per-repo en `.claude/settings.json`** (Phase-13 PR #26) — bloquean `git commit` en main/develop antes de que branch protection rechace el push. **Phase-14 confirmacion**: el hook `block-protected-push.sh` ataja correctamente push de tags desde main (al `git tag` + `git push origin v0.1.2-beta.4`); workaround documentado: `git switch --detach <tag>` antes del push. |
-| **Proximo paso** | **v0.1.2-beta.5: cerrar B-MCP-8** ([#31](https://github.com/NetziTech/recall/issues/31)). Hipotesis del filtro post-rank a investigar: (a) token budget de `max_tokens` por defecto demasiado restrictivo, (b) min-score floor hardcoded en el ranker, (c) regression sutil en hybrid scoring. Plan sugerido: agregar integration test que asserte `hits.length > 0` para query con substring conocido en title/preview (VALUES no SHAPE — Phase-9 rule); trace per-stage (lexical → vector → fuse → rank → filter) con per-stage candidate count en logs; revisar `RecallMemoryUseCase` post-rank logic. Despues, cortar `release/0.1.2-beta.5` mismo flow que beta.4. Si pasa smoke: cortar `release/0.1.2` stable + `npm dist-tag add @netzi/recall@0.1.2 latest` + hard-deprecate `0.1.0`/`0.1.1`. **Caveat cosmetico paralelo a investigar**: el `serverInfo.version` que reporta el handshake JSON-RPC sigue en `0.1.2-beta.3` aunque el binario sea beta.4 — likely hardcoded en algun adapter. Buscar `0.1.2-beta` en src/. |
+| **Estado del release** | **`release/0.1.2-beta.5` cortada local con todos los docs sincronizados.** PR a main pendiente; CI debe pasar verde antes del merge. Una vez mergeado: tag `v0.1.2-beta.5` → commit final + GitHub pre-release con `--notes-file docs/RELEASE-NOTES-v0.1.2-beta.5.md` + `npm publish --tag beta --auth-type=web` (usuario, WebAuthn passkey). Smoke post-publish contra DB del dogfood: validar que `mem.recall` con queries que rankean entries grandes (e.g. learnings largos) ahora retorna `hits.length >= 1` end-to-end. Si pasa → cortar `release/0.1.2` stable. |
+| **Issues GitHub abiertos** | **0** — [#31 B-MCP-8](https://github.com/NetziTech/recall/issues/31) cerrado en Phase-15 via PR #33. [#24 B-MCP-7](https://github.com/NetziTech/recall/issues/24) cerrado en Phase-13 via PR #27. Los 4 originales (B-MCP-2/3/4/5) cerrados en Phase-11 via PRs #17/#18/#19/#20. |
+| **Memoria propia** | **POBLADA por dogfood, queue DRENADA, vectores listos** — `<repo>/.recall/recall.db` tiene 64 entries (27 decisions + 23 learnings + 11 entities + 0 tasks + 3 turns), `schema_version=8`, modo `private`. **embedding_queue: 0 pendientes**. **embedding_metadata: 64 vectores poblados**. Pre-Phase-15: `mem.recall` retornaba `hits=0` por B-MCP-8. Post-Phase-15 (con beta.5): el fix garantiza `hits.length >= 1` cuando hay candidates; el smoke contra esta DB validara que queries paraphrased ahora retornan hits via hybrid path. **Hooks PR #26** siguen activos. |
+| **Repositorio GitHub** | https://github.com/NetziTech/recall — PUBLICO. `main` PR-only desde develop, CI required, enforce_admins. `develop` default branch (CI required, enforce_admins, push directo bloqueado por strict status check). Forks habilitados. Squash-only merges. **Pre-commit hooks per-repo en `.claude/settings.json`** (Phase-13 PR #26) — bloquean `git commit` en main/develop antes de que branch protection rechace el push. **Phase-14 confirmacion**: el hook `block-protected-push.sh` ataja correctamente push de tags desde main; workaround estandar `git switch --detach <tag>` antes del push de tag. |
+| **Proximo paso** | **PR `release/0.1.2-beta.5` → main**: push branch, `gh pr create --base main`, esperar CI verde, squash-merge (usuario), tag `v0.1.2-beta.5` → commit final + push (con `git switch --detach v0.1.2-beta.5` por hook protection), `gh release create v0.1.2-beta.5 --prerelease --notes-file docs/RELEASE-NOTES-v0.1.2-beta.5.md`, `npm publish --tag beta --auth-type=web` (usuario, WebAuthn passkey), smoke contra dogfood DB (`mem.recall` con queries paraphrased — debe retornar `hits >= 1`), merge-back develop ← main. Si smoke valida → cortar `release/0.1.2` stable + `npm dist-tag add @netzi/recall@0.1.2 latest` + hard-deprecate `0.1.0`/`0.1.1`. **Caveat cosmetico paralelo**: el `serverInfo.version` que reporta el handshake JSON-RPC sigue en `0.1.2-beta.3` aunque el binario sea beta.4 (carryover) — hay que buscar `0.1.2-beta` en src/ para encontrarlo hardcoded. |
 | **Workflow Claude (settings.json hooks)** | **CONFIGURADO** via PR [#26](https://github.com/NetziTech/recall/pull/26) (mergeado `94f0fcf`). 3 hooks `PreToolUse > Bash` per-repo en `.claude/settings.json` + scripts en `.claude/hooks/`: (1) `block-protected-commit.sh` aborta `git commit` en main/develop con exit 2; (2) `block-protected-push.sh` aborta push desde main/develop o cuyo destino sea main/develop (cubre `origin main`, `HEAD:main`, `:main`, push implicito); (3) `typecheck-on-commit.sh` corre `npm run typecheck` en `code/` cuando hay cambios staged en `code/src/` (cero overhead en commits docs-only). Filtros `if: "Bash(git commit*)"`/`Bash(git push*)` evitan spawn para Bash que no sea git. UserPromptSubmit hook anti-worktree de CLAUDE.md regla #1 preservado intacto. **Phase-14 lecciona**: el hook `block-protected-push.sh` correctamente bloquea `git push origin v0.1.2-beta.4` cuando current branch es main; workaround estandar `git switch --detach <tag>` cambia el branch a empty (no main/develop) y deja pasar el push del tag. Documentar en CONTRIBUTING.md release flow seria util. |
 
 ---
@@ -2111,6 +2111,144 @@ Sin reportes formales nuevos (release + smoke + bugfix incremental, mismo patron
 
 ---
 
+## 6.20 Phase-15 — Cierre de B-MCP-8 + corte v0.1.2-beta.5
+
+**Cierre:** 2026-05-02 noche. Phase-15 fue **el cycle de fix + corte de release** del bug descubierto en el smoke de Phase-14: B-MCP-8 (`mem.recall` retorna `total_candidates>0` pero `hits=0`).
+
+### Decisiones humanas
+
+| # | Decision | Razon |
+|---|---|---|
+| Q1 | Fix arquitectonico permanente (no parche cosmetico tipo "subir el default y que funcione") | El `break` del loop de token budget es el bug real; subir el default solo enmascara casos comunes pero no cierra el edge. |
+| Q2 | Cambiar `break` por `continue` AND siempre incluir el top hit AND subir default 4000 → 8000 | Las tres son ortogonales y todas valen: (1) skip-and-keep-going es la semantica correcta de un ranked search; (2) garantizar `hits.length >= 1` cuando hay candidates es contrato de UX; (3) consistencia con `mem.context` (8000) que tampoco tenia justificacion para diferir. |
+| Q3 | Tightening de assertions `toBeLessThanOrEqual(N)` → `toBe(N)` en tests pre-existentes | El primer assertion (line 419 del test pre-fix) satisfacia `length=0` silenciosamente — exactamente el bug. Tightening codifica la regla "VALORES no SHAPE" donde mas importa. |
+
+### Sub-fases en orden cronologico
+
+| # | Sub-fase | Owner | Resultado |
+|---|---|---|---|
+| 1 | Investigacion del recall pipeline via Explore agent | orquestador | Smoking gun identificado: `RecallMemoryUseCase.rankAndSlice` line 367 hace `break` cuando `runningTokens + tokens > max`. Confirmado: si first hit alone excede budget → `out=[]` → `hits=0`. Cascada de causa: learnings y turns NO se truncan a 600 chars en la projection (decisions y entities si). Cuando hybrid scoring promueve un learning largo al top, blow up. |
+| 2 | PR [#33](https://github.com/NetziTech/recall/pull/33) `fix/b-mcp-8-recall-empty-hits` → develop | orquestador | Squash-merged como `ee74d36`. CI verde 3m22s + SonarQube quality gate PASSED first push (coverage new 100%, ratings A, 0 violations). 2557 tests passing (+4 vs baseline 2553). |
+| 3 | Cortar `release/0.1.2-beta.5` desde develop | orquestador | Branch local creada. Bumps: `code/package.json` 0.1.2-beta.4 → 0.1.2-beta.5; `code/sonar-project.properties` igual. Nuevos: `docs/RELEASE-NOTES-v0.1.2-beta.5.md`. Updates: `README.md` (banner + install command + footer "Issues abiertos"), `code/README.md` (install command nota), `SECURITY.md` (tabla con beta.5 active + beta.4 superseded), `HANDOFF.md` (§0 + esta nueva §6.20). |
+| 4 | Validacion 5+1 EXIT=0 sobre release branch | orquestador | typecheck + lint + lint:tests + validate:modules + build + test todos verde. |
+| 5 | PR `release/0.1.2-beta.5` → main | pendiente | A ejecutar: `git push origin release/0.1.2-beta.5` + `gh pr create --base main`. |
+| 6 | Tag + GitHub pre-release + npm publish | pendiente | Workflow estandar: tag `v0.1.2-beta.5` → commit del merge + push (con `git switch --detach <tag>` por hook protection) + `gh release create v0.1.2-beta.5 --prerelease --notes-file docs/RELEASE-NOTES-v0.1.2-beta.5.md` + `npm publish --tag beta --auth-type=web` (usuario, WebAuthn passkey). |
+| 7 | Smoke post-publish contra dogfood DB | pendiente | Validar `mem.recall` con queries paraphrased: debe retornar `hits.length >= 1` end-to-end (no `hits=0` con `total_candidates>0`). Evidencia clave: hits surface incluso cuando el top-ranked es un learning largo. |
+| 8 | Merge-back develop ← main | pendiente | PR `chore/sync-develop-after-beta-5` con resolucion `--theirs` para conflicts esperados en `package.json` + `sonar-project.properties` + READMEs + HANDOFF. |
+
+### El fix en detalle
+
+**Archivo:** `code/src/modules/retrieval/application/use-cases/recall-memory.use-case.ts:360-378`
+
+**Antes:**
+```typescript
+const out: RankedEntry[] = [];
+let runningTokens = 0;
+const max = input.maxTokens.maxTokens;
+for (const candidate of limited) {
+  const tokens = this.tokenCounter
+    .count(this.renderTokenInput(candidate.entry))
+    .toNumber();
+  if (runningTokens + tokens > max) break;
+  runningTokens += tokens;
+  out.push(candidate.entry);
+}
+```
+
+**Despues:**
+```typescript
+const out: RankedEntry[] = [];
+let runningTokens = 0;
+const max = input.maxTokens.maxTokens;
+for (const candidate of limited) {
+  const tokens = this.tokenCounter
+    .count(this.renderTokenInput(candidate.entry))
+    .toNumber();
+  if (out.length === 0) {
+    out.push(candidate.entry);
+    runningTokens += tokens;
+    continue;
+  }
+  if (runningTokens + tokens > max) continue;
+  runningTokens += tokens;
+  out.push(candidate.entry);
+}
+```
+
+Plus `RecallMemoryFacadeAdapter.DEFAULT_MAX_TOKENS = 8000` (was 4000).
+
+### Decisiones del orquestador (D-1501..D-1505)
+
+1. **D-1501** Investigacion via Explore agent (no investigacion serial). El recall pipeline tiene 6+ archivos relevantes; un Explore agent paraleliza el read y devuelve smoking gun en una sola sesion. Reportado: 90% confidence en token-budget filter como root cause + descarte de las otras 2 hipotesis del issue body con archivo:linea concreto.
+2. **D-1502** Despues de read confirmar el bug, encontre que learnings/turns NO se truncan en la projection (decisions/entities si). Esto explica POR QUE B-MCP-8 se hizo visible solo ahora: pre-B-MCP-7, los hits eran BM25-only que rankean mas por literal match (titulos cortos); post-B-MCP-7, el hybrid scoring promueve learnings largos al top.
+3. **D-1503** El integration test reproductor falla SIN el fix y pasa CON el fix. Verificado en el ciclo de test antes del commit final (test reproduce el bug, fix lo cierra, sin regression en los 2553 tests pre-existentes).
+4. **D-1504** El primer push del PR #33 acerto al CI verde + quality gate PASSED en primer intento (no como PR #27 que tuvo que refactorizar `drainBatch` en segundo push). Razon: el cambio fue minimo (29 LOC src + 149 LOC test) y co-localizado en un solo metodo.
+5. **D-1505** Truncating learnings/turns previews en la projection (truncatePreview en linea 554/649) es scope creep — cambio el wire content que clientes pueden snapshotear. Diferido como nota en CONTRIBUTING (si se hace algun dia, requiere bump major + nota explicita en wire-schema). El fix actual no necesita la truncation porque la garantia "always include top hit" cubre el edge.
+
+### Lecciones durables
+
+1. **Explore agent paraleliza bien la investigacion de bugs cross-file.** El recall pipeline tiene use-case + ranker + facade + projection + 2 services + schema; serial sería 30+ minutos de reads. El Explore agent devolvio smoking gun + descarte de hipotesis alternativas en una sola sesion.
+
+2. **`toBeLessThanOrEqual(1)` enmascara `length=0`**. Test pre-existente en `recall-memory.use-case.test.ts:419` aceptaba el bug exacto. Phase-9 "VALORES no SHAPE" se aplica tambien a comparaciones soft: si vas a aceptar 0 o 1, mejor asertar 1 explicito y crear un segundo test si necesitas el caso 0.
+
+3. **Bug "expuesto por fix anterior"**. B-MCP-8 estaba latente desde el MVP — el `break` en token budget siempre fue defectuoso — pero solo se manifesto cuando B-MCP-7 fix permitio que el hybrid scoring rankeara learnings largos al top. Lecciona: cada fix puede destapar bugs latentes; el dogfood DB es el unico lugar donde se ve realmente.
+
+4. **Default 4000 vs 8000 tokens en facades distintos era inconsistencia historica sin justificacion documentada.** GetContext usa 8000 desde siempre; Recall usa 4000. Sin razon arquitectonica para diferir. Bumpear a 8000 alinea contratos y reduce sorpresas. Documentado en JSDoc del nuevo default.
+
+### Estado del repo post-Phase-15 (pre-PR a main)
+
+| Item | Valor |
+|---|---|
+| **HEAD de `main`** | `53502c95` (= tag v0.1.2-beta.4; pendiente de avanzar a v0.1.2-beta.5 post-merge del release PR) |
+| **HEAD de `develop`** | `ee74d36` (post squash-merge PR #33 — B-MCP-8 fix) |
+| **HEAD de `release/0.1.2-beta.5`** | bump version + release notes + READMEs + SECURITY + HANDOFF (este commit) |
+| **Tag mas reciente** | `v0.1.2-beta.4` → `53502c95` (sin cambios; v0.1.2-beta.5 pendiente) |
+| **GitHub release mas reciente** | https://github.com/NetziTech/recall/releases/tag/v0.1.2-beta.4 (sin cambios) |
+| **npm dist-tags** | `{ latest: '0.1.1', beta: '0.1.2-beta.4' }` (sin cambios; `beta.5` pendiente de publicar) |
+| **Issues abiertos** | **0** |
+| **PRs abiertos** | 0 (excepto este de release Phase-15 close pendiente de abrir) |
+| **Tests** | 2557 passing en 211 archivos |
+| **Coverage SonarQube** | new 100% (PR #33) / overall 96.4% |
+
+### Archivos tocados en Phase-15 (sumario consolidado)
+
+| Capa | Archivos | PR |
+|---|---|---|
+| Application | `code/src/modules/retrieval/application/use-cases/recall-memory.use-case.ts` (B-MCP-8 fix: always-include-top + continue-not-break) | #33 |
+| Composition | `code/src/composition/facades/mcp-server-facades.ts` (DEFAULT_MAX_TOKENS 4000 → 8000 + JSDoc) | #33 |
+| Tests | `code/tests/unit/retrieval/application/recall-memory.use-case.test.ts` (2 assertions tightened + 2 nuevos tests) | #33 |
+| Tests | `code/tests/integration/D-mem-recall.test.ts` (2 nuevos tests integration) | #33 |
+| Release tooling | `code/package.json` + `code/sonar-project.properties` (bump 0.1.2-beta.4 → 0.1.2-beta.5) | release branch |
+| Release notes | `docs/RELEASE-NOTES-v0.1.2-beta.5.md` (NEW) | release branch |
+| Public docs | `README.md` (banner + install + footer issues), `code/README.md` (install command), `SECURITY.md` (tabla versiones) | release branch |
+| HANDOFF | `HANDOFF.md` (§0 actualizado + nueva §6.20 — esta seccion) | release branch |
+
+### Validacion Phase-15
+
+- 5+1/5+1 EXIT=0 en PR #33 (typecheck + lint + lint:tests + validate:modules + build + test).
+- SonarQube quality gate `MCP Memoria Strict` **PASSED first push** en PR #33 (coverage new 100%, overall 96.4%, 0 bugs / 0 vulns / 0 blockers / 0 critical violations, ratings A/A/A).
+- 2557 tests passing (+4 vs 2553 baseline — 2 unit + 2 integration nuevos).
+- Branch protection respetada: PR squash-mergeado a develop con CI required. Sin push directo.
+- Hooks pre-commit ejecutaron typecheck en cada commit del release branch (cero overhead en docs-only commits, ejecucion completa en commits con cambios en `code/src/`).
+
+### Reportes de validacion (Phase-15)
+
+Sin reportes formales nuevos (1 fix incremental + release tooling, mismo patron que Phase-7 a Phase-14). Validacion empirica via los 5+1 checks objetivos en cada PR + smoke en vivo contra la DB del dogfood (post-publish, pendiente).
+
+### Siguiente accion concreta
+
+1. Push `release/0.1.2-beta.5` + `gh pr create --base main --title "release: v0.1.2-beta.5"`.
+2. CI verde + squash-merge a main (usuario, branch protection requiere accion humana).
+3. Tag annotated `v0.1.2-beta.5` apuntando al merge commit + push (con `git switch --detach v0.1.2-beta.5` por hook protection).
+4. `gh release create v0.1.2-beta.5 --prerelease --notes-file docs/RELEASE-NOTES-v0.1.2-beta.5.md --target main`.
+5. Usuario: `cd code && npm publish --tag beta --auth-type=web` (WebAuthn passkey).
+6. Reinstall global: `npm install -g @netzi/recall@beta`.
+7. Smoke contra dogfood DB: `mem.recall` con queries paraphrased validando `hits.length >= 1` y que un learning largo SI surface entre los hits.
+8. Merge-back develop ← main via PR `chore/sync-develop-after-beta-5` con `--theirs` en conflicts esperados.
+9. Si smoke valida: cortar `release/0.1.2` stable + promover `latest` + hard-deprecate 0.1.0/0.1.1.
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -2572,5 +2710,5 @@ sistema de modulos absorben la evolucion sin cambios estructurales.
 
 ---
 
-_Ultima actualizacion: 2026-05-02 noche (cierre Phase-14 — `@netzi/recall@0.1.2-beta.4` PUBLICADO en npm beta channel via PR #29 a main + tag + GitHub pre-release; smoke post-publish contra DB del dogfood valida B-MCP-7 fix end-to-end (worker drena 64/64 items sin perma-failures, `recall reset-queue` clarea 32 perma-failed legacy de beta.3, `embedding_metadata` poblado con 64 vectores). Pero descubierto B-MCP-8 (issue #31, medium) — `mem.recall` retorna `hits=0` con `total_candidates>0`, recall pipeline filtra todo despite vectores presentes. NO regresion de B-MCP-7. Merge-back develop ← main via PR #30. Proximo: cerrar B-MCP-8 en `v0.1.2-beta.5` antes de promover a `0.1.2` stable.)_
+_Ultima actualizacion: 2026-05-02 noche (cierre Phase-15 — B-MCP-8 cerrado via PR #33 a develop (squash-merged como `ee74d36`); fix arquitectonico en `RecallMemoryUseCase.rankAndSlice`: siempre incluye top hit + `continue` en vez de `break` en overflow + default `max_tokens` 4000 → 8000 alineado con `mem.context`. 4 nuevos tests con VALORES no SHAPE. Quality gate PASSED first push (coverage new 100%). `release/0.1.2-beta.5` cortada local con bumps + release notes + READMEs + SECURITY + esta seccion §6.20. PR a main + tag + GitHub pre-release + `npm publish --tag beta` + smoke contra dogfood DB pendientes (acciones manuales del usuario por branch protection + WebAuthn passkey). Si smoke valida → cortar `release/0.1.2` stable.)_
 _Mantenedor: equipo Netzi Tech_
