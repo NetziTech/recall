@@ -25,9 +25,15 @@ import type { EmbeddingVector } from "../value-objects/embedding-vector.ts";
  * Contracts:
  * - The returned vector has the dimension declared by the active
  *   embedder; callers must NOT assume a specific dimension.
- * - The embedder is allowed to throw on transient failures; callers
- *   handle the error by falling back to FTS5 (see
- *   `docs/01-arquitectura.md` §2.7).
+ * - On failure, the port emits ONE of two typed errors so callers can
+ *   discriminate transport-level outages from per-input rejections
+ *   (`EmbedderUnavailableError` vs `EmbedFailedError` in
+ *   `domain/errors/`). The `AsyncEmbeddingWorker` relies on this
+ *   discrimination to back off the whole batch on transport failures
+ *   instead of burning per-item retry budgets — see B-MCP-7
+ *   ([issue #24](https://github.com/NetziTech/recall/issues/24)).
+ *   Generic recall callers (e.g. the recall use case's vector branch)
+ *   may fall back to FTS5 (`docs/01-arquitectura.md` §2.7) on either.
  * - `embedBatch` preserves the input order: the i-th output
  *   corresponds to the i-th input.
  */

@@ -70,6 +70,14 @@ export class StubRawEmbedder implements RawEmbedder {
   public readonly calls: string[] = [];
   public failNext = false;
   public failPersistently = false;
+  /**
+   * Queue of errors to throw on the next N `embed` / `embedBatch`
+   * calls (in order). Used by integration tests to simulate the
+   * fastembed cold-start path (B-MCP-7) where the first calls reject
+   * with `EmbedderError.initialisationFailed` until the model is
+   * loaded. After the queue empties, normal behaviour resumes.
+   */
+  public nextErrors: Error[] = [];
   private readonly dim: number;
 
   public constructor(options: { readonly dimension?: number } = {}) {
@@ -82,6 +90,13 @@ export class StubRawEmbedder implements RawEmbedder {
 
   public embed(text: string): Promise<RawEmbedding> {
     this.calls.push(text);
+    if (this.nextErrors.length > 0) {
+      const err = this.nextErrors.shift();
+      // shift only returns undefined for an empty array; the length
+      // guard above proves we have an entry, so the assertion stays
+      // null-safe without an `as` cast.
+      if (err !== undefined) return Promise.reject(err);
+    }
     if (this.failPersistently) {
       return Promise.reject(new Error("stub embedder: persistent failure"));
     }
@@ -98,6 +113,10 @@ export class StubRawEmbedder implements RawEmbedder {
   public embedBatch(
     texts: readonly string[],
   ): Promise<readonly RawEmbedding[]> {
+    if (this.nextErrors.length > 0) {
+      const err = this.nextErrors.shift();
+      if (err !== undefined) return Promise.reject(err);
+    }
     if (this.failPersistently) {
       return Promise.reject(new Error("stub embedder: persistent failure"));
     }

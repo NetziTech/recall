@@ -156,4 +156,31 @@ export interface EmbeddingQueueRepository {
    * backoff state. Used by `mem.health` to surface queue depth.
    */
   countPending(workspaceId: WorkspaceId): Promise<number>;
+
+  /**
+   * Resets the `attempts` counter (and clears `last_error`) for every
+   * queue row whose attempts have reached or exceeded
+   * `attemptsAtLeast`. Returns the number of rows updated.
+   *
+   * Use case: B-MCP-7 recovery
+   * ([issue #24](https://github.com/NetziTech/recall/issues/24)). When
+   * a fastembed cold-start fast-failed before the worker learned to
+   * back off (in `<= 0.1.2-beta.3`), a workspace's queue could end up
+   * with permanent-failure rows that will NEVER retry. The
+   * `recall reset-queue` CLI command calls this method to give those
+   * rows another chance once the embedder is healthy again.
+   *
+   * Implementations:
+   * - MUST scope the update to the given `workspaceId` (no
+   *   cross-workspace bleed; defence-in-depth on top of the
+   *   schema's per-workspace partitioning).
+   * - MUST return the row count actually updated (the CLI surfaces
+   *   it).
+   * - SHOULD be a single `UPDATE ... WHERE workspace_id = ? AND
+   *   attempts >= ?` for atomicity (no read-modify-write race).
+   */
+  resetPermanentFailures(input: {
+    workspaceId: WorkspaceId;
+    attemptsAtLeast: number;
+  }): Promise<number>;
 }

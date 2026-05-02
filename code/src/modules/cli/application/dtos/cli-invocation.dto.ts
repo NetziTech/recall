@@ -93,6 +93,18 @@ export interface CliCuratorLogInvocation extends CliInvocationCommon {
   readonly last: number | null;
 }
 
+/**
+ * `recall reset-queue [--threshold <n>]` — clears `attempts` on every
+ * embedding-queue row at or above the threshold (default 5) so the
+ * worker re-tries permanent failures. Recovery for B-MCP-7
+ * ([issue #24](https://github.com/NetziTech/recall/issues/24)).
+ */
+export interface CliResetQueueInvocation extends CliInvocationCommon {
+  readonly command: "reset-queue";
+  /** Defaults to 5 (the worker's `MAX_ATTEMPTS`). */
+  readonly threshold: number | null;
+}
+
 export interface CliImportHandoffInvocation extends CliInvocationCommon {
   readonly command: "import-handoff";
   readonly handoffPath: string;
@@ -145,6 +157,7 @@ export type CliInvocation =
   | CliSanitizeInvocation
   | CliCuratorRunInvocation
   | CliCuratorLogInvocation
+  | CliResetQueueInvocation
   | CliImportHandoffInvocation
   | CliExportInvocation
   | CliImportInvocation

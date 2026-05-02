@@ -23,6 +23,7 @@ import {
   InstallHookCommandHandler,
   ModeCommandHandler,
   RekeyCommandHandler,
+  ResetQueueCommandHandler,
   RunCliCommandUseCase,
   SanitizeCommandHandler,
   ServerCommandHandler,
@@ -56,6 +57,7 @@ import type {
   CuratorLogFacade,
   CuratorRunFacade,
 } from "../../modules/cli/application/ports/out/curator-facade.port.ts";
+import type { ResetQueueFacade } from "../../modules/cli/application/ports/out/embedding-queue-facade.port.ts";
 import type {
   ChangeModeFacade,
   HealthCheckFacade,
@@ -107,6 +109,7 @@ export interface CliFacadesBag {
 
   readonly curatorRun: CuratorRunFacade;
   readonly curatorLog: CuratorLogFacade;
+  readonly resetQueue: ResetQueueFacade;
 
   readonly importHandoff: ImportHandoffFacade;
   readonly export: ExportFacade;
@@ -191,6 +194,12 @@ export function buildCliWiring(options: CliWiringOptions): CliWiring {
     ),
     eraseHandler(
       new CuratorLogCommandHandler(options.facades.curatorLog, options.logger),
+    ),
+    eraseHandler(
+      new ResetQueueCommandHandler(
+        options.facades.resetQueue,
+        options.logger,
+      ),
     ),
 
     eraseHandler(

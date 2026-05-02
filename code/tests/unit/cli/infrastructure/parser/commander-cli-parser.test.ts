@@ -129,6 +129,27 @@ describe("CommanderCliParser — happy paths", () => {
     );
   });
 
+  it("reset-queue without --threshold yields null", () => {
+    const r = p.parse(["reset-queue"]);
+    expect(r.command).toBe("reset-queue");
+    if (r.command === "reset-queue") expect(r.threshold).toBeNull();
+  });
+
+  it("reset-queue with --threshold (positive integer)", () => {
+    const r = p.parse(["reset-queue", "--threshold", "3"]);
+    expect(r.command).toBe("reset-queue");
+    if (r.command === "reset-queue") expect(r.threshold).toBe(3);
+  });
+
+  it("reset-queue with invalid --threshold throws InvalidCommandArgsError", () => {
+    expect(() => p.parse(["reset-queue", "--threshold", "0"])).toThrow(
+      InvalidCommandArgsError,
+    );
+    expect(() => p.parse(["reset-queue", "--threshold", "abc"])).toThrow(
+      InvalidCommandArgsError,
+    );
+  });
+
   it("import-handoff requires --handoff", () => {
     const r = p.parse(["import-handoff", "--handoff", "/tmp/h.md"]);
     expect(r.command).toBe("import-handoff");

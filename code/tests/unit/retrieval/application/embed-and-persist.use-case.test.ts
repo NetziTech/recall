@@ -9,6 +9,8 @@ import type {
   MemoryProjection,
   MemoryProjectionRepository,
 } from "../../../../src/modules/retrieval/application/ports/out/memory-projection-repository.port.ts";
+import { EmbedFailedError } from "../../../../src/modules/retrieval/domain/errors/embed-failed-error.ts";
+import { EmbedderUnavailableError } from "../../../../src/modules/retrieval/domain/errors/embedder-unavailable-error.ts";
 import type { Embedder } from "../../../../src/modules/retrieval/domain/services/embedder.ts";
 import { EmbeddingVector } from "../../../../src/modules/retrieval/domain/value-objects/embedding-vector.ts";
 import type { QueryKindValue } from "../../../../src/modules/retrieval/domain/value-objects/query-kind.ts";
@@ -37,7 +39,8 @@ interface QueueOpRecord {
     | "ack"
     | "fail"
     | "persist"
-    | "count";
+    | "count"
+    | "reset";
   readonly payload?: unknown;
 }
 
@@ -92,6 +95,24 @@ class StubQueue implements EmbeddingQueueRepository {
   public countPending(): Promise<number> {
     this.ops.push({ type: "count" });
     return Promise.resolve(this.items.length);
+  }
+  public resetPermanentFailures(input: {
+    workspaceId: WorkspaceId;
+    attemptsAtLeast: number;
+  }): Promise<number> {
+    let updated = 0;
+    this.items = this.items.map((i) => {
+      if (
+        i.workspaceId.toString() === input.workspaceId.toString() &&
+        i.attempts >= input.attemptsAtLeast
+      ) {
+        updated += 1;
+        return { ...i, attempts: 0, lastError: null };
+      }
+      return i;
+    });
+    this.ops.push({ type: "reset", payload: updated });
+    return Promise.resolve(updated);
   }
 }
 
@@ -211,6 +232,9 @@ describe("EmbedAndPersistUseCase.drainBatch", () => {
     expect(result.processed.length).toBe(0);
     expect(result.failed.length).toBe(0);
     expect(result.permanentFailures.length).toBe(0);
+    expect(result.embedderUnavailable).toBe(false);
+    expect(result.unavailableRetryAfterMs).toBeNull();
+    expect(result.skipped.length).toBe(0);
     expect(Object.isFrozen(result)).toBe(true);
     expect(embedder.callCount).toBe(0);
   });
@@ -390,5 +414,190 @@ describe("EmbedAndPersistUseCase.drainBatch", () => {
     });
 
     expect(result.processed.length).toBe(2);
+  });
+
+  // ─── B-MCP-7: typed error union and batch back-off ────────────────────
+
+  describe("EmbedderUnavailableError handling (B-MCP-7)", () => {
+    const ID_A = "01952f3b-7d8c-7000-8000-d000000000aa";
+    const ID_B = "01952f3b-7d8c-7000-8000-d000000000bb";
+    const ID_C = "01952f3b-7d8c-7000-8000-d000000000cc";
+    const Q_A = "01952f3b-7d8c-7000-8000-q000000000aa";
+    const Q_B = "01952f3b-7d8c-7000-8000-q000000000bb";
+    const Q_C = "01952f3b-7d8c-7000-8000-q000000000cc";
+
+    beforeEach(() => {
+      queue.items = [
+        queueItem({ id: Q_A, targetRowId: ID_A, attempts: 0 }),
+        queueItem({ id: Q_B, targetRowId: ID_B, attempts: 0 }),
+        queueItem({ id: Q_C, targetRowId: ID_C, attempts: 0 }),
+      ];
+      projections.projections = [
+        projection("decision", ID_A),
+        projection("decision", ID_B),
+        projection("decision", ID_C),
+      ];
+    });
+
+    it("aborts the batch on EmbedderUnavailableError WITHOUT bumping attempts", async () => {
+      embedder.error = new EmbedderUnavailableError(
+        "model loading; cold-start in flight",
+        { retryAfterMs: 4000 },
+      );
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.embedderUnavailable).toBe(true);
+      expect(result.unavailableRetryAfterMs).toBe(4000);
+      // The first item tripped the unavailable error → it is reported as
+      // skipped along with every later item in the batch.
+      expect(result.skipped).toEqual([Q_A, Q_B, Q_C]);
+      expect(result.failed.length).toBe(0);
+      expect(result.processed.length).toBe(0);
+      expect(result.permanentFailures.length).toBe(0);
+
+      // CRITICAL: NO `recordFailure` calls — per-item attempts MUST stay
+      // at 0 so the next dequeue (after worker back-off) re-tries the
+      // same items without burning their retry budget. This is the
+      // exact regression B-MCP-7 fixes.
+      expect(queue.ops.some((o) => o.type === "fail")).toBe(false);
+      for (const item of queue.items) {
+        expect(item.attempts).toBe(0);
+        expect(item.lastError).toBeNull();
+      }
+      expect(embedder.callCount).toBe(1);
+    });
+
+    it("propagates retryAfterMs as null when the adapter omits the hint", async () => {
+      embedder.error = new EmbedderUnavailableError(
+        "embedder model not ready",
+      );
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.embedderUnavailable).toBe(true);
+      expect(result.unavailableRetryAfterMs).toBeNull();
+    });
+
+    it("resumes per-item attempts on EmbedFailedError (NOT a transport error)", async () => {
+      // Per-item rejections (e.g. dimension mismatch, malformed input) MUST
+      // bump attempts as before — only the unavailable error gets the
+      // batch-wide pass. Use a single-item batch to keep the assertion
+      // tight.
+      queue.items = [queueItem({ id: Q_A, targetRowId: ID_A, attempts: 0 })];
+      projections.projections = [projection("decision", ID_A)];
+      embedder.error = new EmbedFailedError("input rejected", {
+        cause: new Error("dimension mismatch"),
+      });
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.embedderUnavailable).toBe(false);
+      expect(result.failed).toEqual([Q_A]);
+      expect(result.skipped.length).toBe(0);
+      expect(queue.items[0]?.attempts).toBe(1);
+    });
+
+    it("processes items BEFORE the unavailable trip and skips items AFTER", async () => {
+      // Item A succeeds, item B trips unavailable, item C is skipped.
+      let calls = 0;
+      const stubVector = embedder.vector;
+      embedder.embed = (text: string): Promise<EmbeddingVector> => {
+        calls += 1;
+        embedder.callCount = calls;
+        embedder.lastInput = text;
+        if (calls === 2) {
+          return Promise.reject(
+            new EmbedderUnavailableError("transient boom", {
+              retryAfterMs: 1500,
+            }),
+          );
+        }
+        return Promise.resolve(EmbeddingVector.create(stubVector));
+      };
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.processed).toEqual([Q_A]);
+      expect(result.embedderUnavailable).toBe(true);
+      expect(result.unavailableRetryAfterMs).toBe(1500);
+      // B tripped the unavailable, so B is skipped; C is also skipped.
+      expect(result.skipped).toEqual([Q_B, Q_C]);
+      // B and C still in queue with attempts=0.
+      const surviving = queue.items.filter(
+        (i) => i.id === Q_B || i.id === Q_C,
+      );
+      expect(surviving.length).toBe(2);
+      for (const item of surviving) {
+        expect(item.attempts).toBe(0);
+      }
+    });
+
+    it("records a non-Error rejection as a per-item failure with String() coercion", async () => {
+      // An adapter that rejects with a primitive (string, plain object)
+      // MUST still produce a meaningful `last_error` on the queue row.
+      // This covers the `String(cause)` branch of the per-item path.
+      queue.items = [queueItem({ id: Q_A, targetRowId: ID_A, attempts: 0 })];
+      projections.projections = [projection("decision", ID_A)];
+      embedder.embed = (): Promise<EmbeddingVector> =>
+        // deliberately reject with a primitive (NOT an Error instance)
+        Promise.reject("synthetic-non-error-cause");
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.embedderUnavailable).toBe(false);
+      expect(result.failed).toEqual([Q_A]);
+      expect(queue.items[0]?.attempts).toBe(1);
+      expect(queue.items[0]?.lastError).toBe("synthetic-non-error-cause");
+    });
+
+    it("keeps the unavailable signal when a permanent-failure row is followed by an unavailable trip", async () => {
+      // Items: A=permanent (attempts=5), B=transient unavailable, C=skipped.
+      queue.items = [
+        queueItem({ id: Q_A, targetRowId: ID_A, attempts: 5 }),
+        queueItem({ id: Q_B, targetRowId: ID_B, attempts: 0 }),
+        queueItem({ id: Q_C, targetRowId: ID_C, attempts: 0 }),
+      ];
+      // A is at MAX_ATTEMPTS so the loop logs "permanent failure" without
+      // calling embed. B is the first call to the embedder; trip on B.
+      let calls = 0;
+      embedder.embed = (): Promise<EmbeddingVector> => {
+        calls += 1;
+        embedder.callCount = calls;
+        return Promise.reject(
+          new EmbedderUnavailableError("model loading"),
+        );
+      };
+
+      const result = await useCase.drainBatch({
+        workspaceId: makeWorkspaceId(),
+        batchSize: 10,
+        backoffWindowMs: 30_000,
+      });
+
+      expect(result.permanentFailures).toEqual([Q_A]);
+      expect(result.embedderUnavailable).toBe(true);
+      expect(result.skipped).toEqual([Q_B, Q_C]);
+    });
   });
 });
