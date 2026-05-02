@@ -327,7 +327,7 @@ export async function bootstrapComposition(
     // refactor can read this at build time via tsup; the literal is
     // adequate for now and avoids a runtime require/import of the
     // package metadata.
-    version: "0.1.2-beta.0",
+    version: "0.1.2-beta.3",
     protocolVersion: "2024-11-05",
   };
 

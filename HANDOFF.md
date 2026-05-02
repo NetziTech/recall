@@ -14,27 +14,27 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-04-28 (noche, post-Phase-9 cerrado — Phase-10 cierra: **GitFlow + repo publico + CI/CD con SonarQube quality gate**. Ver §6.15) |
+| **Fecha del handoff** | 2026-05-01 (post-Phase-11 cerrado — los 4 bugs de Phase-9 (B-MCP-2/3/4/5) cerrados via PRs #17/#18/#19/#20; cortado `release/0.1.2-beta.3` desde develop. Ver §6.16) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **CANAL BETA ACTIVO + INFRAESTRUCTURA PUBLICA.** Repo `NetziTech/recall` ahora es PUBLICO, con GitFlow estricto (main protegido PR-only desde develop, develop con CI required), workflow de CI completo (typecheck/lint/lint:tests/validate:modules/build/test:coverage/SonarQube quality gate strict), Dependabot semanal con grouping correcto. Phase-9 4 bugs siguen abiertos (B-MCP-2..5); proxima fase de codigo es **v0.1.2-beta.1 cierra B-MCP-3** (worker no instanciado en composition root — root cause confirmado en §6.14). |
-| **Lineas de codigo** | ~58,800 en `code/src/` + ~34,000 LOC de tests en **205 archivos test**. 8 modulos + shared + composition + bootstrap. **Sin cambios de produccion en Phase-10** (solo refactors triviales para cerrar 4 SonarQube quality-gate violations + 2 minor charCodeAt→codePointAt). |
-| **Migraciones** | **8** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope). |
-| **Lineas de documentacion** | ~7,650 en `docs/` (incluye ADR-001 §1.5.1, ADR-002 §1.5.2 PriorityBoost multiplicativo, ADR-003 §1.5.3 ContextLayerKind ACL, ADR-004 §1.5.4 tar/fastembed wontfix, convencion `.port.ts` §3.1). 3 release notes (`RELEASE-NOTES-v0.1.0.md`, `RELEASE-NOTES-v0.1.1.md`, `RELEASE-NOTES-v0.1.2-beta.0.md`). |
+| **Fase actual** | **CANAL BETA ACTIVO con TODOS los Phase-9 bugs cerrados.** Repo `NetziTech/recall` PUBLICO, GitFlow estricto, CI con SonarQube quality gate. **Phase-11 cerro B-MCP-2/3/4/5** via 4 PRs squash-mergeados a develop. Cortado `release/0.1.2-beta.3` con bump de version + release notes consolidadas. Proximo paso: PR a main, tag, npm publish `--tag beta`, validar via dogfood real, promover a `0.1.2` stable. |
+| **Lineas de codigo** | ~59,400 en `code/src/` + ~34,400 LOC de tests en **208 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-11 deltas**: +~600 LOC src (worker wiring, WorkspaceStateReader port + adapter, DecisionContent VO, decision content end-to-end), +3 archivos test value-validation (L/M/N). |
+| **Migraciones** | **9** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope, **008__decisions-content** — backfill rationale → content + rebuild FTS5 con la columna nueva). |
+| **Lineas de documentacion** | ~7,900 en `docs/` (incluye ADR-001..004, convencion `.port.ts` §3.1). 4 release notes (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`). docs/02 §4.3 documenta `min_score`. |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
 | **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7/8/9 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
 | **Tooling materializado** | `code/package.json` (eslint 10.2.1, commander 14.0.3, actions/checkout@v6, actions/setup-node@v6 tras auto-merges Phase-10), `code/tsconfig.json` (17 flags estrictos), `code/eslint.config.js` (ESLint 9 strict; tests/scripts override ahora con `argsIgnorePattern: "^_"`), `code/vitest.config.ts` (thresholds locales 95%/100%/100%/90%; **deferidos a SonarQube en CI** via `process.env.CI` switch), `code/scripts/validate-modules.ts`, `code/sonar-project.properties` (key `recall`, version `0.1.2-beta.0`), `code/tsup.config.ts`. **Nuevo Phase-10**: `.github/workflows/ci.yml`, `.github/dependabot.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*` (bug + feature + config), `CONTRIBUTING.md`, `SECURITY.md`. |
 | **SonarQube** | https://sonar.netzi.dev/dashboard?id=recall — proyecto **renombrado** de `mcp-memoria-inteligente` → `recall` via API (preserva UUID + historial). Quality gate `MCP Memoria Strict` **PASSED ciclo final Phase-10** post-fix de 4 violations heredadas de Phase-7/8/9 (3x S3735 `void` operator + 1x S7746 `Promise.resolve(value)` redundante + 2x S7758 `charCodeAt` → `codePointAt`). Coverage 96.4%, ratings A en reliability/security/maintainability/security-review, **0 bugs / 0 vulns / 0 blockers / 0 critical**, sqale_debt_ratio 0.1%. **CI corre el gate en cada PR/push** desde Phase-10. |
-| **Tests** | **2501 passing** en 205 archivos test (sin cambios en Phase-9 — el bump beta no toca codigo). Coverage de SonarQube sigue en 96.4%. **Gap conocido**: los E2E validan SHAPE de response, no VALORES; esa metodologia enmascaro B-MCP-1, B-MCP-2, B-MCP-3. Regla durable adoptada en Phase-9: cada nuevo E2E debe (a) crear estado conocido, (b) invocar tool, (c) asertar valores reales. |
+| **Tests** | **2519 passing** en 208 archivos test (+18 vs beta.0; +3 archivos: L-embedding-worker-drains, M-mem-health-real-state, N-decision-content-roundtrip — todos VALUES-validation). Coverage SonarQube se mantiene >=95%. La regla "VALORES no SHAPE" de Phase-9 se aplica en cada nuevo test. |
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). **Caveat Phase-9**: los benchmarks miden los caminos felices con embedder mockeado; no detectan que en produccion el embedder NO se carga (B-MCP-3). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. **Phase-9 hallazgo**: el embedder fastembed nunca se carga en produccion (B-MCP-3), asi que el path vulnerable de tar tampoco se ejerce — pero esto NO es mitigacion, es bug. |
-| **Paquete npm** | **Canal beta**: `@netzi/recall@0.1.2-beta.0` (npm dist-tag `beta`, opt-in). **Canal latest**: `@netzi/recall@0.1.1` deprecada con warning ("Dogfood found defects B-MCP-2..5... ships via @beta until v0.1.2 stable"). `v0.1.0` deprecada por B-MCP-1 (Phase-8). Paquete predecesor `@netzi/mcp-memoria@0.1.0` tambien deprecado por rename (Phase-7). `publishConfig.access=public`. Bins `recall` y `recall-server`. |
+| **Paquete npm** | **Canal beta**: `@netzi/recall@0.1.2-beta.3` PENDIENTE de publish post-merge release PR (replace `0.1.2-beta.0` en npm beta dist-tag). **Canal latest**: `@netzi/recall@0.1.1` deprecada con warning. Plan: cuando beta.3 valida via dogfood, promover a `0.1.2` stable + mover `latest` desde 0.1.1 → 0.1.2. `v0.1.0` y `0.1.1` quedan deprecadas. `publishConfig.access=public`. Bins `recall` y `recall-server`. |
 | **Licencia** | MIT (`code/LICENSE`). |
-| **Estado del release** | **CANAL BETA CORTADO TRAS DOGFOOD.** `@netzi/recall@0.1.2-beta.0` en npm beta channel (https://www.npmjs.com/package/@netzi/recall). GitHub pre-release `v0.1.2-beta.0` (https://github.com/NetziTech/recall/releases/tag/v0.1.2-beta.0) — `prerelease: true`. Tag `v0.1.2-beta.0` → commit `9219c3f` (= `main` HEAD). Mismo codigo que `v0.1.1` (no hay fixes); solo bump de version + release notes documentando los 4 bugs y plan de salida del beta. **Wire protocol + persistencia + BM25 lexical SI funcionan**; **semantic recall (B-MCP-3), mem.health diagnostics (B-MCP-2), decision content storage (B-MCP-4) NO funcionan**. |
-| **Issues GitHub abiertos** | 4 — todos creados en Phase-9 con repro steps + root cause + fix proposal: [#1 B-MCP-2 mem.health hardcoded](https://github.com/NetziTech/recall/issues/1) (high), [#2 B-MCP-3 worker not instantiated](https://github.com/NetziTech/recall/issues/2) (**critical**), [#3 B-MCP-4 decision content dropped](https://github.com/NetziTech/recall/issues/3) (**critical, data loss**), [#4 B-MCP-5 docs drift min_score](https://github.com/NetziTech/recall/issues/4) (low). |
+| **Estado del release** | **`release/0.1.2-beta.3` cortado desde develop con TODOS los Phase-9 fixes consolidados.** PR a main pendiente. Tag + GitHub pre-release + npm publish ocurren post-merge. **Wire protocol + persistencia + BM25 lexical funcionan**; **semantic recall (B-MCP-3 fixed), mem.health diagnostics (B-MCP-2 fixed), decision content storage (B-MCP-4 fixed via Option B + migracion 008), min_score post-hoc filter (B-MCP-5 fixed)**. |
+| **Issues GitHub abiertos** | **0** — todos cerrados via PRs squash-mergeados: [#1 B-MCP-2](https://github.com/NetziTech/recall/issues/1) → [#18](https://github.com/NetziTech/recall/pull/18); [#2 B-MCP-3](https://github.com/NetziTech/recall/issues/2) → [#17](https://github.com/NetziTech/recall/pull/17); [#3 B-MCP-4](https://github.com/NetziTech/recall/issues/3) → [#20](https://github.com/NetziTech/recall/pull/20); [#4 B-MCP-5](https://github.com/NetziTech/recall/issues/4) → [#19](https://github.com/NetziTech/recall/pull/19). |
 | **Memoria propia** | **POBLADA por dogfood** — `<repo>/.recall/recall.db` tiene ~33 entries (16 decisions + 14 learnings + 5 entities + 2 turns + 1 session). Incluye los 6 hallazgos del dogfood como `learnings` (3 critical, 2 warning, 1 tip), la decision del corte beta, la entity `@netzi/recall@beta`, y la decision de la deprecacion. La proxima sesion puede recuperar todo via `mem.recall`/`mem.context` (BM25-only hasta que B-MCP-3 cierre). |
 | **Repositorio GitHub** | https://github.com/NetziTech/recall — **PUBLICO** desde Phase-10. `main` rama de release (PR-only desde develop, CI required, enforce_admins, no force-push, no deletion). `develop` es default branch (CI required, enforce_admins, push directo OK a maintainers). Forks habilitados, secret scanning + push protection + Dependabot security updates activos. Squash-only merges, auto-delete branch on merge. |
-| **Proximo paso** | **v0.1.2-beta.1: cerrar B-MCP-3** (~5 lineas en `mcp-server-entrypoint.ts` + cli-entrypoint + E2E de value-validation). Luego `beta.2` cierra B-MCP-2, `beta.3` cierra B-MCP-4 + B-MCP-5 (B-MCP-4 requiere ADR Option A vs B). Promote a `0.1.2` stable cuando todos los issues cierren con E2E que asertan VALORES. **Ahora todo trabajo de codigo va via PR a `develop` con CI required**; ver `CONTRIBUTING.md` + §6.15 para el flujo. |
+| **Proximo paso** | **PR `release/0.1.2-beta.3` → main**, merge tras CI verde, tag + GitHub pre-release + `npm publish --tag beta` (ejecutado por el usuario via WebAuthn passkey). Despues: dogfood real con cliente MCP contra el paquete instalado; si surge nuevo bug, abrir issue + PR + cortar `beta.4`; si pasa, cortar `release/0.1.2` (stable, sin sufijo beta) y promover `latest` dist-tag. |
 
 ---
 
@@ -1600,6 +1600,113 @@ Sin reportes formales nuevos (refactor + features incrementales sobre el MVP ya 
 ### Siguiente accion concreta
 
 Ninguna inmediata para Phase-10 — la infraestructura quedo lista. La proxima fase de codigo sigue siendo **v0.1.2-beta.1: cerrar B-MCP-3** (worker no instanciado, ver §6.14 + §8). **Toda nueva feature/fix ahora va via PR a `develop` con CI verde obligatorio**; ver `CONTRIBUTING.md` para el flujo exacto.
+
+---
+
+## 6.16 Phase-11 — Cierre de los 4 bugs de Phase-9 + corte v0.1.2-beta.3
+
+**Cierre:** 2026-05-01. Phase-11 fue el **cycle de fixes** que cerro
+los 4 bugs descubiertos en el dogfood de Phase-9 (B-MCP-2/3/4/5),
+todos via PRs squash-mergeados sobre `develop` y consolidados en
+`release/0.1.2-beta.3` para promover a `main` + npm beta.
+
+### Decisiones humanas
+
+| # | Decision | Razon |
+|---|---|---|
+| Q1 | Orden de fixes: B-MCP-3 primero (critical, fix mas simple), luego B-MCP-2 (high), luego B-MCP-5 (low quick win), luego B-MCP-4 (critical pero ADR-pendiente) | Maximizar ROI: cerrar el bug que rompia la promesa central del producto primero, y dejar el ADR-pendiente al final cuando ya hay momentum |
+| Q2 | B-MCP-4: Option B (agregar columna + migracion 008 + reindex FTS5) sobre Option A (drop content del wire schema) | **Regla durable codificada en memoria**: "siempre priorizar la estabilidad". Honrar el contrato wire publico documentado vale el costo de una migracion sobre datos existentes. |
+| Q3 | B-MCP-5: implementar `min_score` como feature en lugar de cerrar como "docs ya correcto" | El issue tenia premisa ligeramente erronea (docs/02 §4.4 nunca menciono min_score; §4.3 tampoco) pero la expectativa del usuario era razonable y util — implementarlo cierra mejor que un "no-op". |
+| Q4 | Cortar release branch despues de los 4 fixes (no antes) | Acumular el contexto en develop y cortar un solo `release/0.1.2-beta.3` reduce ruido de release notes y mantiene la cadencia 1-fix-per-PR. |
+
+### Sub-fases en orden cronologico
+
+| # | Sub-fase | Owner | Resultado |
+|---|---|---|---|
+| 1 | PR [#17](https://github.com/NetziTech/recall/pull/17) — cerrar B-MCP-3 (worker wiring) | infrastructure-engineer | Squash-merged. `buildRetrievalWiring` construye `AsyncEmbeddingWorker`; `mcp-server-entrypoint.ts` lo arranca y para. Container expone `workspaceId`. Test integration `L-embedding-worker-drains.test.ts` (3 cases) valida queue drain end-to-end con stub embedder. 2504 tests passing (was 2501). |
+| 2 | PR [#18](https://github.com/NetziTech/recall/pull/18) — cerrar B-MCP-2 (mem.health real state) | mcp-protocol-expert | Squash-merged. Nuevo puerto `WorkspaceStateReader` en `mcp-server/application/ports/out/`; adapter `SqliteWorkspaceStateReader` en `composition/queries/` cruza 4 modulos. `CheckHealthFacadeAdapter` reemplaza 8 hardcoded values con reader queries; `modeToWireFromString` ahora se invoca. Test `M-mem-health-real-state.test.ts` (3 cases) seedea estado conocido y aserta valores reales. 2507 tests passing. **Round-trip CI**: primer push fallo en CI (mi test asumia `process.cwd()` apuntaba al workspace; en CI no); fix subsiguiente injecto `workspaceRoot` al facade desde `options.workspaceRoot` (limpieza de un bug latente pre-existente). |
+| 3 | PR [#19](https://github.com/NetziTech/recall/pull/19) — cerrar B-MCP-5 (min_score post-hoc filter) | mcp-protocol-expert | Squash-merged. `RecallInputSchema` Zod acepta `min_score: z.number().min(0).max(1).optional()`. `RecallMemoryFacadeAdapter` filtra resultados post-hoc; `total_candidates` refleja pool pre-filter. docs/02 §4.3 actualizado. Tests: schema unit (+4 cases) + integration value-validation (+1 case con contrato monotonic). 2512 tests passing. |
+| 4 | PR [#20](https://github.com/NetziTech/recall/pull/20) — cerrar B-MCP-4 (decision content via Option B) | crypto-security-expert (por la naturaleza data-loss) + memory expert | Squash-merged. **Migracion 008** agrega `decisions.content TEXT NOT NULL DEFAULT ''`, backfill `content = rationale`, drop+recreate `decisions_fts` con la columna nueva, triggers actualizados con UPDATE OF column-scope (preserva opt de migration 007). Nuevo VO `DecisionContent` (max 50K chars). Aggregate `Decision` + use case + repo + facade + import/export + projection repo (lado recall) — todos cargan el campo end-to-end. Test `N-decision-content-roundtrip.test.ts` (2 cases) valida full round-trip con `rationale != content`. Audit confirmado: `turns`/`tasks` ya rutean wire content correctamente (no scope creep). 2519 tests passing. |
+| 5 | `release/0.1.2-beta.3` cortado desde develop con bump version + release notes consolidadas + HANDOFF actualizado | orquestador (yo) | Branch local + PR a main pendiente. Tag + GitHub pre-release + `npm publish --tag beta` post-merge (usuario). |
+
+### Decisiones del orquestador (D-1101..D-1110)
+
+1. **D-1101** Branch desde develop por feature, PR squash-merge, sync develop entre PRs. Patron seguido en los 4 PRs sin variaciones.
+2. **D-1102** **Memoria propia poblada con feedback de estabilidad**. Tras B-MCP-4 ADR (Option B elegida), grabe `feedback_priorize_stability.md` en `/Users/h2devx/.claude/projects/.../memory/` con la regla "siempre priorizar la estabilidad" + el por que + how-to-apply. Esta regla pesara en todos los trade-offs futuros.
+3. **D-1103** PR #18 fix de CI ronda 2: cuando un test pasa local pero falla en CI, investigar la diferencia ambiental (cwd, env vars, paths absolutos) antes de relajar la asercion. En este caso, la inyeccion de `workspaceRoot` al facade era el fix correcto, no aflojar el test.
+4. **D-1104** PR #20 decidio implementar `min_score` aunque la premisa del bug era incorrecta. Cerrar como "no-op" deja al usuario sin la feature que esperaba; implementar deja un valor concreto para v0.1.2 stable. ROI mejor.
+5. **D-1105** Migracion 008 backfill: `content = rationale` (no empty). Razon documentada en SQL header del archivo. Preserva searchability sobre dogfood DB del usuario (27 decisions reales) sin perdida.
+6. **D-1106** Audit explicito de `turns` y `tasks` durante PR #20 antes de implementar. Confirme que solo `decisions` tenia el silent-drop. Sin scope creep.
+7. **D-1107** Memoria-database fixture (`code/tests/_fixtures/memory-database.ts`) actualizado para aplicar migration 008 alongside 000/004/005. Sin esto, los tests del repo decision se rompen al rehydratar (la columna no existe en el schema test).
+8. **D-1108** Cuando PR #20 mergeó accidentalmente directo en `develop` (no en feature branch), reset y re-cherry-pick a `feature/b-mcp-4-decision-content` antes de pushear. Mantiene GitFlow limpio (PR-via-feature-branch siempre).
+9. **D-1109** Release notes v0.1.2-beta.3 escritas tras los 4 fixes para consolidar el cycle completo en un solo documento (no 1-per-bug). Mantiene el patron de release notes del proyecto + reduce ruido en `docs/`.
+10. **D-1110** HANDOFF.md §0 actualizado en este commit del release branch (no en cada PR). Razon: §0 refleja el estado al cierre de fase, no estado intermedio.
+
+### Hallazgos durables (codificados en config + memoria)
+
+1. **Test fixtures con CREATE TABLE inline son fragiles ante schema changes**. Cada vez que una migration agrega columnas a una tabla cuyo schema esta replicado inline en tests, hay que actualizar 3-4 archivos. Ideal: tests usar el migrations runner. Los que ya existen quedan; nuevos tests que necesiten una tabla deberian usar `newMemoryDatabase()` (que aplica migrations reales) o equivalente.
+
+2. **`tsc --noEmit` (typecheck) NO incluye tests/** — `code/tsconfig.json` excluye `tests/`. Vitest hace su propio type-check al correr. Los signature changes en use cases / aggregates no se detectan en typecheck; se detectan al correr el suite. Workflow: typecheck primero (rapido), tests despues (mas lento pero exhaustivo).
+
+3. **`process.cwd()` en facades es source-of-truth diferente de `options.workspaceRoot`**. En produccion coinciden por la wiring del bootstrap, pero en tests no. Solucion: facades dependen de inyeccion explicita de `workspaceRoot`, nunca de `process.cwd()` runtime. Aplicado en `CheckHealthFacadeAdapter` (PR #18 round 2).
+
+4. **FTS5 con `content='<base_table>'` (external content) NO soporta ALTER**. Para agregar columnas a una tabla con FTS5 espejada, hay que: ALTER base table → DROP virtual table → CREATE con la columna nueva → INSERT INTO fts SELECT FROM base. Documentado en migracion 008 SQL header.
+
+5. **Backfill defensivo via `UPDATE WHERE col = ''`** (no incondicional) permite re-correr la migracion sin sobreescribir data ya migrada. Aplicado en migration 008.
+
+6. **Round-trip de exports/imports debe preservar el campo nuevo**. Cuando agregas una columna, recordar actualizar 4 sitios: schema SQL + repo write + repo read + exporter (+ importer schema acepta como optional para snapshots legacy). Olvidar uno significa data loss en re-import.
+
+### Estado del repo post-Phase-11
+
+| Item | Valor |
+|---|---|
+| **HEAD de `develop`** | `52fbfd9` (post-merge PR #20) |
+| **HEAD de `release/0.1.2-beta.3`** | bump version + release notes + HANDOFF (este commit) |
+| **HEAD de `main`** | `9219c3f` (= tag v0.1.2-beta.0; pendiente de avanzar a `release/0.1.2-beta.3` post-merge) |
+| **Tags actuales** | `v0.1.0`, `v0.1.1`, `v0.1.2-beta.0` (post-merge: `v0.1.2-beta.3`) |
+| **Issues abiertos** | 0 |
+| **Tests** | 2519 passing en 208 archivos (+18 vs beta.0) |
+| **Migraciones** | 9 (000-008) |
+
+### Archivos tocados en Phase-11 (sumario consolidado)
+
+| Capa | Archivos |
+|---|---|
+| Migrations | `code/migrations/008__decisions-content.sql` (NEW) |
+| Domain | `code/src/modules/memory/domain/value-objects/decision-content.ts` (NEW); `code/src/modules/memory/domain/aggregates/decision.ts` (extendido con content) |
+| Application | `code/src/modules/memory/application/ports/in/record-decision.port.ts`; `code/src/modules/memory/application/use-cases/record-decision.use-case.ts`; `code/src/modules/memory/application/use-cases/import-handoff.use-case.ts` |
+| Infrastructure | `code/src/modules/memory/infrastructure/persistence/sqlite-decision-repository.ts`; `code/src/modules/memory/infrastructure/import-export/json-memory-{exporter,importer}.ts`; `code/src/modules/retrieval/infrastructure/persistence/sqlite-memory-projection-repository.ts` |
+| MCP-server module | `code/src/modules/mcp-server/application/ports/out/workspace-state-reader.port.ts` (NEW); `code/src/modules/mcp-server/application/dtos/wire-types.dto.ts` (RecallInput + min_score); `code/src/modules/mcp-server/infrastructure/validation/recall-schema.ts` (Zod min_score) |
+| Composition | `code/src/composition/queries/sqlite-workspace-state-reader.ts` (NEW); `code/src/composition/wiring/retrieval-wiring.ts` (worker construction); `code/src/composition/container.ts` (workspaceId surface + reader wiring); `code/src/composition/facades/mcp-server-facades.ts` (Health adapter + Remember adapter routing content + Recall adapter min_score filter) |
+| Bootstrap | `code/src/bootstrap/mcp-server-entrypoint.ts` (worker.start/stop lifecycle) |
+| Docs | `docs/02-protocolo-mcp.md` (§4.3 documenta min_score); `docs/RELEASE-NOTES-v0.1.2-beta.3.md` (NEW); `HANDOFF.md` (§0 + §6.16 — esta seccion) |
+| Tests | `code/tests/integration/L-embedding-worker-drains.test.ts` (NEW, 3 cases B-MCP-3); `code/tests/integration/M-mem-health-real-state.test.ts` (NEW, 3 cases B-MCP-2); `code/tests/integration/N-decision-content-roundtrip.test.ts` (NEW, 2 cases B-MCP-4); `code/tests/_fixtures/memory-database.ts` (aplica migration 008); `code/tests/integration/smoke.test.ts` (versions [0..8]); `code/tests/integration/_helpers/build-test-container.ts` (wire reader + workspaceRoot); `code/tests/unit/memory/domain/value-objects.test.ts` (+5 cases DecisionContent); 6 tests existentes actualizados con content field |
+
+### Validacion Phase-11
+
+- 5/5 EXIT=0 en cada PR (`typecheck` + `lint` + `lint:tests` + `validate:modules` + `build` + `test`).
+- SonarQube quality gate `MCP Memoria Strict` PASSED en cada PR.
+- Tests: 2519 passing en 208 archivos (was 2501 in 205 al cierre de Phase-9 / corte beta.0). +18 tests, +3 archivos nuevos.
+- Branch protection respetada: 4 PRs squash-mergeados a develop con CI required. Sin push directo a develop ni main.
+
+### Reportes de validacion (Phase-11)
+
+Sin reportes formales nuevos (4 fixes incrementales, mismo patron que Phase-7/8/9/10). Validacion empirica via los 5 checks objetivos + SonarQube quality gate corriendo en CI sobre cada PR + dogfood real planeado post-publish de beta.3.
+
+### Siguiente accion concreta
+
+**PR `release/0.1.2-beta.3` → main**:
+
+1. Push branch.
+2. `gh pr create --base main --title "release: v0.1.2-beta.3"`.
+3. CI verde + squash-merge a main.
+4. Tag annotated `v0.1.2-beta.3` + push.
+5. `gh release create v0.1.2-beta.3 --prerelease --notes-file docs/RELEASE-NOTES-v0.1.2-beta.3.md`.
+6. Usuario: `cd code && npm publish --tag beta --auth-type=web` (WebAuthn passkey).
+7. Merge-back develop ← main.
+8. Reinstall global: `npm install -g @netzi/recall@beta` y dogfood real con cliente MCP.
+
+Si dogfood post-publish de beta.3 surface nuevos defectos → abrir issues + PRs + cortar `beta.4`. Si pasa limpio → cortar `release/0.1.2` (stable, sin sufijo) + promover `latest` dist-tag desde 0.1.1 → 0.1.2 + hard-deprecate 0.1.1.
 
 ---
 
