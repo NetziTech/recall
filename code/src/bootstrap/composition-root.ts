@@ -221,6 +221,114 @@ function tryReadWorkspaceId(workspaceRoot: string): WorkspaceId | null {
 }
 
 /**
+ * Sentinel returned when {@link resolvePackageVersion} cannot locate
+ * or parse the bundled `package.json`. Returning a clearly-fake
+ * version (rather than throwing) lets the bootstrap proceed — the
+ * value surfaces on `initialize.serverInfo.version` so any client
+ * inspecting the handshake immediately sees something is off, while
+ * tools/calls keep working.
+ */
+const UNKNOWN_PACKAGE_VERSION = "0.0.0-unknown";
+
+/**
+ * Reads the package version from the bundled `package.json`.
+ *
+ * The literal that used to live inline at the
+ * `bootstrapComposition.serverInfo.version` callsite drifted out of
+ * sync with `code/package.json` twice (beta.4 and beta.5 releases —
+ * see HANDOFF §6.20). Reading the value at runtime eliminates the
+ * disciplinary requirement to update two files on every bump.
+ *
+ * Resolution mirrors {@link resolveDefaultMigrationsDir}: the
+ * `package.json` file is a sibling of `dist/` in production (post-
+ * tsup install) and a sibling of `src/` in development. Both anchors
+ * are tried in order; if neither yields a parseable JSON with a
+ * `version` string field, the {@link UNKNOWN_PACKAGE_VERSION}
+ * sentinel is returned so the bootstrap never blocks on a missing
+ * package metadata file.
+ */
+export function resolvePackageVersion(): string {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const pushCandidate = (candidate: string): void => {
+    if (seen.has(candidate)) return;
+    seen.add(candidate);
+    candidates.push(candidate);
+  };
+
+  const pushAnchor = (entryDir: string): void => {
+    // Sibling of dist/ (production npm install layout).
+    pushCandidate(path.resolve(entryDir, "..", "package.json"));
+    // Sibling of src/ (dev / tsx layout — `code/src/bootstrap/` →
+    // `code/package.json`).
+    pushCandidate(path.resolve(entryDir, "..", "..", "package.json"));
+  };
+
+  // 1) Anchored on `argv[1]` (with realpath for npm-global symlinks).
+  const argvEntry = process.argv[1];
+  if (argvEntry !== undefined && argvEntry.length > 0) {
+    const literalEntry = path.resolve(argvEntry);
+    let realEntry: string | null = null;
+    try {
+      realEntry = fs.realpathSync(literalEntry);
+    } catch {
+      realEntry = null;
+    }
+    if (realEntry !== null) pushAnchor(path.dirname(realEntry));
+    pushAnchor(path.dirname(literalEntry));
+  }
+
+  // 2) Anchored on `import.meta.url` (unit tests + tsx-imported
+  // bootstrap paths where `argv[1]` does not point at this module).
+  try {
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    pushAnchor(here);
+  } catch {
+    /* ignore exotic url schemes */
+  }
+
+  for (const candidate of candidates) {
+    let raw: string;
+    try {
+      raw = fs.readFileSync(candidate, "utf8");
+    } catch {
+      continue;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      continue;
+    }
+    if (typeof parsed !== "object" || parsed === null) continue;
+    // The first candidate when running under `vitest` is the
+    // vitest binary's own `package.json` (anchored on `argv[1]`).
+    // Without the name guard, the helper would return `1.1.1`
+    // (vitest's version) instead of recall's. Pinning the expected
+    // package name is also a defence against an upstream `node`
+    // launcher that anchors the resolver on something else entirely.
+    const name = (parsed as { readonly name?: unknown }).name;
+    if (name !== EXPECTED_PACKAGE_NAME) continue;
+    const version = (parsed as { readonly version?: unknown }).version;
+    if (typeof version === "string" && version.length > 0) {
+      return version;
+    }
+  }
+
+  return UNKNOWN_PACKAGE_VERSION;
+}
+
+/**
+ * The `name` field expected in the bundled `package.json`.
+ * {@link resolvePackageVersion} skips any candidate whose `name`
+ * does not match this constant — without the guard, the resolver
+ * would return the `version` of the first sibling `package.json`
+ * it finds, including binaries like `vitest` whose `argv[1]`
+ * anchors the search.
+ */
+const EXPECTED_PACKAGE_NAME = "@netzi/recall";
+
+/**
  * Construction options for {@link bootstrapComposition}.
  */
 export interface BootstrapCompositionOptions {
@@ -323,11 +431,10 @@ export async function bootstrapComposition(
   const logDestination: 1 | 2 = options.logDestination ?? 1;
   const serverInfo = options.serverInfo ?? {
     name: "recall",
-    // Kept in lockstep with `code/package.json` `version`. A future
-    // refactor can read this at build time via tsup; the literal is
-    // adequate for now and avoids a runtime require/import of the
-    // package metadata.
-    version: "0.1.2-beta.3",
+    // Read from `package.json` at boot rather than hardcoded — see
+    // {@link resolvePackageVersion} for the rationale and the
+    // failed-discipline incidents this avoids.
+    version: resolvePackageVersion(),
     protocolVersion: "2024-11-05",
   };
 

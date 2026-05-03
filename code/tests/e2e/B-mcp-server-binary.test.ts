@@ -15,6 +15,10 @@
  *     (`-32601`), unknown tool name.
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -25,6 +29,24 @@ import {
   startMcpServer,
   type McpServerSession,
 } from "./_helpers/binary-harness.ts";
+
+/**
+ * Reads `code/package.json#version` so the handshake assertion
+ * below pins to VALUES (not SHAPE). Without this, the previous
+ * `expect(typeof version).toBe("string")` assertion silently
+ * accepted the `0.1.2-beta.3` literal that drifted out of sync
+ * across the beta.4 and beta.5 bumps (HANDOFF §0 carryover).
+ */
+function readPackageJsonVersion(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const pkgPath = path.resolve(here, "..", "..", "package.json");
+  const raw = fs.readFileSync(pkgPath, "utf8");
+  const parsed = JSON.parse(raw) as { readonly version?: unknown };
+  if (typeof parsed.version !== "string" || parsed.version.length === 0) {
+    throw new Error(`package.json at ${pkgPath} has no usable 'version'`);
+  }
+  return parsed.version;
+}
 
 interface WorkspaceHandle {
   readonly path: string;
@@ -116,7 +138,12 @@ describe("e2e / B / dist/server.js — protocol handshake", () => {
     };
     expect(result.protocolVersion).toBe("2024-11-05");
     expect(result.serverInfo.name).toBe("recall");
-    expect(typeof result.serverInfo.version).toBe("string");
+    // VALUES not SHAPE: the version must match the on-disk
+    // `code/package.json#version`. The previous
+    // `typeof === "string"` assertion silently accepted the stale
+    // `0.1.2-beta.3` literal that lived inline in the bootstrap
+    // and drifted out of sync across the beta.4 and beta.5 bumps.
+    expect(result.serverInfo.version).toBe(readPackageJsonVersion());
     expect(result.capabilities.tools).toBeDefined();
   });
 
