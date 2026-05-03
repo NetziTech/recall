@@ -28,21 +28,17 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 ## Install
 
 ```bash
-# Beta channel (recommended) — v0.1.2-beta.6 closes the cosmetic
-# carryover where `serverInfo.version` in the JSON-RPC handshake
-# kept reporting `0.1.2-beta.3` even after the binary itself bumped
-# (the literal in `bootstrap/composition-root.ts` was hardcoded and
-# drifted across beta.4 and beta.5). Now read from `package.json`
-# at boot. Behavior-preserving — no tool path changes. Last release
-# planned before promoting `0.1.2` stable. Beta.5 closed B-MCP-8
-# (mem.recall hits=0 with candidates>0). Beta.4 closed B-MCP-7
-# (embedding worker tolerates fastembed cold-start). Beta.3 closed
-# the four Phase-9 dogfood defects (B-MCP-2/3/4/5). The `latest`
-# dist-tag is still pinned at v0.1.1 and is deprecated until v0.1.2
-# stable lands; new installs should explicitly request `@beta`.
-npm install -g @netzi/recall@beta
+# Stable — v0.1.2 (first stable release, promoted from
+# 0.1.2-beta.6). The `latest` dist-tag now resolves to 0.1.2; the
+# previous `latest` (0.1.1) and `0.1.0` are hard-deprecated. The
+# beta cycle (0.1.2-beta.0..beta.6) closed 8 bugs surfaced by the
+# dogfood loop: B-MCP-1 (Phase-8), B-MCP-2/3/4/5 (Phase-11),
+# B-MCP-7 (Phase-13), B-MCP-8 (Phase-15), serverInfo.version
+# carryover (Phase-15 follow-up). See
+# `docs/RELEASE-NOTES-v0.1.2.md` for the full migration guide.
+npm install -g @netzi/recall
 # or on demand:
-npx @netzi/recall@beta --help
+npx @netzi/recall --help
 ```
 
 This installs two binaries:
