@@ -57,6 +57,18 @@ export const DEFAULT_REDACT_PATHS: readonly string[] = Object.freeze([
   // Two-level wildcards for request-style envelopes (e.g. headers).
   "*.headers.authorization",
   "*.headers.cookie",
+  // Filesystem paths attached to structured error envelopes
+  // (W-3.5-SEC-L1). DatabaseError stores absolute paths under
+  // `details.path` / `details.dir` instead of concatenating them into
+  // `message`; pino's redactor only walks structured keys, so these
+  // globs ensure the path never leaves the process in plaintext when
+  // an error is logged via `logger.error({ err }, "...")`. The literal
+  // top-level entries cover the rare case where details is logged
+  // standalone (e.g. `logger.error({ details })`).
+  "details.path",
+  "details.dir",
+  "*.details.path",
+  "*.details.dir",
 ]);
 
 /**

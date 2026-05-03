@@ -114,6 +114,20 @@ describe("DEFAULT_REDACT_PATHS", () => {
     }
   });
 
+  it("contains structured-error path globs (W-3.5-SEC-L1)", () => {
+    // DatabaseError stows absolute paths under `details.path` /
+    // `details.dir`; the globs below ensure pino's redactor catches
+    // them when the error envelope is logged via `{ err }`.
+    for (const k of [
+      "details.path",
+      "details.dir",
+      "*.details.path",
+      "*.details.dir",
+    ]) {
+      expect(DEFAULT_REDACT_PATHS).toContain(k);
+    }
+  });
+
   it("is frozen", () => {
     expect(Object.isFrozen(DEFAULT_REDACT_PATHS)).toBe(true);
   });
@@ -256,6 +270,59 @@ describe("PinoLogger.create — redaction (security-critical)", () => {
     expect(text).not.toContain("Bearer 2lvl");
     expect(text).not.toContain("session=hidden");
     expect(text).toContain("[REDACTED]");
+  });
+
+  it("redacts DatabaseError details.path / details.dir end-to-end (W-3.5-SEC-L1)", () => {
+    // Mirrors the canonical caller pattern:
+    //   logger.error({ err }, "open failed")
+    // where `err` is a DatabaseError whose `details.path` carries the
+    // absolute SQLite path. The redactor must walk the structured
+    // envelope and never let the path land in the JSON line.
+    const log = PinoLogger.create({ level: "info" });
+    const sensitivePath = "/Users/alice/secret/workspace/recall.db";
+    const sensitiveDir = "/Users/alice/secret/workspace/migrations";
+    log.error(
+      {
+        err: {
+          name: "DatabaseError",
+          code: "database.open-failed",
+          message: "failed to open SQLite database",
+          details: { path: sensitivePath },
+        },
+      },
+      "open failed",
+    );
+    log.error(
+      {
+        err: {
+          name: "DatabaseError",
+          code: "database.migration-directory-invalid",
+          message: "migrations directory is invalid: duplicate",
+          details: { dir: sensitiveDir, reason: "duplicate" },
+        },
+      },
+      "migration dir invalid",
+    );
+    const text = joined(captured.stdout);
+    expect(text).not.toContain(sensitivePath);
+    expect(text).not.toContain(sensitiveDir);
+    expect(text).not.toContain("/Users/alice");
+    expect(text).toContain("[REDACTED]");
+    // The non-sensitive `reason` field stays visible — proves redact is
+    // surgical, not a blanket details-bag wipeout.
+    expect(text).toContain('"reason":"duplicate"');
+  });
+
+  it("redacts top-level details.path when details is logged standalone", () => {
+    // Some callers log a `details` envelope directly (not wrapped in
+    // `err`); the literal `details.path` glob covers that shape.
+    const log = PinoLogger.create({ level: "info" });
+    const sensitivePath = "/var/lib/recall/db.sqlite";
+    log.info({ details: { path: sensitivePath, op: "open" } }, "ev");
+    const text = joined(captured.stdout);
+    expect(text).not.toContain(sensitivePath);
+    expect(text).toContain("[REDACTED]");
+    expect(text).toContain('"op":"open"');
   });
 
   it("merges custom redact paths on top of the defaults", () => {
