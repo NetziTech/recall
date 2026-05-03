@@ -34,43 +34,58 @@ describe("InfrastructureError", () => {
 });
 
 describe("DatabaseError factories", () => {
-  it("openFailed", () => {
-    const e = DatabaseError.openFailed("/tmp/db", new Error("ENOSPC"));
+  it("openFailed keeps the absolute path out of message and exposes it via details", () => {
+    const sensitivePath = "/Users/alice/secret/workspace/recall.db";
+    const e = DatabaseError.openFailed(sensitivePath, new Error("ENOSPC"));
     expect(e.code).toBe("database.open-failed");
-    expect(e.message).toContain("/tmp/db");
+    // VALOR (W-3.5-SEC-L1): the path MUST NOT appear in `message` so
+    // that pino's redactor (which only walks structured fields) can
+    // redact it when this error is logged via `logger.error({ err })`.
+    expect(e.message).not.toContain(sensitivePath);
+    expect(e.message).not.toContain("/Users/alice");
+    expect(e.message).toBe("failed to open SQLite database");
+    // The path is still accessible via the structured side-channel
+    // for callers that need it (e.g. UI surfaces, debugging tools).
+    expect(e.details["path"]).toBe(sensitivePath);
   });
 
   it("encryptionKeyRejected", () => {
     const e = DatabaseError.encryptionKeyRejected(new Error("bad"));
     expect(e.code).toBe("database.encryption-key-rejected");
+    expect(e.details).toEqual({});
   });
 
   it("extensionLoadFailed", () => {
     const e = DatabaseError.extensionLoadFailed("sqlite-vec", new Error("x"));
     expect(e.code).toBe("database.extension-load-failed");
     expect(e.message).toContain("sqlite-vec");
+    expect(e.details["extensionName"]).toBe("sqlite-vec");
   });
 
   it("prepareFailed", () => {
     const e = DatabaseError.prepareFailed("SELECT 1", new Error("syntax"));
     expect(e.code).toBe("database.prepare-failed");
     expect(e.message).toContain("8"); // sql length
+    expect(e.details["sqlLength"]).toBe(8);
   });
 
   it("execFailed", () => {
     const e = DatabaseError.execFailed(new Error("x"));
     expect(e.code).toBe("database.exec-failed");
+    expect(e.details).toEqual({});
   });
 
   it("transactionFailed", () => {
     const e = DatabaseError.transactionFailed(new Error("x"));
     expect(e.code).toBe("database.transaction-failed");
+    expect(e.details).toEqual({});
   });
 
   it("connectionClosed", () => {
     const e = DatabaseError.connectionClosed("prepare");
     expect(e.code).toBe("database.connection-closed");
     expect(e.message).toContain("prepare");
+    expect(e.details["operation"]).toBe("prepare");
   });
 
   it("migrationAheadOfCode", () => {
@@ -78,6 +93,8 @@ describe("DatabaseError factories", () => {
     expect(e.code).toBe("database.migration-ahead-of-code");
     expect(e.message).toContain("5");
     expect(e.message).toContain("3");
+    expect(e.details["dbVersion"]).toBe(5);
+    expect(e.details["codeMaxVersion"]).toBe(3);
   });
 
   it("migrationFailed", () => {
@@ -85,12 +102,41 @@ describe("DatabaseError factories", () => {
     expect(e.code).toBe("database.migration-failed");
     expect(e.message).toContain("2");
     expect(e.message).toContain("core");
+    expect(e.details["version"]).toBe(2);
+    expect(e.details["name"]).toBe("core");
   });
 
-  it("migrationDirectoryInvalid", () => {
-    const e = DatabaseError.migrationDirectoryInvalid("/tmp", "duplicate");
+  it("migrationDirectoryInvalid keeps the directory path out of message and exposes it via details", () => {
+    const sensitiveDir = "/Users/alice/secret/workspace/migrations";
+    const e = DatabaseError.migrationDirectoryInvalid(
+      sensitiveDir,
+      "duplicate migration version 1",
+    );
     expect(e.code).toBe("database.migration-directory-invalid");
-    expect(e.message).toContain("/tmp");
+    // VALOR (W-3.5-SEC-L1): the absolute path MUST NOT leak into the
+    // message — only the reason (which the call sites construct from
+    // safe content like "duplicate migration version N") is visible.
+    expect(e.message).not.toContain(sensitiveDir);
+    expect(e.message).not.toContain("/Users/alice");
+    expect(e.message).toBe(
+      "migrations directory is invalid: duplicate migration version 1",
+    );
+    expect(e.details["dir"]).toBe(sensitiveDir);
+    expect(e.details["reason"]).toBe("duplicate migration version 1");
+  });
+
+  it("backward-compat: callers pivot from message-substring to details for paths", () => {
+    // Documents the migration path for callers/tests that previously
+    // pinned the absolute path via `error.message.includes(...)`. The
+    // new contract is `error.details.path` for openFailed and
+    // `error.details.dir` for migrationDirectoryInvalid.
+    const dbPath = "/var/lib/recall/db.sqlite";
+    const openErr = DatabaseError.openFailed(dbPath, new Error("x"));
+    expect(openErr.details["path"]).toBe(dbPath);
+
+    const migDir = "/var/lib/recall/migrations";
+    const migErr = DatabaseError.migrationDirectoryInvalid(migDir, "empty");
+    expect(migErr.details["dir"]).toBe(migDir);
   });
 });
 
