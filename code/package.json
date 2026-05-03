@@ -1,6 +1,6 @@
 {
   "name": "@netzi/recall",
-  "version": "0.1.2-beta.5",
+  "version": "0.1.2-beta.6",
   "description": "MCP server for project-scoped, self-curated memory with hybrid search (BM25 + sqlite-vec).",
   "type": "module",
   "license": "MIT",

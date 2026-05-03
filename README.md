@@ -9,16 +9,17 @@
 [![ci](https://github.com/NetziTech/recall/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/NetziTech/recall/actions/workflows/ci.yml)
 [![sonarqube](https://img.shields.io/badge/sonarqube-quality_gate_passed-brightgreen)](https://sonar.netzi.dev/dashboard?id=recall)
 
-> **Estado del canal:** beta. `v0.1.2-beta.5` cierra **B-MCP-8**
-> (`mem.recall` ya no devuelve `hits=0` cuando hay candidates; el
-> filtro de token budget ahora siempre devuelve el top hit y usa
-> `continue` en vez de `break` para no truncar hits chicos detras de
-> uno grande; default `max_tokens` alineado con `mem.context` en
-> 8000), encima de B-MCP-7 cerrado en beta.4 y los 4 bugs de Phase-9
-> cerrados en beta.3 (B-MCP-2/3/4/5). La version `0.1.1` (canal
-> `latest`) sigue deprecada hasta que `0.1.2` stable salga. Ver
-> [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.5.md) +
-> [HANDOFF.md §6.20](./HANDOFF.md).
+> **Estado del canal:** beta. `v0.1.2-beta.6` cierra el carryover
+> cosmetico del `serverInfo.version` (el handshake JSON-RPC ya
+> reporta la version real del binario, no un literal hardcoded que
+> se desactualizo en beta.4 y beta.5). Behavior-preserving — no
+> cambia ningun tool path. **Ultimo release planeado antes de
+> promover `0.1.2` stable**: pendiente de soak 24-48h en uso real
+> antes de cortar `release/0.1.2`. Encima de B-MCP-8 (beta.5),
+> B-MCP-7 (beta.4) y los 4 bugs de Phase-9 (beta.3). La version
+> `0.1.1` (canal `latest`) sigue deprecada hasta que `0.1.2` stable
+> salga. Ver [release notes](./docs/RELEASE-NOTES-v0.1.2-beta.6.md)
+> + [HANDOFF.md §6.20](./HANDOFF.md).
 
 ---
 
@@ -48,8 +49,9 @@ turns) en vez de "facts" planos.
 ## Quick start
 
 ```bash
-# Canal beta (v0.1.2-beta.5 — los 4 bugs de Phase-9 + B-MCP-7 + B-MCP-8
-# cerrados; pendiente de smoke post-publish antes de promover a stable)
+# Canal beta (v0.1.2-beta.6 — carryover cosmetico del serverInfo.version
+# cerrado, encima de B-MCP-2..5 + B-MCP-7 + B-MCP-8; ultimo release
+# planeado antes de promover a 0.1.2 stable)
 npm install -g @netzi/recall@beta
 
 cd /tu/proyecto
@@ -139,9 +141,11 @@ Detalle: [docs/06-stack-tecnico.md](./docs/06-stack-tecnico.md).
 ## Issues / bugs / preguntas
 
 - [Issues abiertos](https://github.com/NetziTech/recall/issues) — **0**
-  al cierre de Phase-15 (B-MCP-2..5 cerrados en `v0.1.2-beta.3`
-  via PRs #17/#18/#19/#20; B-MCP-7 cerrado en `v0.1.2-beta.4` via
-  PR #27; B-MCP-8 cerrado en `v0.1.2-beta.5` via PR #33)
+  al cierre de Phase-15 follow-up (B-MCP-2..5 cerrados en
+  `v0.1.2-beta.3` via PRs #17/#18/#19/#20; B-MCP-7 cerrado en
+  `v0.1.2-beta.4` via PR #27; B-MCP-8 cerrado en `v0.1.2-beta.5`
+  via PR #33; carryover cosmetico `serverInfo.version` cerrado en
+  `v0.1.2-beta.6` via PR #37)
 - Reportar vulnerabilidades de seguridad: ver
   [SECURITY.md](./SECURITY.md)
 - Discusiones generales:
