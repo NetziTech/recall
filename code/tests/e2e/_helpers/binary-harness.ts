@@ -145,6 +145,21 @@ export function setupBinaryHarness(): {
     }
   }
 
+  // Copy `package.json` so the bootstrap's `resolvePackageVersion()`
+  // can read the version field at runtime. Without this, the
+  // resolver falls through to the `0.0.0-unknown` sentinel and the
+  // handshake reports the wrong version on `initialize.serverInfo`.
+  // The staging layout `<staging>/code/dist/server.js` mirrors the
+  // npm-install layout `<prefix>/lib/node_modules/@netzi/recall/dist/server.js`,
+  // so `..` from `dist/` lands on the package root in both cases.
+  const realPackageJson = path.resolve(REAL_DIST, "..", "package.json");
+  if (fs.existsSync(realPackageJson)) {
+    fs.copyFileSync(
+      realPackageJson,
+      path.join(stagingRoot, "code", "package.json"),
+    );
+  }
+
   // Copy migrations (tiny — six SQL files).
   const stagedMigrations = path.join(stagingRoot, "migrations");
   if (!fs.existsSync(stagedMigrations)) {

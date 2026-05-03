@@ -28,15 +28,18 @@ Memory travels with the code: clone the repo, get the memory. Move the repo, the
 ## Install
 
 ```bash
-# Beta channel (recommended) — v0.1.2-beta.5 closes B-MCP-8 (the
-# `mem.recall` post-rank token-budget filter now always returns the
-# top hit and uses `continue` (not `break`) on overflow, plus the
-# default `max_tokens` is bumped 4000 → 8000 to match `mem.context`).
-# Beta.4 closed B-MCP-7 (embedding worker tolerates fastembed
-# cold-start). Beta.3 closed the four Phase-9 dogfood defects
-# (B-MCP-2/3/4/5). The `latest` dist-tag is still pinned at v0.1.1
-# and is deprecated until v0.1.2 stable lands; new installs should
-# explicitly request `@beta`.
+# Beta channel (recommended) — v0.1.2-beta.6 closes the cosmetic
+# carryover where `serverInfo.version` in the JSON-RPC handshake
+# kept reporting `0.1.2-beta.3` even after the binary itself bumped
+# (the literal in `bootstrap/composition-root.ts` was hardcoded and
+# drifted across beta.4 and beta.5). Now read from `package.json`
+# at boot. Behavior-preserving — no tool path changes. Last release
+# planned before promoting `0.1.2` stable. Beta.5 closed B-MCP-8
+# (mem.recall hits=0 with candidates>0). Beta.4 closed B-MCP-7
+# (embedding worker tolerates fastembed cold-start). Beta.3 closed
+# the four Phase-9 dogfood defects (B-MCP-2/3/4/5). The `latest`
+# dist-tag is still pinned at v0.1.1 and is deprecated until v0.1.2
+# stable lands; new installs should explicitly request `@beta`.
 npm install -g @netzi/recall@beta
 # or on demand:
 npx @netzi/recall@beta --help

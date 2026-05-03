@@ -92,75 +92,103 @@ import { PinoLogger } from "../shared/infrastructure/logger/pino-logger.ts";
  * the failure surface is `migrationDirectoryInvalid(<path>)` rather
  * than a silently-picked stale folder.
  */
-function resolveDefaultMigrationsDir(): string {
-  // 1) Env override.
-  const fromEnv = process.env["RECALL_MIGRATIONS_DIR"];
-  if (fromEnv !== undefined && fromEnv.length > 0) {
-    return path.resolve(fromEnv);
-  }
+/**
+ * Discriminator for the two anchor sources `collectFsCandidates`
+ * walks. Resolvers can return different candidate paths per kind —
+ * the migrations resolver, for instance, intentionally skips the
+ * `<here>/../migrations` candidate under `importMeta` because that
+ * path resolves to `code/src/migrations/` which never exists.
+ */
+type AnchorKind = "argv" | "importMeta";
 
+/**
+ * Walks both filesystem anchors the bootstrap can use to find
+ * sibling files (`migrations/`, `package.json`, future helpers...):
+ *
+ *   1. The `argv[1]` entrypoint, with `fs.realpathSync` to follow
+ *      npm-global symlinks (see B-CLI-5 for the failure mode this
+ *      avoids). Both the realpath-derived AND the literal-argv
+ *      anchors are tried in case `realpath` is unavailable.
+ *   2. `import.meta.url`, useful for unit tests + tsx-imported
+ *      bootstrap paths where `argv[1]` does not point at this file.
+ *
+ * For every anchor, the caller supplies a `builder(anchor, kind)`
+ * that returns the candidate paths it wants to try (already in
+ * priority order). Returned paths are de-duplicated globally so the
+ * common dev case (realpath = literal) does not double-stat each
+ * candidate.
+ *
+ * Extracted from {@link resolveDefaultMigrationsDir} when
+ * {@link resolvePackageVersion} grew the same anchor-walking
+ * boilerplate; see Sonar S4144 and S3776 (PR #37 round 2).
+ */
+function collectFsCandidates(
+  builder: (anchor: string, kind: AnchorKind) => readonly string[],
+): readonly string[] {
   const candidates: string[] = [];
-  // De-duplicates the candidate list when realpath returns a path
-  // identical to the literal-argv fallback (the common case in
-  // development, where the bin is not a symlink). Ensures
-  // `fs.statSync` is called at most once per real directory.
   const seen = new Set<string>();
-  const pushCandidate = (candidate: string): void => {
+  const push = (candidate: string): void => {
     if (seen.has(candidate)) return;
     seen.add(candidate);
     candidates.push(candidate);
   };
 
-  const pushAnchor = (entryDir: string): void => {
-    pushCandidate(path.join(entryDir, "migrations"));
-    pushCandidate(path.resolve(entryDir, "..", "migrations"));
-    pushCandidate(path.resolve(entryDir, "..", "..", "migrations"));
-  };
-
-  // 2) Entrypoint-relative — the path Node was launched with.
   const argvEntry = process.argv[1];
   if (argvEntry !== undefined && argvEntry.length > 0) {
     const literalEntry = path.resolve(argvEntry);
-    // Resolve symlinks first so npm global installs (which place a
-    // symlink at `<prefix>/bin/recall` pointing to the real bundle
-    // under `<prefix>/lib/node_modules/.../dist/cli.js`) anchor on
-    // the real bundle directory rather than `<prefix>/bin/`.
     let realEntry: string | null = null;
     try {
       realEntry = fs.realpathSync(literalEntry);
     } catch {
-      // The argv path does not exist or is not accessible. The
-      // bootstrap caller will see the same failure when it tries to
-      // load the bundle, so swallowing here is safe.
       realEntry = null;
     }
     if (realEntry !== null) {
-      pushAnchor(path.dirname(realEntry));
+      for (const c of builder(path.dirname(realEntry), "argv")) push(c);
     }
-    // Defensive fallback: even when `realpath` succeeded above, the
-    // literal-argv anchor is still considered so a hand-crafted
-    // launcher (which does not symlink) keeps working.
-    pushAnchor(path.dirname(literalEntry));
+    for (const c of builder(path.dirname(literalEntry), "argv")) push(c);
   }
 
-  // 3) `import.meta.url`-relative — useful when the bootstrap is
-  //    imported directly (unit tests) and `argv[1]` does not point at
-  //    this module.
   try {
     const here = path.dirname(fileURLToPath(import.meta.url));
-    // Sibling layout: post-build, the bundled `cli.js` lives at
-    // `<paquete>/dist/cli.js`, and the `onSuccess` tsup hook places
-    // migrations at `<paquete>/dist/migrations/` — which is `here`
-    // resolved alongside. This candidate was MISSING in the original
-    // resolver (B-CLI-5).
-    pushCandidate(path.resolve(here, "migrations"));
-    // Dev layout: `code/src/bootstrap/` → `code/migrations/` (two
-    // levels up).
-    pushCandidate(path.resolve(here, "..", "..", "migrations"));
+    for (const c of builder(here, "importMeta")) push(c);
   } catch {
-    // `fileURLToPath` can throw on exotic schemes. Ignored — the
-    // argv-derived candidates are the canonical source.
+    /* `fileURLToPath` can throw on exotic schemes — argv anchor is canonical anyway */
   }
+
+  return candidates;
+}
+
+function resolveDefaultMigrationsDir(): string {
+  // Env override short-circuits both anchor walks.
+  const fromEnv = process.env["RECALL_MIGRATIONS_DIR"];
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return path.resolve(fromEnv);
+  }
+
+  const candidates = collectFsCandidates((anchor, kind) => {
+    if (kind === "argv") {
+      // Three candidates per binary anchor:
+      //   a. `<entry>/migrations`        — tsup `onSuccess` ships
+      //      migrations alongside the bundle on release.
+      //   b. `<entry>/../migrations`     — dev path: `code/src/
+      //      bootstrap/` → `code/migrations/`.
+      //   c. `<entry>/../../migrations`  — legacy / nested dist
+      //      trees; preserved as the last resort to keep the E2E
+      //      harness's staging layout valid.
+      return [
+        path.join(anchor, "migrations"),
+        path.resolve(anchor, "..", "migrations"),
+        path.resolve(anchor, "..", "..", "migrations"),
+      ];
+    }
+    // `importMeta`: only two candidates — the `<here>/../migrations`
+    // path would resolve to `code/src/migrations/` which never exists
+    // in any supported layout.
+    return [
+      path.resolve(anchor, "migrations"),
+      path.resolve(anchor, "..", "..", "migrations"),
+    ];
+  });
 
   for (const candidate of candidates) {
     try {
@@ -218,6 +246,86 @@ function tryReadWorkspaceId(workspaceRoot: string): WorkspaceId | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Sentinel returned when {@link resolvePackageVersion} cannot locate
+ * or parse the bundled `package.json`. Returning a clearly-fake
+ * version (rather than throwing) lets the bootstrap proceed — the
+ * value surfaces on `initialize.serverInfo.version` so any client
+ * inspecting the handshake immediately sees something is off, while
+ * tools/calls keep working.
+ */
+const UNKNOWN_PACKAGE_VERSION = "0.0.0-unknown";
+
+/**
+ * Reads the package version from the bundled `package.json`.
+ *
+ * The literal that used to live inline at the
+ * `bootstrapComposition.serverInfo.version` callsite drifted out of
+ * sync with `code/package.json` twice (beta.4 and beta.5 releases —
+ * see HANDOFF §6.20). Reading the value at runtime eliminates the
+ * disciplinary requirement to update two files on every bump.
+ *
+ * Resolution mirrors {@link resolveDefaultMigrationsDir}: the
+ * `package.json` file is a sibling of `dist/` in production (post-
+ * tsup install) and a sibling of `src/` in development. Both anchors
+ * are tried in order; if neither yields a parseable JSON with a
+ * `version` string field, the {@link UNKNOWN_PACKAGE_VERSION}
+ * sentinel is returned so the bootstrap never blocks on a missing
+ * package metadata file.
+ */
+export function resolvePackageVersion(): string {
+  const candidates = collectFsCandidates((anchor) => [
+    // Sibling of dist/ (production npm install layout).
+    path.resolve(anchor, "..", "package.json"),
+    // Sibling of src/ (dev / tsx layout — `code/src/bootstrap/`
+    // → `code/package.json`).
+    path.resolve(anchor, "..", "..", "package.json"),
+  ]);
+
+  for (const candidate of candidates) {
+    const version = readPackageVersionField(candidate);
+    if (version !== null) return version;
+  }
+  return UNKNOWN_PACKAGE_VERSION;
+}
+
+/**
+ * The `name` field expected in the bundled `package.json`.
+ * {@link readPackageVersionField} skips any candidate whose `name`
+ * does not match this constant — without the guard, the resolver
+ * would return the `version` of the first sibling `package.json`
+ * it finds, including binaries like `vitest` whose `argv[1]`
+ * anchors the search.
+ */
+const EXPECTED_PACKAGE_NAME = "@netzi/recall";
+
+/**
+ * Reads `version` from a candidate `package.json`. Returns `null`
+ * if the file is missing, malformed JSON, lacks the right `name`
+ * field, or the version field is absent / empty. Extracted from
+ * {@link resolvePackageVersion} to keep its cognitive complexity
+ * inside the Sonar S3776 limit (PR #37 round 2).
+ */
+function readPackageVersionField(candidate: string): string | null {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(candidate, "utf8");
+  } catch {
+    return null;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const name = (parsed as { readonly name?: unknown }).name;
+  if (name !== EXPECTED_PACKAGE_NAME) return null;
+  const version = (parsed as { readonly version?: unknown }).version;
+  return typeof version === "string" && version.length > 0 ? version : null;
 }
 
 /**
@@ -323,11 +431,10 @@ export async function bootstrapComposition(
   const logDestination: 1 | 2 = options.logDestination ?? 1;
   const serverInfo = options.serverInfo ?? {
     name: "recall",
-    // Kept in lockstep with `code/package.json` `version`. A future
-    // refactor can read this at build time via tsup; the literal is
-    // adequate for now and avoids a runtime require/import of the
-    // package metadata.
-    version: "0.1.2-beta.3",
+    // Read from `package.json` at boot rather than hardcoded — see
+    // {@link resolvePackageVersion} for the rationale and the
+    // failed-discipline incidents this avoids.
+    version: resolvePackageVersion(),
     protocolVersion: "2024-11-05",
   };
 
