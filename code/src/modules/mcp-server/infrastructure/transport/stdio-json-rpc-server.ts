@@ -1,10 +1,48 @@
 import type { Readable, Writable } from "node:stream";
 
 import type { Logger } from "../../../../shared/application/ports/logger.port.ts";
+import { BufferOverflowError } from "../errors/buffer-overflow-error.ts";
 import type {
   JsonRpcHandler,
   JsonRpcHandlerResult,
 } from "./json-rpc-handler.ts";
+
+/**
+ * Default cap on the size of the line-delimited frame accumulator,
+ * in JavaScript-string code units. Chosen at 10 MiB
+ * (`10 * 1024 * 1024 = 10_485_760`). Rationale:
+ * - Typical MCP JSON-RPC frames are well under 100 KB. Even a
+ *   `mem.recall` response with the maximum `top_k` and verbose
+ *   `summary`s sits under 1 MB once tokens are counted.
+ * - 10 MiB is roughly 100x the realistic worst-case frame, leaving
+ *   ample headroom for batched or unusually large `mem.remember`
+ *   payloads while still catching unbounded streams in the
+ *   second-to-low MB range.
+ * - Configurable per-instance via
+ *   {@link StdioJsonRpcServerOptions.maxBufferBytes} and overridable
+ *   at the composition root via the `RECALL_MCP_MAX_BUFFER_BYTES`
+ *   environment variable (see `composition-root.ts`).
+ */
+export const DEFAULT_MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Options for {@link StdioJsonRpcServer}. All fields are optional
+ * and have safe defaults; the bag exists so callers can opt in to
+ * one knob without spelling out the others.
+ */
+export interface StdioJsonRpcServerOptions {
+  /**
+   * Maximum size of the in-memory frame accumulator before a
+   * {@link BufferOverflowError} is raised and the transport is
+   * closed. Defaults to {@link DEFAULT_MAX_BUFFER_BYTES} (10 MiB).
+   *
+   * MUST be a positive finite integer; any other value is rejected
+   * at construction time. The unit is JavaScript-string code units
+   * (UTF-16); see the {@link BufferOverflowError} docstring for the
+   * mapping to UTF-8 bytes.
+   */
+  readonly maxBufferBytes?: number;
+}
 
 /**
  * Line-delimited JSON-RPC adapter for the MCP server.
@@ -29,9 +67,15 @@ import type {
  *   not a JSON-RPC response. Logging routes via the injected
  *   `Logger` (the canonical adapter is `PinoLogger`, which sends
  *   warn/error/fatal to stderr per the port contract).
- * - The adapter does NOT enforce a max frame size; the caller
- *   (Node.js stdin) buffers and chunks reasonably for the small
- *   request sizes typical of MCP traffic.
+ * - The adapter enforces a configurable cap on the size of the
+ *   frame accumulator (W-3.1-SEC-M1). When an adversarial client
+ *   streams bytes without a newline delimiter, the accumulator
+ *   would otherwise grow without bound — a memory-exhaustion DoS
+ *   vector. On overflow, the transport is closed and the
+ *   `start()` promise rejects with {@link BufferOverflowError};
+ *   the buffer is dropped to release memory. See the
+ *   `BufferOverflowError` docstring for the discard-vs-close
+ *   policy rationale.
  *
  * Concurrency:
  * - Frames are processed sequentially. The MVP does not need
@@ -41,28 +85,65 @@ import type {
 export class StdioJsonRpcServer {
   private buffer: string;
   private closed: boolean;
+  private readonly maxBufferBytes: number;
 
   public constructor(
     private readonly handler: JsonRpcHandler,
     private readonly stdin: Readable,
     private readonly stdout: Writable,
     private readonly logger: Logger,
+    options?: StdioJsonRpcServerOptions,
   ) {
     this.buffer = "";
     this.closed = false;
+    this.maxBufferBytes = resolveMaxBufferBytes(options?.maxBufferBytes);
   }
 
   /**
    * Starts reading frames from stdin. Returns a promise that
    * resolves when stdin closes (or rejects if a fatal write
-   * failure happens).
+   * failure or buffer overflow happens).
    */
   public async start(): Promise<void> {
     this.stdin.setEncoding("utf8");
     return new Promise<void>((resolve, reject) => {
+      const teardown = (): void => {
+        this.stdin.removeListener("data", onData);
+        this.stdin.removeListener("end", onEnd);
+        this.stdin.removeListener("error", onError);
+      };
       const onData = (chunk: string | Buffer): void => {
         const text = typeof chunk === "string" ? chunk : chunk.toString("utf8");
         this.buffer += text;
+        // Cap the accumulator BEFORE attempting to drain. If the
+        // newest chunk did not contain a delimiter and the running
+        // buffer is now over the cap, the client is either buggy or
+        // adversarial; either way, refuse to grow further.
+        if (
+          !this.buffer.includes("\n") &&
+          this.buffer.length > this.maxBufferBytes
+        ) {
+          const bufferedBytes = this.buffer.length;
+          // Drop the buffer NOW so the rejection path doesn't keep
+          // the oversized string alive on the closure.
+          this.buffer = "";
+          this.closed = true;
+          const overflow = new BufferOverflowError({
+            maxBufferBytes: this.maxBufferBytes,
+            bufferedBytes,
+          });
+          this.logger.warn(
+            {
+              err: serialiseError(overflow),
+              maxBufferBytes: this.maxBufferBytes,
+              bufferedBytes,
+            },
+            "stdio frame accumulator exceeded cap; closing transport",
+          );
+          teardown();
+          reject(overflow);
+          return;
+        }
         // Process every newline-terminated frame the buffer holds
         // right now. Anything trailing without a newline is left in
         // the buffer for the next chunk.
@@ -72,9 +153,7 @@ export class StdioJsonRpcServer {
             "stdio adapter frame loop failed",
           );
           this.closed = true;
-          this.stdin.removeListener("data", onData);
-          this.stdin.removeListener("end", onEnd);
-          this.stdin.removeListener("error", onError);
+          teardown();
           reject(toError(err));
         });
       };
@@ -96,9 +175,7 @@ export class StdioJsonRpcServer {
       };
       const onError = (err: unknown): void => {
         this.closed = true;
-        this.stdin.removeListener("data", onData);
-        this.stdin.removeListener("end", onEnd);
-        this.stdin.removeListener("error", onError);
+        teardown();
         reject(toError(err));
       };
       this.stdin.on("data", onData);
@@ -192,6 +269,24 @@ export class StdioJsonRpcServer {
       });
     });
   }
+}
+
+/**
+ * Validates the constructor-supplied cap and falls back to
+ * {@link DEFAULT_MAX_BUFFER_BYTES} when the option is absent. The
+ * function is total: any non-positive, non-finite, or non-integer
+ * supplied value is rejected with a `TypeError` at construction
+ * time so the failure surfaces immediately and not on the first
+ * adversarial chunk.
+ */
+function resolveMaxBufferBytes(value: number | undefined): number {
+  if (value === undefined) return DEFAULT_MAX_BUFFER_BYTES;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new TypeError(
+      `StdioJsonRpcServer: maxBufferBytes must be a positive integer (received ${String(value)})`,
+    );
+  }
+  return value;
 }
 
 /**

@@ -25,7 +25,11 @@ export {
   type JsonRpcHandlerResult,
   type ServerInfo,
 } from "./transport/json-rpc-handler.ts";
-export { StdioJsonRpcServer } from "./transport/stdio-json-rpc-server.ts";
+export {
+  StdioJsonRpcServer,
+  DEFAULT_MAX_BUFFER_BYTES,
+  type StdioJsonRpcServerOptions,
+} from "./transport/stdio-json-rpc-server.ts";
 export {
   JSON_RPC_VERSION,
   isJsonRpcRequestShape,
@@ -52,3 +56,7 @@ export {
   type InvalidParamsIssue,
 } from "./errors/invalid-params-error.ts";
 export { InternalError } from "./errors/internal-error.ts";
+export {
+  BufferOverflowError,
+  type BufferOverflowDetails,
+} from "./errors/buffer-overflow-error.ts";
