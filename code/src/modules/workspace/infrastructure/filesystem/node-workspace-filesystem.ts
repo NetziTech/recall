@@ -362,7 +362,7 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
     );
     const writeOptions: { encoding: "utf8"; mode?: number } = {
       encoding: "utf8",
-      ...(mode !== undefined ? { mode } : {}),
+      ...(mode === undefined ? {} : { mode }),
     };
     try {
       await fs.writeFile(tempPath, content, writeOptions);
