@@ -7,6 +7,7 @@ import { SqliteDatabaseBootstrap } from "../../../../../src/modules/workspace/in
 import { WorkspaceMode } from "../../../../../src/modules/workspace/domain/value-objects/workspace-mode.ts";
 import { WorkspacePath } from "../../../../../src/modules/workspace/domain/value-objects/workspace-path.ts";
 import type { Logger } from "../../../../../src/shared/application/ports/logger.port.ts";
+import type { EncryptionKeyBytes } from "../../../../../src/shared/infrastructure/database/sqlite-database.ts";
 
 class SilentLogger implements Logger {
   public trace(): void {}
@@ -169,5 +170,95 @@ describe("SqliteDatabaseBootstrap", () => {
       mode: WorkspaceMode.privateMode(),
     });
     expect(captured).toBe("private");
+  });
+});
+
+describe("SqliteDatabaseBootstrap — recall.db chmod 0o600 (W-3.5-SEC-M2)", () => {
+  // chmod is a no-op on Windows per Node `fs.chmod` docs; permission
+  // bits are not meaningful on NTFS via this API, so we skip the
+  // VALUE-not-SHAPE assertion entirely on win32 to avoid false negatives.
+
+  it("bootstrap sets recall.db mode to 0o600 in shared mode", async () => {
+    if (process.platform === "win32") return;
+    const adapter = new SqliteDatabaseBootstrap({
+      migrationsDir: ctx.migrationsDir,
+      keyResolver: () => Promise.resolve(null),
+      logger: new SilentLogger(),
+    });
+    await adapter.bootstrap({
+      rootPath: WorkspacePath.create(ctx.tmpDir),
+      mode: WorkspaceMode.sharedMode(),
+    });
+    const dbPath = path.join(ctx.tmpDir, ".recall", "recall.db");
+    const stat = await fs.stat(dbPath);
+    // VALUE not SHAPE: assert the actual permission bits are 0o600.
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
+
+  it("bootstrap sets recall.db mode to 0o600 in private mode", async () => {
+    if (process.platform === "win32") return;
+    const adapter = new SqliteDatabaseBootstrap({
+      migrationsDir: ctx.migrationsDir,
+      keyResolver: () => Promise.resolve(null),
+      logger: new SilentLogger(),
+    });
+    await adapter.bootstrap({
+      rootPath: WorkspacePath.create(ctx.tmpDir),
+      mode: WorkspaceMode.privateMode(),
+    });
+    const dbPath = path.join(ctx.tmpDir, ".recall", "recall.db");
+    const stat = await fs.stat(dbPath);
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
+
+  it("bootstrap sets recall.db mode to 0o600 in encrypted mode", async () => {
+    if (process.platform === "win32") return;
+    // Provide a deterministic 32-byte key so SqliteDatabase.open
+    // applies SQLCipher pragmas. The chmod must happen regardless of
+    // whether the workspace is encrypted (the file still lands on the
+    // host filesystem with the same permission concerns).
+    const key: EncryptionKeyBytes = { bytes: new Uint8Array(32).fill(0x42) };
+    const adapter = new SqliteDatabaseBootstrap({
+      migrationsDir: ctx.migrationsDir,
+      keyResolver: () => Promise.resolve(key),
+      logger: new SilentLogger(),
+    });
+    await adapter.bootstrap({
+      rootPath: WorkspacePath.create(ctx.tmpDir),
+      mode: WorkspaceMode.encryptedMode(),
+    });
+    const dbPath = path.join(ctx.tmpDir, ".recall", "recall.db");
+    const stat = await fs.stat(dbPath);
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
+
+  it("bootstrap chmod is idempotent across repeated runs", async () => {
+    if (process.platform === "win32") return;
+    const adapter = new SqliteDatabaseBootstrap({
+      migrationsDir: ctx.migrationsDir,
+      keyResolver: () => Promise.resolve(null),
+      logger: new SilentLogger(),
+    });
+    const dbPath = path.join(ctx.tmpDir, ".recall", "recall.db");
+
+    await adapter.bootstrap({
+      rootPath: WorkspacePath.create(ctx.tmpDir),
+      mode: WorkspaceMode.sharedMode(),
+    });
+    const first = await fs.stat(dbPath);
+    expect(first.mode & 0o777).toBe(0o600);
+
+    // Loosen the bits to simulate umask drift / external interference,
+    // then re-bootstrap and verify the second run tightens back to 0o600.
+    await fs.chmod(dbPath, 0o644);
+    const drifted = await fs.stat(dbPath);
+    expect(drifted.mode & 0o777).toBe(0o644);
+
+    await adapter.bootstrap({
+      rootPath: WorkspacePath.create(ctx.tmpDir),
+      mode: WorkspaceMode.sharedMode(),
+    });
+    const second = await fs.stat(dbPath);
+    expect(second.mode & 0o777).toBe(0o600);
   });
 });
