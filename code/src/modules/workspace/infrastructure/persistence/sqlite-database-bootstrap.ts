@@ -1,3 +1,4 @@
+import { promises as fs } from "node:fs";
 import * as path from "node:path";
 
 import type { Logger } from "../../../../shared/application/ports/logger.port.ts";
@@ -15,6 +16,17 @@ import type {
   DatabaseBootstrapResult,
   DatabaseProbeResult,
 } from "../../application/ports/out/database-bootstrap.port.ts";
+
+/**
+ * Permission bits for the workspace SQLite file. Mirrors
+ * `CONFIG_FILE_MODE` in `node-workspace-filesystem.ts` and is documented
+ * in `docs/11-seguridad-modos.md` §7. Defense-in-depth: the parent
+ * directory is already 0o700, but applying chmod here is idempotent
+ * and protects against umask drift or filesystems that materialise the
+ * file with broader permissions during `open()`. No-op on Windows
+ * (per Node `fs.chmod` semantics).
+ */
+const DATABASE_FILE_MODE = 0o600;
 
 /**
  * Adapter that bootstraps and probes the workspace's SQLite
@@ -73,6 +85,11 @@ export class SqliteDatabaseBootstrap implements DatabaseBootstrap {
       logger: this.options.logger,
     });
     try {
+      // Defense-in-depth: ensure recall.db is owner-only readable/writable.
+      // The parent directory is already 0o700, but chmod here is idempotent
+      // and protects against umask drift or filesystems that materialize the
+      // file with broader permissions during open(). No-op on Windows.
+      await fs.chmod(databasePath, DATABASE_FILE_MODE);
       const runner = new MigrationsRunner(this.options.logger);
       const result: MigrationsResult = await runner.run(
         db,
