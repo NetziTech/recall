@@ -2,22 +2,24 @@
 
 ## Versiones soportadas
 
-Solo el canal `beta` recibe fixes activamente. `latest` (`0.1.1`) y
-`0.1.0` estan deprecadas en npm.
+`0.1.2` es la version **stable** activa (canal `latest`). Todas las
+betas previas y las versiones `0.1.0`/`0.1.1` estan hard-deprecadas
+en npm.
 
 | Version | Soportada | Razon |
 |---|---|---|
-| `0.1.2-beta.6` | si | canal activo en npm dist-tag `beta`; cierra el carryover cosmetico del `serverInfo.version` (handshake JSON-RPC ahora reporta version real del binario, no un literal hardcoded). Behavior-preserving — no cambia ningun tool path. **Ultimo release planeado antes de promover `0.1.2` stable** (pendiente soak 24-48h en uso real) |
-| `0.1.2-beta.5` | no | superseded por `0.1.2-beta.6` (mismo canal beta); cerro B-MCP-8 |
-| `0.1.2-beta.4` | no | superseded por `0.1.2-beta.5`; cerro B-MCP-7 |
-| `0.1.2-beta.3` | no | superseded por `0.1.2-beta.4`; cerro B-MCP-2..5 |
+| **`0.1.2` (latest)** | **si** | **canal stable**; primer release stable de `@netzi/recall` promovido desde `0.1.2-beta.6`. Consolida 8 fixes del cycle `0.1.2-beta.*` (B-MCP-1..8 + carryover `serverInfo.version`). |
+| `0.1.2-beta.6` | no | superseded por `0.1.2` stable (mismo codigo, distinto dist-tag) |
+| `0.1.2-beta.5` | no | superseded; cerro B-MCP-8 |
+| `0.1.2-beta.4` | no | superseded; cerro B-MCP-7 |
+| `0.1.2-beta.3` | no | superseded; cerro B-MCP-2..5 |
 | `0.1.2-beta.0` | no | superseded por `0.1.2-beta.3` |
-| `0.1.1` (latest) | no | deprecada por bugs B-MCP-2..5/7/8 (cerrados a lo largo del cycle `0.1.2-beta.*`); el dist-tag `latest` se actualiza cuando salga `0.1.2` stable |
-| `0.1.0` | no | deprecada por B-MCP-1 (Phase-8) |
+| `0.1.1` | no | hard-deprecada por bugs B-MCP-2..5/7/8 (cerrados en el cycle beta) y carryover `serverInfo.version`. Migrar a `0.1.2`. |
+| `0.1.0` | no | hard-deprecada por B-MCP-1 (Phase-8). Migrar a `0.1.2`. |
 
-Roadmap de fixes + promote a `0.1.2` stable: ver
-[HANDOFF.md §6.20](./HANDOFF.md) +
-[release notes](./docs/RELEASE-NOTES-v0.1.2-beta.6.md).
+Roadmap de v0.5+: ver
+[HANDOFF.md §6.21](./HANDOFF.md) +
+[release notes](./docs/RELEASE-NOTES-v0.1.2.md).
 
 ---
 
