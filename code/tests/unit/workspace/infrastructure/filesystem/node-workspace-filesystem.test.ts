@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { promises as fs } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -399,5 +399,294 @@ describe("NodeWorkspaceFilesystem.ensureGitignore", () => {
     } finally {
       await fs.chmod(cfgPath, 0o600).catch(() => undefined);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// W-3.5-SEC-M1 — atomic write+rename for `.gitignore` (and `config.json`)
+// Pin the contract: every durable write goes through write-temp-then-
+// rename so a crash mid-write never leaves the canonical file truncated.
+// In `private` mode `.gitignore` is the *only* guard keeping
+// `.recall/recall.db` out of git, so a partial write is a real
+// security regression — these tests pin the invariant.
+// ─────────────────────────────────────────────────────────────────────
+describe("NodeWorkspaceFilesystem.ensureGitignore — atomic write contract (W-3.5-SEC-M1)", () => {
+  it("private: final .gitignore content equals the new content (no truncation, no leftover bytes from a previous longer file)", async () => {
+    // Seed with a longer file than the post-write content. If the
+    // implementation ever switched to truncate-then-write, an
+    // interrupted write would leave a shorter-than-expected file. Here
+    // we simply verify the post-condition: content is exactly what we
+    // wrote, byte-for-byte.
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    const longExisting = "node_modules\nbuild/\ndist/\n.env\n.cache/\nlogs/\ntmp/\n";
+    await fs.writeFile(gitignorePath, longExisting, "utf8");
+
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+
+    const after = await fs.readFile(gitignorePath, "utf8");
+    // VALOR: every original line is preserved, plus the new entry,
+    // and the file ends with a newline.
+    expect(after).toBe(`${longExisting}.recall/\n`);
+  });
+
+  it("private: no leftover temp file (`.gitignore.tmp-*`) survives a successful write", async () => {
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+    const entries = await fs.readdir(ctx.tmpDir);
+    // VALOR: the only entry in the tmp dir is the canonical
+    // `.gitignore` — no orphan `.gitignore.tmp-...` left behind.
+    const tmpLeftovers = entries.filter((e) => /\.gitignore\.tmp-/.test(e));
+    expect(tmpLeftovers).toEqual([]);
+    expect(entries).toContain(".gitignore");
+  });
+
+  it("private: temp file lives in the same directory as the target (so rename(2) is single-filesystem)", async () => {
+    // Pin behaviour: spy on `fs.rename` to capture the temp path used
+    // and assert it is a sibling of the target. If a future refactor
+    // routed the temp via `os.tmpdir()` (different mount), this test
+    // would fail.
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    const renameSpy = vi.spyOn(fs, "rename");
+    try {
+      await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+      expect(renameSpy).toHaveBeenCalled();
+      const firstCall = renameSpy.mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const [tempPath, finalPath] = firstCall as [string, string];
+      // VALOR: temp lives in the same directory as the target → same
+      // filesystem → atomic rename guarantee holds.
+      expect(path.dirname(tempPath)).toBe(path.dirname(gitignorePath));
+      expect(finalPath).toBe(gitignorePath);
+      // VALOR: temp filename is hidden (dot-prefixed) and contains the
+      // PID — the documented naming pattern.
+      expect(path.basename(tempPath)).toMatch(
+        /^\.\.gitignore\.tmp-\d+-[0-9a-f]{12}$/,
+      );
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("private: when fs.rename fails, the temp file is unlinked and the canonical .gitignore is unchanged", async () => {
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    const originalContent = "node_modules\n";
+    await fs.writeFile(gitignorePath, originalContent, "utf8");
+
+    // Force `fs.rename` to fail. We capture the temp path it was given
+    // so we can assert the cleanup actually unlinked it.
+    let observedTempPath: string | null = null;
+    const renameSpy = vi
+      .spyOn(fs, "rename")
+      .mockImplementation(async (src) => {
+        observedTempPath = String(src);
+        throw Object.assign(new Error("synthetic rename failure"), {
+          code: "EXDEV",
+        });
+      });
+    try {
+      const e = await fsAdapter
+        .ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode())
+        .then(
+          () => null,
+          (err: unknown) => err,
+        );
+      // VALOR: error is wrapped — caller learns the write failed.
+      expect(e).toBeInstanceOf(WorkspaceInfrastructureError);
+      expect((e as WorkspaceInfrastructureError).code).toBe(
+        "workspace.gitignore-update-failed",
+      );
+
+      // VALOR: the canonical `.gitignore` is byte-identical to its
+      // pre-call content — the failed write did NOT corrupt it.
+      const afterText = await fs.readFile(gitignorePath, "utf8");
+      expect(afterText).toBe(originalContent);
+
+      // VALOR: the temp file was cleaned up (no leftover on disk).
+      expect(observedTempPath).not.toBeNull();
+      const tempStillExists = await fs
+        .stat(observedTempPath as unknown as string)
+        .then(() => true)
+        .catch(() => false);
+      expect(tempStillExists).toBe(false);
+
+      // VALOR: directory listing has no `.gitignore.tmp-*` orphans.
+      const entries = await fs.readdir(ctx.tmpDir);
+      const tmpLeftovers = entries.filter((e) =>
+        /\.gitignore\.tmp-/.test(e),
+      );
+      expect(tmpLeftovers).toEqual([]);
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("shared: removing the entry also goes through atomic write — temp file lives next to target and is cleaned up", async () => {
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    await fs.writeFile(gitignorePath, "node_modules\n.recall/\nbuild/\n", "utf8");
+    const renameSpy = vi.spyOn(fs, "rename");
+    try {
+      await fsAdapter.ensureGitignore(
+        ctx.rootPath,
+        WorkspaceMode.sharedMode(),
+      );
+      // VALOR: the rename call did happen — write went through
+      // temp+rename, not direct writeFile.
+      expect(renameSpy).toHaveBeenCalled();
+      const firstCall = renameSpy.mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const [tempPath, finalPath] = firstCall as [string, string];
+      expect(path.dirname(tempPath)).toBe(path.dirname(gitignorePath));
+      expect(finalPath).toBe(gitignorePath);
+
+      // VALOR: final content is the new content with the entry stripped.
+      const after = await fs.readFile(gitignorePath, "utf8");
+      expect(after).not.toContain(".recall/");
+      expect(after).toContain("node_modules");
+      expect(after).toContain("build/");
+
+      // VALOR: no temp leftovers.
+      const entries = await fs.readdir(ctx.tmpDir);
+      const tmpLeftovers = entries.filter((e) =>
+        /\.gitignore\.tmp-/.test(e),
+      );
+      expect(tmpLeftovers).toEqual([]);
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("private: appending the entry to an existing .gitignore preserves every prior byte verbatim", async () => {
+    // Specific concurrency-safety check: a non-atomic implementation
+    // doing `truncate + write` could lose bytes if interrupted. The
+    // atomic helper produces the new file in full at the temp path
+    // BEFORE rename, so the canonical file is never observed in a
+    // partial state. We pin the post-condition: every original byte
+    // is preserved, the new entry is appended.
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    const original = "node_modules\nbuild/\n";
+    await fs.writeFile(gitignorePath, original, "utf8");
+
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+
+    const after = await fs.readFile(gitignorePath, "utf8");
+    // VALOR: prefix is byte-identical to the original.
+    expect(after.startsWith(original)).toBe(true);
+    // VALOR: suffix is exactly the new entry plus newline.
+    expect(after.slice(original.length)).toBe(".recall/\n");
+  });
+
+  it("writeConfig: also routes through atomic temp+rename (writeFile target is the temp path, not the canonical config.json)", async () => {
+    // Symmetry check: `writeConfig` must use the same atomic-write
+    // path as `ensureGitignore`. We assert by spying on `fs.rename`
+    // and verifying both: (1) rename was called and (2) the source
+    // path is a sibling of the canonical `config.json` (so it lives
+    // in `.recall/`, same filesystem).
+    await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
+    const configPath = path.join(ctx.tmpDir, ".recall", "config.json");
+    const renameSpy = vi.spyOn(fs, "rename");
+    try {
+      await fsAdapter.writeConfig(ctx.rootPath, SAMPLE);
+      expect(renameSpy).toHaveBeenCalled();
+      const firstCall = renameSpy.mock.calls[0];
+      expect(firstCall).toBeDefined();
+      const [tempPath, finalPath] = firstCall as [string, string];
+      // VALOR: temp lives in `.recall/` next to the target.
+      expect(path.dirname(tempPath)).toBe(path.dirname(configPath));
+      expect(finalPath).toBe(configPath);
+      // VALOR: temp filename matches the new randomBytes-based pattern.
+      expect(path.basename(tempPath)).toMatch(
+        /^\.config\.json\.tmp-\d+-[0-9a-f]{12}$/,
+      );
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("writeConfig: rename failure leaves no temp file behind and surfaces configWriteFailed", async () => {
+    await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
+    let observedTempPath: string | null = null;
+    const renameSpy = vi
+      .spyOn(fs, "rename")
+      .mockImplementation(async (src) => {
+        observedTempPath = String(src);
+        throw Object.assign(new Error("synthetic rename failure"), {
+          code: "EXDEV",
+        });
+      });
+    try {
+      const e = await fsAdapter
+        .writeConfig(ctx.rootPath, SAMPLE)
+        .then(
+          () => null,
+          (err: unknown) => err,
+        );
+      // VALOR: error is wrapped as configWriteFailed.
+      expect(e).toBeInstanceOf(WorkspaceInfrastructureError);
+      expect((e as WorkspaceInfrastructureError).code).toBe(
+        "workspace.config-write-failed",
+      );
+
+      // VALOR: temp file was cleaned up (best-effort unlink succeeded).
+      expect(observedTempPath).not.toBeNull();
+      const tempStillExists = await fs
+        .stat(observedTempPath as unknown as string)
+        .then(() => true)
+        .catch(() => false);
+      expect(tempStillExists).toBe(false);
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("writeConfig: file mode 0o600 is preserved end-to-end through atomic rename", async () => {
+    if (process.platform === "win32") return;
+    await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
+    await fsAdapter.writeConfig(ctx.rootPath, SAMPLE);
+    const stat = await fs.stat(
+      path.join(ctx.tmpDir, ".recall", "config.json"),
+    );
+    // VALOR: the rename did not lose the restrictive mode set on the
+    // temp file. POSIX rename preserves inode (and therefore mode).
+    expect(stat.mode & 0o777).toBe(0o600);
+  });
+
+  it("ensureGitignore: concurrent invocations both succeed and final content is one of the two valid states (atomicity invariant)", async () => {
+    // We cannot reliably reproduce a "torn write" with real fs because
+    // the helper writes the *whole* content to the temp file before
+    // rename. Instead we pin the post-atomicity invariant: under
+    // concurrent invocations the final canonical file is always one
+    // of the legal end-states (never a truncated/garbage hybrid). A
+    // non-atomic implementation could interleave write() syscalls and
+    // produce content like ".reca.recall/\n".
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    await fs.writeFile(gitignorePath, "node_modules\n", "utf8");
+
+    // Run 8 concurrent ensureGitignore calls in private mode. They
+    // should all complete; the canonical end-state is deterministic
+    // (the entry is present exactly once + node_modules preserved).
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        fsAdapter.ensureGitignore(
+          ctx.rootPath,
+          WorkspaceMode.privateMode(),
+        ),
+      ),
+    );
+
+    const after = await fs.readFile(gitignorePath, "utf8");
+    const recallLines = after
+      .split("\n")
+      .filter((l) => l.trim() === ".recall/");
+    // VALOR: the entry is present at least once and at most once per
+    // ensureGitignore that observed an "absent" state. With the atomic
+    // helper + idempotent withGitignoreEntry this collapses to 1.
+    expect(recallLines.length).toBe(1);
+    // VALOR: original `node_modules` line is still present.
+    expect(after.includes("node_modules\n")).toBe(true);
+    // VALOR: no orphan temp files left behind by any of the 8 races.
+    const entries = await fs.readdir(ctx.tmpDir);
+    const tmpLeftovers = entries.filter((e) =>
+      /\.gitignore\.tmp-/.test(e),
+    );
+    expect(tmpLeftovers).toEqual([]);
   });
 });

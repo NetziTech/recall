@@ -1,4 +1,5 @@
 import { promises as fs } from "node:fs";
+import { randomBytes } from "node:crypto";
 import * as path from "node:path";
 import * as os from "node:os";
 import { z } from "zod";
@@ -81,12 +82,22 @@ type RawConfig = z.infer<typeof PERSISTED_CONFIG_SCHEMA>;
  *     names).
  *
  * Atomicity:
- *   - `writeConfig` writes to a temporary sibling file in the same
- *     directory as the canonical name and renames atomically. Same
- *     filesystem guarantees `rename(2)` is atomic.
- *   - The temporary suffix is randomised via `os.tmpdir`-like seed
- *     (we use `process.pid + Date.now()`) to avoid collisions when
- *     two CLIs initialise concurrently.
+ *   - `writeConfig` and `ensureGitignore` route every durable write
+ *     through `atomicWriteFile`, which writes to a temporary sibling
+ *     file in the **same directory** as the canonical name and renames
+ *     atomically. Same-filesystem rename(2) is atomic on POSIX —
+ *     readers see either the previous content or the new content,
+ *     never partial. The temp file lives next to the target precisely
+ *     so the rename stays within one filesystem (`os.tmpdir()` may sit
+ *     on a different mount).
+ *   - The temporary suffix combines `process.pid` with 6 bytes from
+ *     `crypto.randomBytes` to avoid collisions when two CLIs
+ *     initialise concurrently against the same workspace.
+ *   - This closes warning W-3.5-SEC-M1 (HANDOFF.md §6.7 D-310): a
+ *     mid-write crash or `SIGKILL` on the previous direct-`writeFile`
+ *     to `.gitignore` could leave the file truncated, dropping the
+ *     `.recall/` entry the `private` mode relies on to keep the DB
+ *     out of git.
  *
  * Concurrency:
  *   - The adapter does NOT take any process-level lock. Concurrent
@@ -171,11 +182,6 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
     config: PersistedWorkspaceConfig,
   ): Promise<void> {
     const configPath = NodeWorkspaceFilesystem.configFilePath(rootPath);
-    const dir = path.dirname(configPath);
-    const tempPath = path.join(
-      dir,
-      `.${CONFIG_FILE_NAME}.tmp-${String(process.pid)}-${String(Date.now())}`,
-    );
 
     // Preserve unknown sub-slices (encryption, secrets, retrieval,
     // curator) when re-writing. Reading the existing file (when
@@ -215,15 +221,8 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
 
     const json = `${JSON.stringify(merged, null, 2)}\n`;
     try {
-      await fs.writeFile(tempPath, json, {
-        encoding: "utf8",
-        mode: CONFIG_FILE_MODE,
-      });
-      await fs.chmod(tempPath, CONFIG_FILE_MODE);
-      await fs.rename(tempPath, configPath);
+      await this.atomicWriteFile(configPath, json, CONFIG_FILE_MODE);
     } catch (err: unknown) {
-      // Best-effort cleanup of the temp file.
-      await fs.unlink(tempPath).catch(() => undefined);
       throw WorkspaceInfrastructureError.configWriteFailed(
         rootPath.toString(),
         err,
@@ -288,7 +287,10 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
       const expected = NodeWorkspaceFilesystem.withGitignoreEntry(content);
       if (expected === content) return; // already consistent
       try {
-        await fs.writeFile(gitignorePath, expected, "utf8");
+        // Atomic write: a crash mid-write must NOT leave `.gitignore`
+        // truncated, because in `private` mode that file is the only
+        // guard keeping `.recall/recall.db` out of git (W-3.5-SEC-M1).
+        await this.atomicWriteFile(gitignorePath, expected);
       } catch (err: unknown) {
         throw WorkspaceInfrastructureError.gitignoreUpdateFailed(
           rootPath.toString(),
@@ -309,7 +311,9 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
         // earlier; remove it.
         await fs.unlink(gitignorePath);
       } else {
-        await fs.writeFile(gitignorePath, without, "utf8");
+        // Atomic write: same reasoning as the private branch above —
+        // a crash mid-write must not leave a partial `.gitignore`.
+        await this.atomicWriteFile(gitignorePath, without);
       }
     } catch (err: unknown) {
       throw WorkspaceInfrastructureError.gitignoreUpdateFailed(
@@ -320,6 +324,60 @@ export class NodeWorkspaceFilesystem implements WorkspaceFilesystem {
   }
 
   // ── helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Write `content` to `targetPath` atomically by writing to a
+   * randomised sibling temp file first, then renaming. POSIX
+   * `rename(2)` is atomic when source and target sit on the same
+   * filesystem — that is why the temp path is built from
+   * `path.dirname(targetPath)`, never from `os.tmpdir()` (which can be
+   * a different mount and would force a copy-then-unlink that is NOT
+   * atomic).
+   *
+   * On rename failure the temp file is unlinked best-effort. The
+   * unlink failure is intentionally swallowed (e.g. ENOENT if
+   * something else cleaned it up) so the original cause surfaces to
+   * the caller.
+   *
+   * If `mode` is provided, it is applied to the temp file before the
+   * rename so the visible target inherits restrictive bits regardless
+   * of the inherited umask. If `mode` is omitted, the system default
+   * (umask-derived, typically `0o644`) applies — appropriate for
+   * non-secret files like the host project's `.gitignore` which
+   * should remain readable by tooling.
+   *
+   * Closes warning W-3.5-SEC-M1 (HANDOFF.md §6.7 D-310).
+   */
+  private async atomicWriteFile(
+    targetPath: string,
+    content: string,
+    mode?: number,
+  ): Promise<void> {
+    const dir = path.dirname(targetPath);
+    const base = path.basename(targetPath);
+    const suffix = randomBytes(6).toString("hex");
+    const tempPath = path.join(
+      dir,
+      `.${base}.tmp-${String(process.pid)}-${suffix}`,
+    );
+    const writeOptions: { encoding: "utf8"; mode?: number } = {
+      encoding: "utf8",
+      ...(mode !== undefined ? { mode } : {}),
+    };
+    try {
+      await fs.writeFile(tempPath, content, writeOptions);
+      if (mode !== undefined) {
+        // `writeFile`'s `mode` only applies on creation; reapply
+        // explicitly so a pre-existing temp file (collision with a
+        // dead PID's leftover) is also tightened.
+        await fs.chmod(tempPath, mode);
+      }
+      await fs.rename(tempPath, targetPath);
+    } catch (cause) {
+      await fs.unlink(tempPath).catch(() => undefined);
+      throw cause;
+    }
+  }
 
   private static workspaceDirPath(rootPath: WorkspacePath): string {
     const joined = rootPath.join(WORKSPACE_DIRECTORY_NAME).toString();
