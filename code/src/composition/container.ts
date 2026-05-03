@@ -200,6 +200,15 @@ export interface ContainerOptions {
    * fire against the placeholder workspace.
    */
   readonly workspaceId?: WorkspaceId;
+  /**
+   * Optional override for the stdio frame-accumulator cap (in JS
+   * string code units) applied by `StdioJsonRpcServer`
+   * (W-3.1-SEC-M1). The bootstrap entrypoint resolves the
+   * `RECALL_MCP_MAX_BUFFER_BYTES` env var and forwards the parsed
+   * value here. Unset → adapter falls back to
+   * `DEFAULT_MAX_BUFFER_BYTES` (10 MiB).
+   */
+  readonly mcpStdioMaxBufferBytes?: number;
 }
 
 /**
@@ -370,11 +379,21 @@ export function buildContainer(options: ContainerOptions): Container {
   };
 
   // Step 12 — mcp-server module.
+  // The stdio cap is forwarded only when explicitly supplied; the
+  // adapter applies its own default (`DEFAULT_MAX_BUFFER_BYTES`,
+  // 10 MiB) when the option is omitted. Spreading conditionally
+  // keeps `exactOptionalPropertyTypes` happy without smuggling an
+  // explicit `undefined` through the wiring boundary.
   const mcpServer = buildMcpServerWiring({
     logger,
     clock: shared.clock,
     facades: mcpServerFacades,
     serverInfo: options.serverInfo,
+    ...(options.mcpStdioMaxBufferBytes === undefined
+      ? {}
+      : {
+          stdioOptions: { maxBufferBytes: options.mcpStdioMaxBufferBytes },
+        }),
   });
   registerMvpTools({ registry: mcpServer.registry, clock: shared.clock });
 

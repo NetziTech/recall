@@ -33,7 +33,10 @@ import {
   JsonRpcHandler,
   type ServerInfo,
 } from "../../modules/mcp-server/infrastructure/transport/json-rpc-handler.ts";
-import { StdioJsonRpcServer } from "../../modules/mcp-server/infrastructure/transport/stdio-json-rpc-server.ts";
+import {
+  StdioJsonRpcServer,
+  type StdioJsonRpcServerOptions,
+} from "../../modules/mcp-server/infrastructure/transport/stdio-json-rpc-server.ts";
 
 /**
  * Bag of mcp-server-side artefacts the bootstrap entrypoint owns:
@@ -69,6 +72,13 @@ export interface McpServerWiringOptions {
   readonly clock: Clock;
   readonly facades: McpServerFacadesBag;
   readonly serverInfo: ServerInfo;
+  /**
+   * Optional override for the stdio transport's frame-accumulator
+   * cap (W-3.1-SEC-M1). When unset, the adapter falls back to
+   * `DEFAULT_MAX_BUFFER_BYTES`. The composition root parses
+   * `RECALL_MCP_MAX_BUFFER_BYTES` and forwards the value here.
+   */
+  readonly stdioOptions?: StdioJsonRpcServerOptions;
 }
 
 /**
@@ -115,7 +125,13 @@ export function buildMcpServerWiring(
     readonly stdin: Readable;
     readonly stdout: Writable;
   }): StdioJsonRpcServer =>
-    new StdioJsonRpcServer(handler, input.stdin, input.stdout, options.logger);
+    new StdioJsonRpcServer(
+      handler,
+      input.stdin,
+      input.stdout,
+      options.logger,
+      options.stdioOptions,
+    );
 
   return {
     useCases,

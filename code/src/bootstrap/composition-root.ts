@@ -249,6 +249,36 @@ function tryReadWorkspaceId(workspaceRoot: string): WorkspaceId | null {
 }
 
 /**
+ * Resolves the optional override for the stdio frame-accumulator
+ * cap (W-3.1-SEC-M1).
+ *
+ * Reads `RECALL_MCP_MAX_BUFFER_BYTES`. When set to a positive
+ * integer, the bootstrap forwards the value into the container's
+ * `mcpStdioMaxBufferBytes` slot, which the MCP wiring forwards to
+ * `StdioJsonRpcServer` as `maxBufferBytes`. When the env var is
+ * absent OR malformed (non-numeric, non-positive, non-finite), the
+ * adapter falls back to its built-in default (`DEFAULT_MAX_BUFFER_BYTES`,
+ * 10 MiB).
+ *
+ * Returns `null` to communicate "no override" to the caller — that
+ * lets the caller spread the result conditionally and keep
+ * `exactOptionalPropertyTypes` happy.
+ *
+ * Malformed values (e.g. `"hello"`, `"-1"`) are silently ignored
+ * rather than thrown: the bootstrap path MUST stay robust against
+ * a misconfigured environment so the binary still starts and the
+ * canonical default applies. Operators see the failure in any
+ * subsequent overflow log payload, which records the active cap.
+ */
+function resolveMcpStdioMaxBufferBytes(): number | null {
+  const raw = process.env["RECALL_MCP_MAX_BUFFER_BYTES"];
+  if (raw === undefined || raw.length === 0) return null;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+/**
  * Sentinel returned when {@link resolvePackageVersion} cannot locate
  * or parse the bundled `package.json`. Returning a clearly-fake
  * version (rather than throwing) lets the bootstrap proceed — the
@@ -498,6 +528,7 @@ export async function bootstrapComposition(
     database = sqlite;
   }
 
+  const mcpStdioMaxBufferBytes = resolveMcpStdioMaxBufferBytes();
   const container = buildContainer({
     shared: {
       logger: {
@@ -513,6 +544,9 @@ export async function bootstrapComposition(
     schemaVersion: "1.0.0",
     serverInfo,
     ...(workspaceId !== null ? { workspaceId } : {}),
+    ...(mcpStdioMaxBufferBytes === null
+      ? {}
+      : { mcpStdioMaxBufferBytes }),
   });
 
   const shutdown = async (): Promise<void> => {
