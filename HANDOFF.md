@@ -14,9 +14,9 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-05-03 (Phase-17 v0.5 HARDENING CYCLE CERRADO — 4 PRs (#43→#44→#45→#46) en `develop`, todos los 4 warnings de hardening defensivo de Fase 3 cerrados sin un solo rechazo de SonarQube quality gate (PR-2 tuvo 1 round-trip por S7735 negated condition trivial). **0 issues abiertos, 0 PRs abiertos**. Cycle estilo "1 fix por PR" preservado. **NO release cortado** — los 4 fixes acumulados en `develop` esperan decisión sobre `release/0.1.3-beta.0` o aplazar hasta tener un fix de bug + feature plus. Phase-16 `@netzi/recall@0.1.2` STABLE sigue como `latest` en npm. Ver §6.22) |
+| **Fecha del handoff** | 2026-05-03 (Phase-17 v0.5 HARDENING CYCLE CERRADO + reconcile de drift en §7/§8/§11 — 4 PRs (#43→#44→#45→#46) en `develop`, todos los 4 warnings de hardening defensivo de Fase 3 cerrados sin un solo rechazo de SonarQube quality gate (PR-2 tuvo 1 round-trip por S7735 negated condition trivial). **0 issues abiertos** + **8 Dependabot PRs abiertos** (#49-#56, ninguno bloqueante, ver §8). Cycle estilo "1 fix por PR" preservado. **NO release cortado** — los 4 fixes acumulados en `develop` esperan decisión sobre `release/0.1.3-beta.0` o aplazar hasta tener un fix de bug + feature plus. Phase-16 `@netzi/recall@0.1.2` STABLE sigue como `latest` en npm. Ver §6.22) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **Phase-17 v0.5 HARDENING CYCLE CERRADO en develop.** 4 PRs incrementales (#43→#44→#45→#46) cubren los 4 warnings defensivos consolidados de Fase 3 D-310 (HANDOFF §6.7) que se diferían a v0.5: (1) PR #43 chmod 0o600 sobre recall.db (W-3.5-SEC-M2); (2) PR #44 atomic write+rename en .gitignore + writeConfig consolidado (W-3.5-SEC-M1); (3) PR #45 redact paths absolutos de DatabaseError messages → `details: { path }` + 4 nuevos globs en pino redact (W-3.5-SEC-L1, parcial); (4) PR #46 cap configurable de buffer en StdioJsonRpcServer con default 10 MiB + env var override (W-3.1-SEC-M1). Cada PR acompañado de security-auditor APPROVED WITH OBSERVATIONS. **12 observaciones no bloqueantes** consolidadas para futuros ciclos. **NO release cortado** — fixes en develop, decisión humana sobre cortar `release/0.1.3-beta.0` (cooling) o esperar a tener un bug + feature plus para el siguiente release. Phase-16 `@netzi/recall@0.1.2` STABLE sigue intacto en `latest`. **HEAD develop (post #46)**: `f23457e`. **HEAD main**: `29371f8` (sin cambios). Develop diverge de main por 4 commits. |
+| **Fase actual** | **Phase-17 v0.5 HARDENING CYCLE CERRADO en develop.** 4 PRs incrementales (#43→#44→#45→#46) cubren los 4 warnings defensivos consolidados de Fase 3 D-310 (HANDOFF §6.7) que se diferían a v0.5: (1) PR #43 chmod 0o600 sobre recall.db (W-3.5-SEC-M2); (2) PR #44 atomic write+rename en .gitignore + writeConfig consolidado (W-3.5-SEC-M1); (3) PR #45 redact paths absolutos de DatabaseError messages → `details: { path }` + 4 nuevos globs en pino redact (W-3.5-SEC-L1, parcial); (4) PR #46 cap configurable de buffer en StdioJsonRpcServer con default 10 MiB + env var override (W-3.1-SEC-M1). Cada PR acompañado de security-auditor APPROVED WITH OBSERVATIONS. **12 observaciones no bloqueantes** consolidadas para futuros ciclos. **NO release cortado** — fixes en develop, decisión humana sobre cortar `release/0.1.3-beta.0` (cooling) o esperar a tener un bug + feature plus para el siguiente release. Phase-16 `@netzi/recall@0.1.2` STABLE sigue intacto en `latest`. **HEAD develop (post #48 docs handoff Opción C)**: `33d51a2`. **HEAD main**: `29371f8` (sin cambios). Develop diverge de main por 6 commits (4 hardening fixes + 2 docs HANDOFF cierre). |
 | **Lineas de codigo** | ~61,650 en `code/src/` + ~37,100 LOC de tests en **212 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-17 deltas**: +335 LOC neto en `code/src/` (chmod helper +17, atomic helper +66/-25, DatabaseError details +49/-10, BufferOverflow +94 new + stdio buffer cap +109/-6 + wiring/composition/bootstrap +88), +690 LOC de tests (4+10+12+10 = 36 nuevos tests, todos VALOR-asserting). 0 migraciones nuevas. |
 | **Migraciones** | **9** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope, **008__decisions-content** — backfill rationale → content + rebuild FTS5 con la columna nueva). |
 | **Lineas de documentacion** | ~8,950 en `docs/` (incluye ADR-001..004, convencion `.port.ts` §3.1). **8 release notes** (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`, `v0.1.2-beta.4.md`, `v0.1.2-beta.5.md`, `v0.1.2-beta.6.md`, **`v0.1.2.md`** — STABLE, consolida todo el cycle beta + migration guide). docs/02 §4.3 documenta `min_score`. |
@@ -32,6 +32,7 @@
 | **Licencia** | MIT (`code/LICENSE`). |
 | **Estado del release** | **PUBLICADO + smoke fresh validado completo.** `@netzi/recall@0.1.2` en npm canal `latest`. Tag `v0.1.2` → commit `29371f8` (= main HEAD post squash-merge PR #40). GitHub release **stable**: https://github.com/NetziTech/recall/releases/tag/v0.1.2 (NO prerelease). `npm publish --auth-type=web` ejecutado por usuario via WebAuthn passkey (PUT 200 + tarball 1.4 MB packed / 6.7 MB unpacked, 16 files, sha512 ea89bd249aa3...). Smoke fresh end-to-end con workspace 100% nuevo (`/tmp/recall-stable-smoke`, `npx --yes @netzi/recall@latest init`): **10/10 PASS** — `serverInfo.version === "0.1.2"`, tools/list 6 MVP, mem.health pre/post 3 writes, mem.recall hits=3 con candidates=3, mem.context 7 layers, mem.task UUID v7. `0.1.0` + `0.1.1` hard-deprecated. **Merge-back develop ← main via PR #41 cerrado limpiamente** (`181217f`). |
 | **Issues GitHub abiertos** | **0** — todos los issues del cycle `0.1.2-beta.*` cerrados antes de promover a stable. Phase-17 v0.5 hardening NO abrió issues (los 4 warnings ya estaban catalogados en HANDOFF §6.7 D-310 y §6.21 fila 4 desde Fase 3). **12 observaciones no bloqueantes** del security-auditor consolidadas para futuros ciclos (ver §6.22 sección "Observaciones consolidadas"). **Politica Phase-16+**: cualquier bug surfaced post-stable abre nuevo issue + se evalua si requiere `0.1.3-beta.X` (cooling) o va directo a `0.1.3` (trivial fix). |
+| **PRs GitHub abiertos** | **8 Dependabot** (#49-#56) — ninguno bloqueante. Bumps: eslint, vitest group, typescript-eslint, zod, **typescript 5.9→6.0 (mayor, revisar manualmente)**, ip-address+rate-limit, hono, fast-uri. Triage cuando convenga, NO automerge a typescript@6.x sin verificar tsconfig estricto. Ver §8 "Pull requests abiertos (Dependabot)". |
 | **Memoria propia** | **POBLADA por dogfood, queue DRENADA, vectores listos, B-MCP-8 + serverInfo.version fixes ambos confirmados end-to-end via stable** — `<repo>/.recall/recall.db` tiene 64 entries (27 decisions + 23 learnings + 11 entities + 0 tasks + 3 turns), `schema_version=8`, modo `private`. **embedding_queue: 0 pendientes**. **embedding_metadata: 64 vectores poblados**. Smoke fresh stable confirmo (segundo workspace `/tmp/recall-stable-smoke`, no este): `serverInfo.version === "0.1.2"`, mem.health en stale + post-writes, mem.recall hits no-vacios para queries con literal match, mem.context bundle de 7 layers — todo end-to-end con `@netzi/recall@latest` (= 0.1.2). **Hooks PR #26** siguen activos en este repo. |
 | **Repositorio GitHub** | https://github.com/NetziTech/recall — PUBLICO. `main` PR-only desde develop, CI required, enforce_admins. `develop` default branch (CI required, enforce_admins, push directo bloqueado por strict status check). Forks habilitados. Squash-only merges. **Pre-commit hooks per-repo en `.claude/settings.json`** (Phase-13 PR #26) — bloquean `git commit` en main/develop antes de que branch protection rechace el push. **Phase-14 confirmacion**: el hook `block-protected-push.sh` ataja correctamente push de tags desde main; workaround estandar `git switch --detach <tag>` antes del push de tag. |
 | **Proximo paso** | **Esperar bug real o feature plus** (Opción C tomada 2026-05-03). Los 4 hardening fixes de Phase-17 quedan acumulados en `develop` sin release dedicado; el próximo `release/0.1.3-beta.0` consolidará: (a) los 4 hardening fixes + (b) el primer bug surfaced en `0.1.2` stable, O (a) + (b) un feature del v0.5 roadmap. **Items v0.5 restantes** (HANDOFF §6.21): (1) multi-key envelope flow (3 stubs `Pending*`), (2) encrypted cold start `<500ms` via OS keychain, (3) perf hardening >10K entries, ~~(4) hardening defensivo~~ **CLOSED Phase-17**, (5) swap embedder o tar@7 para cerrar 2 highs upstream, (6) wire-schema cleanup `memoria_db` → `recall_db` (next major). **Para futuras sesiones**: revisa `gh issue list` y `git log origin/main..origin/develop` antes de actuar — si hay bug nuevo o material acumulado, cortar release según patrón Phase-15 §6.20. |
@@ -2556,45 +2557,65 @@ Las opciones A (cortar ahora) y B (acumular más cambios antes del release) fuer
 ```bash
 cd /Users/h2devx/proyects/netzi-tech/mcp/memoria
 claude
-> lee HANDOFF.md §0 + §6.17 (Phase-12: post-publish). El paquete
-  @netzi/recall@0.1.2-beta.3 esta PUBLICADO en npm beta channel y los
-  4 bugs de Phase-9 (B-MCP-2/3/4/5) estan cerrados. La fix de B-MCP-3
-  expuso 1 bug nuevo: B-MCP-7 (issue #24). La proxima tarea es
-  v0.1.2-beta.4: cerrar B-MCP-7. Fix recomendado en el issue body
-  (Option A): puerto Embedder devuelve typed error union diferenciando
-  EmbedderUnavailableError (transport-level, back-off del batch sin
-  incrementar attempts) vs EmbedFailedError (per-item, mantener
-  counter). Plus Option C: implementar comando `recall reset-queue`
-  (necesario porque YO mismo viole la regla de "no SQL directo" durante
-  el smoke de Phase-12 — ver §6.17 D-1208).
+> lee HANDOFF.md §0 + §6.22 (Phase-17: v0.5 HARDENING CYCLE CERRADO).
+  Estado al 2026-05-03:
+  - `@netzi/recall@0.1.2` STABLE en npm canal `latest`. `0.1.2-beta.6`
+    en canal `beta`. `0.1.0` + `0.1.1` hard-deprecated.
+  - Phase-17 cerro 4 warnings de hardening defensivo (W-3.5-SEC-M1/M2,
+    W-3.5-SEC-L1 parcial, W-3.1-SEC-M1) via 4 PRs (#43-#46) incrementales.
+  - Decision humana Opcion C tomada: NO cortar release/0.1.3-beta.0
+    inmediato. Los 4 hardening fixes acumulados en `develop` (6 commits
+    adelante de main) esperan a (a) bug real surfaced en 0.1.2 stable,
+    o (b) feature plus del roadmap v0.5.
+  - **Issues abiertas en GitHub: 0** (B-MCP-2/3/4/5 cerrados Phase-11,
+    B-MCP-7 cerrado Phase-13, B-MCP-8 cerrado Phase-15).
+  - **PRs abiertas: 8 Dependabot** (#49-#56, dep bumps). Backlog
+    pendiente revisar uno por uno cuando convenga; no son blockers.
+  - Memoria propia poblada: 64 entries en `.recall/recall.db`,
+    embedding_queue drenada, 64 vectores embeddable.
 
-  WORKFLOW PENDIENTE: el usuario propuso configurar hooks
-  pre-commit en .claude/settings.json (per-repo) via skill update-config
-  para prevenir mis 2 errores recurrentes (commit a main/develop por
-  error). DECISION HUMANA pendiente — si confirma, invocar update-config
-  con: pre-`Bash git commit` aborta si current branch es main/develop;
-  pre-`Bash git push origin main|develop` aborta siempre; pre-`Bash git
-  commit` con cambios en code/src/ corre `npm run typecheck` minimo.
+  NO HAY TAREA CONCRETA PENDIENTE. El proyecto esta en cooling stable.
+  La siguiente accion debe ser disparada por uno de:
+  1. Bug surfaced en `@netzi/recall@0.1.2` (revisa `gh issue list`
+     antes de actuar — si hay nuevo, cortar `release/0.1.3-beta.0`
+     consolidando hardening fixes + bug fix).
+  2. Decision humana de implementar item del roadmap v0.5+ (§7
+     "Roadmap v0.5+" abajo + §6.22 "Siguiente accion concreta").
+  3. Triage de los 8 Dependabot PRs (mergeable si CI verde, NO automerge
+     hasta revisar diff a typescript@6.x mayor — puede romper tsconfig
+     estricto).
+  4. Cerrar W-3.5-SEC-L2 follow-up (path-leak en 9+ Error factories
+     workspace/secrets/curator — detalle en §6.22 PR #45 hallazgo
+     critico).
+
+  Antes de actuar, ejecuta:
+    gh issue list --repo NetziTech/recall --state open
+    gh pr list --repo NetziTech/recall --state open
+    git log origin/main..origin/develop --oneline
 
   El MCP recall ya esta conectado a Claude Code (claude mcp list lo
-  reporta como Connected). Antes de hacer nada, prueba:
-    mem.context({query: "estado actual del proyecto"})
-  Esto deberia retornar los 64 entries de la dogfood DB con el
-  schema_version=8 y mem.health con valores reales (B-MCP-2/3/4 fix
-  validados). Pero si pides un query paraphrased, el recall sigue
-  cayendo a fallback_reason=embedder_unavailable hasta que B-MCP-7
-  cierre.
+  reporta como Connected). Para query rapida del estado:
+    mem.recall({query: "estado actual", top_k: 10})
+  Confirma `serverInfo.version === "0.1.2"` (sin sufijo -beta).
 
   REGLAS DURABLES (no negociables):
   1. NUNCA usar git worktrees — trabajar directo en el repo principal.
+     CLAUDE.md regla #1; hook UserPromptSubmit `warn-if-worktree.sh`
+     imprime WARNING en cada prompt si el cwd esta en worktree.
   2. NUNCA modificar la DB directamente con sqlite3 — implementar un
-     comando CLI primero (lo viole en Phase-12 §6.17 D-1208).
+     comando CLI primero (lection Phase-12 §6.17 D-1208).
   3. SIEMPRE verificar `git branch --show-current` antes de cualquier
-     Edit/Write/git commit. Cometi 2 commits a main por error en
-     Phase-12; branch protection los bloqueo en push pero deberia
-     atajarlo antes en commit.
+     Edit/Write/git commit. Los hooks PreToolUse Bash en
+     `.claude/settings.json` ataja commits/pushes directos a
+     main/develop con exit 2.
   4. SIEMPRE priorizar estabilidad sobre velocidad (memoria de
-     feedback `feedback_priorize_stability.md`).
+     feedback `feedback_priorize_stability.md`). Decisiones de
+     wire/API/contrato default a backward-compatible.
+  5. PATRON "1 fix por PR" — squash-merge a develop con security-auditor
+     APPROVED entre cada uno. Consolidar multiplica blast radius.
+  6. Co-Authored-By trailer "Claude Opus 4.7 (1M context)" REQUIRED
+     en cada commit asistido por IA (convencion verificable via
+     `git log --format='%(trailers)'`).
 ```
 
 ### Si es otro dev humano
@@ -2603,16 +2624,17 @@ claude
 git clone git@github.com:NetziTech/recall.git    # repo PUBLICO desde Phase-10
 cd recall
 # default branch es `develop`; main solo recibe via PR de release
-cat HANDOFF.md               # §0 + §6.16 (Phase-11 fixes) + §6.17 (Phase-12 publish + B-MCP-7) + §8 (bugs abiertos)
+cat HANDOFF.md               # §0 + §6.22 (Phase-17 hardening cycle) + §8 (follow-ups)
 cat CONTRIBUTING.md          # GitFlow + reglas de PR + checklist
 cat SECURITY.md              # como reportar vulnerabilidades (PVR + email)
 cat docs/README.md
 cat docs/12-lineamientos-arquitectura.md   # ADR-001..004
 cat docs/13-workflow-agentes.md
-cat docs/RELEASE-NOTES-v0.1.2-beta.3.md    # release vigente en npm beta
+cat docs/RELEASE-NOTES-v0.1.2.md           # release stable vigente en npm latest
+cat docs/WORKFLOW-TEMPLATE.md              # workflow abstracto para replicar
 cd code && npm install && npm run typecheck && npm run lint && \
   npm run lint:tests && npm run validate:modules && npm run build && npm test
-# Los 6 EXIT=0 (2519 tests passing en 208 archivos).
+# Los 5+1 EXIT=0 (2588 tests passing en 212 archivos).
 ```
 
 **Para contribuir** (cualquier cambio de codigo, doc, tooling):
@@ -2622,7 +2644,7 @@ cd code && npm install && npm run typecheck && npm run lint && \
 git checkout develop && git pull origin develop
 git checkout -b feature/mi-cambio
 
-# 2. Trabajar con los 5 checks pre-commit + tests
+# 2. Trabajar con los 5+1 checks pre-commit + tests
 cd code && npm run typecheck && npm run lint && npm run lint:tests \
   && npm run validate:modules && npm run build && npm test
 
@@ -2641,48 +2663,62 @@ merge-back a `develop`.
 
 ### Issues abiertos a tomar (ordenados por ROI)
 
-1. [#24 B-MCP-7](https://github.com/NetziTech/recall/issues/24)
-   (high) — worker burnea 5 retries durante cold-start de fastembed
-   (~4.3s init); items quedan en `attempts=5` permanent failure.
-   Fix recomendado en issue body: Option A (typed error union
-   `EmbedderUnavailableError` vs `EmbedFailedError` para diferenciar
-   transport-level de per-item) + Option C (comando `recall reset-queue`
-   para recovery de items perma-failed). Test debe usar
-   `FastembedEmbedder` real (no stub) y verificar que el worker
-   sobrevive una init sintetica de >2s.
+**Ninguno al cierre de Phase-17.** Los 6 bugs descubiertos a lo largo
+del cycle 0.1.2-beta.* fueron cerrados:
 
-(Los 4 issues de Phase-9 — B-MCP-2/3/4/5 — quedaron cerrados en
-Phase-11 via PRs #17/#18/#19/#20.)
+- B-MCP-2 → PR [#18](https://github.com/NetziTech/recall/pull/18) (Phase-11)
+- B-MCP-3 → PR [#17](https://github.com/NetziTech/recall/pull/17) (Phase-11)
+- B-MCP-4 → PR [#20](https://github.com/NetziTech/recall/pull/20) (Phase-11)
+- B-MCP-5 → PR [#19](https://github.com/NetziTech/recall/pull/19) (Phase-11)
+- B-MCP-7 → PR [#27](https://github.com/NetziTech/recall/pull/27) (Phase-13)
+- B-MCP-8 → PR [#33](https://github.com/NetziTech/recall/pull/33) (Phase-15)
 
-### Estado del repo git (post-Phase-12)
+**Follow-ups tracked en HANDOFF (NO en GitHub issues):**
 
-- **HEAD de `main`**: `9429bbd` — `hotfix(docs): public-facing docs claimed bugs that were already closed (#23)` (release v0.1.2-beta.3 + hotfix de docs combinados; tag `v0.1.2-beta.3` apunta aqui).
-- **HEAD de `develop`**: `1651e92` — `chore(merge): sync develop with main after release v0.1.2-beta.3 (#22)` (incluye release content + hotfix docs).
-- **Tags**: `v0.1.0` (deprecada), `v0.1.1` (deprecada), `v0.1.2-beta.0` (superseded por beta.3 en mismo canal), `v0.1.2-beta.3` (canal beta activo, apunta a `9429bbd` = main HEAD post-re-tag durante Phase-12 §6.17 D-1202).
-- **Branches protegidas**: `main` (PR-only desde develop, CI required, enforce_admins) + `develop` (CI required, enforce_admins, **push directo BLOQUEADO empiricamente** por strict status check — la nota Phase-10 que decia "permitido a maintainers" estaba inexacta).
-- **Visibilidad**: **publico** desde Phase-10. Forks habilitados.
+1. **W-3.5-SEC-L2** (MEDIUM, §6.22 PR #45 hallazgo critico) — 9+ Error
+   factories en workspace/secrets/curator leakean paths absolutos en
+   `message` y fluyen al wire JSON-RPC via `error-mapper.ts` Tier 3.5.
+   Aplicar mismo patron `details: { path }` antes de v0.5 GA.
+2. **11 observaciones low/info** del cycle hardening (§6.22 tabla
+   "Observaciones consolidadas") para futuros ciclos.
+
+**8 Dependabot PRs abiertas (#49-#56)** — bumps de tipos y tooling.
+Triage cuando convenga; merger una por una con CI verde. NO automerge
+a typescript@6.x sin verificar que el tsconfig estricto sigue
+compilando.
+
+### Estado del repo git (post-Phase-17)
+
+- **HEAD de `main`**: `29371f8` — release v0.1.2 stable promoted from beta.6 (PR #40); tag `v0.1.2` apunta aqui.
+- **HEAD de `develop`**: `33d51a2` — `docs(handoff): record Phase-17 release decision — Opcion C (defer)` (PR #48). Develop 6 commits adelante de main (los 4 hardening fixes #43-#46 + 2 docs handoff cierre #47/#48).
+- **Tags**: `v0.1.0` + `v0.1.1` (hard-deprecated), `v0.1.2-beta.0/3/4/5/6` (canal beta historia), `v0.1.2` (canal latest activo, apunta a `29371f8` = main HEAD).
+- **Branches protegidas**: `main` (PR-only desde develop, CI required, enforce_admins) + `develop` (CI required, enforce_admins, push directo bloqueado empiricamente por strict status check).
+- **Visibilidad**: **publico** desde Phase-10. Forks habilitados. Squash-only merges.
 - **Remoto**: `git@github.com:NetziTech/recall.git`.
 - **Paquetes npm**:
-  - `latest`: `@netzi/recall@0.1.1` — **deprecada** con mensaje "Dogfood found defects B-MCP-2..5... ships via @beta until v0.1.2 stable".
-  - `beta`: `@netzi/recall@0.1.2-beta.0` — opt-in para fixes en progreso.
-  - `0.1.0`: deprecada (Phase-8) por B-MCP-1.
-  - Org `netzi`, owner `h2devx`, publicado via WebAuthn passkey.
-- **GitHub releases**: `v0.1.0`, `v0.1.1`, `v0.1.2-beta.0` (este ultimo marcado `prerelease: true`).
-- **Issues abiertos**: 4 (B-MCP-2/3/4/5 — todos creados en Phase-9).
-- **Archivos tracked**: ~705 (incluye los 3 release notes, +6.14 en HANDOFF, +RELEASE-NOTES-v0.1.2-beta.0.md).
-- **`.gitignore`** (raiz): excluye `.DS_Store`, IDE files, secrets locales, **`.claude/worktrees/`** (auto-worktree del harness — el usuario quiere trabajar siempre en el repo principal, NO en worktrees).
+  - `latest`: `@netzi/recall@0.1.2` — STABLE, mantenedor `h2devx`, publicado via WebAuthn passkey.
+  - `beta`: `@netzi/recall@0.1.2-beta.6` — superseded por stable pero no deprecated (testers pueden seguir opt-in).
+  - `0.1.0` + `0.1.1`: hard-deprecated apuntando a `@netzi/recall@latest`.
+- **GitHub releases**: `v0.1.0`, `v0.1.1` (ambos visibles pero apuntan a versiones deprecated en npm), `v0.1.2-beta.0/3/4/5/6` (prerelease=true), `v0.1.2` (stable, NO prerelease).
+- **Issues abiertos**: 0. **PRs abiertos**: 8 (todos Dependabot).
+- **Archivos tracked**: ~720 (incluye RELEASE-NOTES v0.1.2 + 6 betas, HANDOFF expandido a §6.22, validation reports Fase 1-9, scripts hooks, templates).
+- **`.gitignore`** (raiz): excluye `.DS_Store`, IDE files, secrets locales, **`.claude/worktrees/`** (CLAUDE.md regla #1 anti-worktree).
 - **`code/.gitignore`**: excluye `node_modules/`, `dist/`, `coverage/`, etc.
 
 ### Smoke test del release (cualquier maquina con Node 20+)
 
 ```bash
-# Canal beta (recomendado para colaboradores)
-npx --yes @netzi/recall@beta --help
+# Canal latest (recomendado)
+npx --yes @netzi/recall@latest --help
 # o:
-npm install -g @netzi/recall@beta && recall --help
+npm install -g @netzi/recall && recall --help
+# Asertar version: recall server | head -1 muestra version 0.1.2
 
-# Canal latest (deprecado, muestra warning)
-npx --yes @netzi/recall@0.1.1 --help
+# Canal beta (testers opt-in)
+npx --yes @netzi/recall@beta --help
+
+# Versiones deprecated (warning visible)
+npx --yes @netzi/recall@0.1.1 --help   # deprecated: "Use @netzi/recall@latest"
 ```
 
 ### Roadmap v0.5+ (resumen — detalle en §8)
@@ -2694,15 +2730,20 @@ npx --yes @netzi/recall@0.1.1 --help
 3. **Performance hardening >10K entries**: applyDecay batch,
    PruneLowConfidence transaction, Vec0SimilarityFinder lookup,
    db.prepare cache hot-path (W-3.4-PERF-H1/H2/H3, W-3.3-PERF-M1/M2).
-4. **Hardening defensivo**: atomic gitignore write+rename, chmod
+4. ~~**Hardening defensivo**: atomic gitignore write+rename, chmod
    0o600 sobre `recall.db`, redact path en err.message,
-   StdioJsonRpcServer buffer cap (anti-DoS).
+   StdioJsonRpcServer buffer cap (anti-DoS).~~ **CLOSED Phase-17**
+   (PRs #43-#46). Remanente: **W-3.5-SEC-L2** (9+ Error factories
+   con mismo leak pattern, MEDIUM, sin cerrar).
 5. **Cerrar 2 highs upstream tar/fastembed**: si `fastembed@2.x`
    no publica con `tar@7.x` antes de v0.5, swap a
    `@huggingface/transformers` (ADR-004, criterio de reapertura).
 6. **Wire-schema cleanup**: rename `size_bytes.memoria_db` →
    `size_bytes.recall_db` (deuda documentada en `docs/02 §4.6`,
    diferida hasta proximo major por back-compat).
+7. **W-3.5-SEC-L2 follow-up** (NUEVO Phase-17): aplicar patron
+   `details: { path }` a 9+ Error factories en workspace/secrets/
+   curator que aun leakean paths absolutos al wire JSON-RPC.
 
 ---
 
@@ -2710,42 +2751,61 @@ npx --yes @netzi/recall@0.1.1 --help
 
 ### Bloqueadores activos
 
-**1 bug descubierto en smoke post-publish (Phase-12)** — los 4 bugs
-de Phase-9 (B-MCP-2/3/4/5) ya cerrados en `v0.1.2-beta.3`. El bug
-restante fue **expuesto por la fix de B-MCP-3** (el worker ahora
-corre — antes nunca corria; al correr, falla en el cold-start de
-fastembed).
+**Ninguno al cierre de Phase-17 (2026-05-03).** Todos los bugs
+descubiertos durante el cycle 0.1.2-beta.* fueron cerrados. Estado
+del canal: `latest=0.1.2` STABLE (sin warnings), `beta=0.1.2-beta.6`
+(superseded por stable pero no deprecated), `0.1.0`+`0.1.1`
+hard-deprecated.
 
-| # | Issue | Severidad | Bloqueante de | Fix mas alto en ROI |
+### Follow-ups tracked (NO en GitHub, vivos en HANDOFF)
+
+Los siguientes items son trabajo identificado pero NO promovido a
+issue de GitHub. El criterio: si requiere coordinacion externa o
+contribuciones de la comunidad, abrir issue; si es trabajo interno
+del proyecto, vive aqui hasta cortar release.
+
+| ID | Severidad | Origen | Descripcion | Estado |
 |---|---|---|---|---|
-| **B-MCP-7** | [#24](https://github.com/NetziTech/recall/issues/24) | high | semantic recall en produccion (queue queda permanent-failed antes de que fastembed termine init de ~4.3s) | Option A: typed error union `EmbedderUnavailableError` vs `EmbedFailedError` en el puerto Embedder; worker hace back-off del batch entero (no incrementa attempts per-item) en transport-level errors. Plus Option C: comando `recall reset-queue` para recovery de la dogfood DB y para usuarios que ya instalaron beta.3. |
+| **W-3.5-SEC-L2** | MEDIUM | PR #45 (Phase-17) hallazgo del security-auditor | 9+ Error factories en workspace/secrets/curator (configMissing, configMalformed, configReadFailed, configWriteFailed, directoryCreateFailed, directoryRemoveFailed, gitignoreUpdateFailed, detectionFailed, unlockTargetMissing, NoWorkspaceAtPathError, foreignHookExists, curator.scanFailed) leakean paths absolutos en `message` y fluyen al wire JSON-RPC via `error-mapper.ts` Tier 3.5. Aplicar mismo patron `details: { path }` que en PR #45 antes de v0.5 GA. | OPEN tracked |
+| O-PR43-1..O-PR46-O8 | LOW/INFO (11 obs) | Cycle Phase-17 | Detalle en §6.22 tabla "Observaciones consolidadas". Items: TOCTOU chmod, atomic fs.open wx, orphan-temp recovery, fsync durability, pino glob 1-segment limit, JSDoc warning, late-tick guard, env var regex, env var ceiling, rate-limit reconnect, JSON parse-bomb. | OPEN tracked para futuros ciclos |
 
-**Estado del canal**: `latest=0.1.1` (deprecada con warning, sin
-movimiento hasta cerrar B-MCP-7), `beta=0.1.2-beta.3` (publicado,
-con los 4 fixes de Phase-11 + bug B-MCP-7 abierto). v0.1.0/v0.1.1
-deprecadas. v0.1.2-beta.0 superseded por beta.3 en mismo canal.
+### Pull requests abiertos (Dependabot)
 
-**Caveat sobre la suite de tests**: 2519 tests passing no detectaron
-B-MCP-7 porque el integration test L-embedding-worker-drains usa
-`StubRawEmbedder` (retorna sincronicamente, sin simular cold-start).
-La methodology Phase-9 "VALORES no SHAPE" cubrio el contract del
-worker (drains queue → metadata grows) pero NO el cold-start real de
-fastembed (~4.3s init). Lecciona codificada en §6.17: agregar test
-con FastembedEmbedder real + cache vacia + assert que el worker
+**8 PRs auto-generados** por Dependabot, ninguno bloqueante. Todos
+contra `develop` con CI required. Triage cuando convenga:
+
+| PR | Bump | Riesgo |
+|---|---|---|
+| [#49](https://github.com/NetziTech/recall/pull/49) | eslint 10.2.1 → 10.3.0 (types-and-tooling group) | LOW |
+| [#50](https://github.com/NetziTech/recall/pull/50) | vitest group (2 updates) | LOW-MEDIUM (revisar Vitest snapshot compat) |
+| [#51](https://github.com/NetziTech/recall/pull/51) | typescript-eslint 8.59.1 → 8.59.2 | LOW |
+| [#52](https://github.com/NetziTech/recall/pull/52) | zod 4.3.6 → 4.4.3 | LOW-MEDIUM (revisar schema breaking changes) |
+| [#53](https://github.com/NetziTech/recall/pull/53) | **typescript 5.9.3 → 6.0.3** | **MEDIUM-HIGH** — bump mayor; revisar tsconfig strict flags + posibles deprecations |
+| [#54](https://github.com/NetziTech/recall/pull/54) | ip-address + express-rate-limit | LOW (deps transitivas) |
+| [#55](https://github.com/NetziTech/recall/pull/55) | hono 4.12.15 → 4.12.18 | LOW |
+| [#56](https://github.com/NetziTech/recall/pull/56) | fast-uri 3.1.0 → 3.1.2 | LOW |
+
+**Recomendacion**: cerrar PRs LOW primero (single merge run con CI), revisar PR #53 manualmente antes de aceptar (typescript@6 puede romper compilacion estricta), PR #50 + #52 con revision de breaking changes upstream.
+
+### Hallazgos historicos del cycle 0.1.2-beta.* (todos CERRADOS)
+
+| # | Item | Issue GH | Resuelto en | PR | Phase |
+|---|---|---|---|---|---|
+| **B-MCP-2** (high) | mem.health hardcoded values | [#1](https://github.com/NetziTech/recall/issues/1) | `05b6731` | [#18](https://github.com/NetziTech/recall/pull/18) | Phase-11 |
+| **B-MCP-3** (critical) | AsyncEmbeddingWorker no instanciado | [#2](https://github.com/NetziTech/recall/issues/2) | `229e7cd` | [#17](https://github.com/NetziTech/recall/pull/17) | Phase-11 |
+| **B-MCP-4** (critical) | decision content silently dropped | [#3](https://github.com/NetziTech/recall/issues/3) | `52fbfd9` | [#20](https://github.com/NetziTech/recall/pull/20) | Phase-11 |
+| **B-MCP-5** (low/docs) | docs/02 §4.4 vs Zod min_score | [#4](https://github.com/NetziTech/recall/issues/4) | `c4a2d1d` | [#19](https://github.com/NetziTech/recall/pull/19) | Phase-11 |
+| **B-MCP-6** (warning, cascada de B-MCP-3) | dedup decisions/learnings depende de embedder | dentro de [#2](https://github.com/NetziTech/recall/issues/2) | (cascada) | (cascada) | Phase-11 |
+| **B-MCP-7** (high) | worker burnea retries durante cold-start fastembed (~4.3s init) | [#24](https://github.com/NetziTech/recall/issues/24) | `5903fb4` | [#27](https://github.com/NetziTech/recall/pull/27) | Phase-13 |
+| **B-MCP-8** (high) | mem.recall total_candidates>0 pero hits=0 | [#31](https://github.com/NetziTech/recall/issues/31) | `ee74d36` | [#33](https://github.com/NetziTech/recall/pull/33) | Phase-15 |
+
+**Caveat sobre la suite de tests** (leccion durable): la suite de
+2588 tests no detecta bugs de cold-start real porque los integration
+tests usan `StubRawEmbedder` (retorna sincronicamente). La methodology
+"VALORES no SHAPE" cubre el contract pero no la latencia real de
+fastembed (~4.3s init). Codificado en §6.17: agregar test con
+`FastembedEmbedder` real + cache vacia para validar que el worker
 sobrevive `init()` de >2s sin marcar items como permanent-fail.
-
-### Hallazgos de Phase-9 (dogfood + corte beta) — todos en GitHub issues
-
-| # | Item | Tracking | Resuelto / accion tomada |
-|---|---|---|---|
-| **D-901..D-906** | Decisiones del orquestador en Phase-9 | §6.14 | Documentadas en HANDOFF + memoria propia del MCP |
-| **Corte beta v0.1.2-beta.0** | Reclasificar canal sin romper a usuarios | commit `9219c3f` | Publicado en npm dist-tag `beta`; GitHub pre-release; tag remoto |
-| **Deprecacion v0.1.1** | Senalizar codigo defectuoso a usuarios nuevos | npm metadata | `npm deprecate @netzi/recall@0.1.1 "..."` con mensaje apuntando a `@beta` |
-| **B-MCP-2** (high) | mem.health hardcoded values | [#1](https://github.com/NetziTech/recall/issues/1) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.2` |
-| **B-MCP-3** (critical) | AsyncEmbeddingWorker no instanciado | [#2](https://github.com/NetziTech/recall/issues/2) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.1` (proximo) |
-| **B-MCP-4** (critical) | decision content silently dropped | [#3](https://github.com/NetziTech/recall/issues/3) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.3` (requiere ADR) |
-| **B-MCP-5** (low) | docs/02 §4.4 vs Zod min_score | [#4](https://github.com/NetziTech/recall/issues/4) | OPEN — abierto en Phase-9; fix en `v0.1.2-beta.3` (trivial) |
-| **B-MCP-6** (warning, cascada) | dedup decisions/learnings depende de embedder | dentro de [#2](https://github.com/NetziTech/recall/issues/2) | OPEN — cierra automaticamente cuando B-MCP-3 cierre |
 
 ### Bloqueadores resueltos en Phase-7 + Phase-8 (rename + recall v0.1.0/v0.1.1)
 
@@ -2798,30 +2858,39 @@ sobrevive `init()` de >2s sin marcar items como permanent-fail.
 | W-3.3-DDD-2 | EventPublisher port en `shared/` | Tarea 4.5 | Movido desde workaround temporal a `code/src/shared/application/ports/event-publisher.port.ts`. Suscripciones cross-module activas. |
 | 3 perf-criticos N+1/transaccion en memory adapters | Tarea 4.5 ciclo 1 | Backend aplico fixes (UNION ALL + JOIN batch, transaction() explicita, migracion 005__perf-indexes.sql). Performance-auditor APPROVED ciclo 1. |
 
-### Observaciones de hardening Fase 3 (NO son blockers para Fase 4)
+### Observaciones de hardening Fase 3 (CLOSED Phase-17 — historico)
 
-Los 4 hallazgos `medium`/`low` de seguridad de Tarea 3.5 son hardening
-defensivo, no rompen flujos normales. `security-auditor` los marco
-como NO bloqueantes y aprobo el modulo. Se difieren a Fase 5 architect
-review. Resumen:
+Los 4 hallazgos `medium`/`low` de seguridad de Tarea 3.5 eran hardening
+defensivo que se difirieron primero a Fase 5 architect review y luego
+a v0.5+. **Todos cerrados en Phase-17** (cycle de 4 PRs incrementales
+#43-#46):
 
-| ID | Severidad | Archivo | Nota |
-|---|---|---|---|
-| W-3.5-SEC-M1 | medium | `workspace/infrastructure/filesystem/node-workspace-filesystem.ts:255,276` | `ensureGitignore` no usa write-temp+rename atomico. Hardening modo private. |
-| W-3.5-SEC-M2 | medium | `shared/infrastructure/database/sqlite-database-bootstrap.ts:70-93` | `SqliteDatabaseBootstrap` no aplica chmod 0o600 explicito sobre `recall.db`. Defense in depth (directorio ya en 0o700). |
-| W-3.5-SEC-L1 | low | `shared/infrastructure/database/sqlite-database-bootstrap.ts` (probe) | Redact `err.message` en logger.error del probe. |
-| W-3.5-SEC-L2 | low | `workspace/infrastructure/filesystem/node-workspace-filesystem.ts` (passphrase compare path) | Constant-time compare en path workspace (encryption/domain ya lo aplica al final). |
+| ID original | Severidad | PR que cerro | Phase | Nota |
+|---|---|---|---|---|
+| W-3.5-SEC-M1 | medium | [#44](https://github.com/NetziTech/recall/pull/44) `f7538aa` | Phase-17 | atomic write+rename en `.gitignore` + `writeConfig` consolidado via helper privado con CSPRNG random suffix |
+| W-3.5-SEC-M2 | medium | [#43](https://github.com/NetziTech/recall/pull/43) `0ad89bf` | Phase-17 | `fs.chmod(databasePath, 0o600)` en `SqliteDatabaseBootstrap.bootstrap()` despues de open exitoso |
+| W-3.5-SEC-L1 | low | [#45](https://github.com/NetziTech/recall/pull/45) `30cfaa0` | Phase-17 | DatabaseError factories mueven path/dir de `message` a `details: { path }` + 4 nuevos globs pino redact. **Cubre solo DatabaseError**; ver W-3.5-SEC-L2 abajo para el resto. |
+| W-3.5-SEC-L2 (original "constant-time compare") | low | (n/a — no implementado) | (deferido) | Constant-time compare en path workspace ya cubierto en encryption/domain. **Re-usado el ID W-3.5-SEC-L2 para el follow-up de PR #45** (9+ Error factories adicionales con path-leak en message). |
 
-### Decisiones humanas pendientes (Fase 5 architect review)
+**Nota sobre re-uso del ID W-3.5-SEC-L2**: el ID original (Fase 3
+tarea 3.5) era constant-time compare, ya cubierto upstream en
+encryption/domain. El security-auditor del PR #45 abrio un follow-up
+sustancialmente mas grave (9+ factories en workspace/secrets/curator
+con path-leak al wire) y se le asigno el mismo ID W-3.5-SEC-L2 porque
+el original ya no era item activo. Ver §8 "Follow-ups tracked" para
+el item vigente.
 
-Documentadas en `.claude/workflow-state.json` →
-`tasks.retrieval-domain.advertencias_pendientes_para_fase_5_architect`:
+### Decisiones humanas pendientes (Fase 5 architect review — RESUELTAS)
 
-| # | Item | Decision pendiente |
+Las 3 decisiones humanas que estaban pendientes durante la Fase 5
+architect review se resolvieron en la Tarea 5.6 con ADRs formales.
+Tabla historica:
+
+| # | Item | Resolucion |
 |---|---|---|
-| D-101 | `PriorityBoost` multiplicativo (≥1, ≤10) vs spec docs/01 §2.6 aditivo | Conformar al spec O actualizar doc + ADR |
-| D-102 | `ContextLayerKind` names domain-flavoured vs wire literals docs/02 §4.2 | ADR + tabla wire-vs-domain en docs/02 §4.2 |
-| D-103 | `encrypted → shared` direct mode transition prohibida vs docs/11 §5 (warning, no prohibido) | Confirmar politica conservadora o relajar |
+| D-101 | `PriorityBoost` multiplicativo (≥1, ≤10) vs spec docs/01 §2.6 aditivo | **ADR-002** ratifica multiplicativo (`docs/12 §1.5.2`). `docs/01 §2.6` actualizado. |
+| D-102 | `ContextLayerKind` names domain-flavoured vs wire literals docs/02 §4.2 | **ADR-003** Anti-Corruption Layer permanente (`docs/12 §1.5.3`). `docs/02 §4.2` actualizado con tabla wire-vs-domain. |
+| D-103 | `encrypted → shared` direct mode transition prohibida vs docs/11 §5 (warning, no prohibido) | Politica conservadora confirmada en `docs/11 §5`. Usuario debe pasar por `encrypted → private → shared`. |
 
 ### Preguntas abiertas pre-existentes
 
@@ -2874,63 +2943,78 @@ Documentadas en `.claude/workflow-state.json` →
 
 ## 11. Cierre
 
-Estado: **`@netzi/recall@0.1.1` PUBLICADO Y VALIDADO END-TO-END
-con cliente MCP real.** 8 fases ejecutadas (0-6 MVP + Phase-7
-rename-and-recall + Phase-8 same-day patch B-MCP-1). El paquete vive
+Estado: **`@netzi/recall@0.1.2` STABLE PUBLICADO en npm canal
+`latest`, Phase-17 v0.5 HARDENING CYCLE CERRADO en `develop`.** 17
+fases ejecutadas (0-6 MVP + Phase-7 rename-and-recall + Phase-8
+same-day patch B-MCP-1 + Phase-9 dogfood + corte beta + Phase-10
+GitFlow + repo publico + CI/CD + Phase-11 cierre 4 bugs Phase-9 +
+Phase-12 publicacion beta.3 + descubrimiento B-MCP-7 + Phase-13
+cierre B-MCP-7 + workflow Claude hooks + Phase-14 publicacion
+beta.4 + descubrimiento B-MCP-8 + Phase-15 cierre B-MCP-8 + Phase-16
+promote a stable + Phase-17 v0.5 hardening cycle). El paquete vive
 en npm (https://www.npmjs.com/package/@netzi/recall) y GitHub
-(https://github.com/NetziTech/recall/releases/tag/v0.1.1). Smoke E2E
-real confirmado: `recall-server` spawneado, JSON-RPC `initialize` +
-`tools/call mem.health` con `arguments: {}` (SIN `workspace_id`,
-patron de Claude Code) retorna response valido con `workspace_id`
-resuelto desde `.recall/config.json` por bootstrap. MCP registrado en
-Claude Code: `recall: recall-server - ✓ Connected`. Tag `v0.1.1` →
-`20111d2` (= `main` HEAD).
+(https://github.com/NetziTech/recall/releases/tag/v0.1.2). Smoke
+fresh post-publish 10/10 PASS contra workspace 100% nuevo. MCP
+registrado en Claude Code: `recall: recall-server - ✓ Connected`.
+Tag `v0.1.2` → `29371f8` (= `main` HEAD).
 
-**Resumen del workflow completo (Fases 0-6 + Phase-7 + Phase-8):**
+**Resumen del workflow completo (17 fases):**
 
-- **8 fases ejecutadas** sin escalaciones bloqueantes a humano. 4
-  decisiones humanas del MVP (D-101/D-102/D-103/E) resueltas en
-  architect review 5.6; 3 decisiones humanas de Phase-7 (Q1/Q2/Q3
-  rename + reset) resueltas via dialogo conciso; 4 decisiones de
-  Phase-8 (D-801..D-804, fix arquitectonico) ejecutadas con scope
-  acotado.
+- **17 fases ejecutadas** sin escalaciones bloqueantes a humano:
+  - **MVP (Fases 0-6)**: 4 decisiones humanas (D-101/D-102/D-103/E)
+    resueltas en architect review 5.6.
+  - **Phase-7** (rename-and-recall): 3 decisiones (Q1/Q2/Q3 rename
+    + version reset) resueltas via dialogo conciso.
+  - **Phase-8** (B-MCP-1 same-day patch): 4 decisiones (D-801..D-804)
+    ejecutadas con scope acotado.
+  - **Phase-9..15** (dogfood + 6 bugs + 4 betas + stable): 6 bugs
+    encontrados por dogfood real, todos cerrados.
+  - **Phase-16** (promote stable): canal `latest` flip a `0.1.2`.
+  - **Phase-17** (v0.5 hardening): 4 PRs incrementales cerraron los
+    4 warnings defensivos de Fase 3 D-310; decision humana Opcion C
+    (defer release) tomada.
 - **30 tareas del MVP APROBADAS** por validadores formales
   (clean-arch + solid + ddd + security + performance + qa-sonarqube
   + architect-review-final).
-- **Phase-7 + Phase-8** validadas con los 5 checks objetivos
-  (typecheck/lint/validate:modules/build/test) en cada sub-fase, sin
-  reportes de validadores formales nuevos (refactor + features
-  incrementales sobre el MVP ya aprobado).
-- **6 ciclos de rechazo del MVP** + cero de Phase-7/Phase-8 (los
-  agentes especialistas convergieron en primer intento gracias a
-  contexto preciso por sub-fase).
-- **2501 tests passing** en 205 archivos test (+80 vs MVP). Coverage
-  SonarQube 96.4% (no re-corrido en Phase-7/Phase-8 por ser cambios
-  incrementales). Domain/application 100%.
-- **Quality gate SonarQube PASSED** sobre el MVP: 0 bugs / 0 vulns /
-  0 blockers / 0 critical, sqale_debt_ratio 0.1%, ratings A.
-- **Cero `any`, cero `as any`, cero `// @ts-ignore`** en ~58.8k LOC
-  de `code/src/` (mantenido en Phase-7 + Phase-8).
+- **Phase-7..17** validadas con los 5+1 checks objetivos
+  (typecheck/lint/lint:tests/validate:modules/build/test) en cada
+  sub-fase + security-auditor APPROVED WITH OBSERVATIONS en cada PR
+  del cycle hardening.
+- **6 ciclos de rechazo del MVP** + cero de Phase-7..17 excepto 1
+  round-trip por S7735 en PR #44 (corregido en commit follow-up sin
+  amend, dentro de la regla "nunca amend despues de push").
+- **2588 tests passing** en 212 archivos test (+167 vs MVP baseline
+  2421). Coverage SonarQube 96.4% / new 100% (en cada PR del cycle
+  Phase-17). Domain/application 100%.
+- **Quality gate SonarQube `MCP Memoria Strict` PASSED** en cada
+  push de cada PR: 0 bugs / 0 vulns / 0 blockers / 0 critical,
+  sqale_debt_ratio 0.0%, ratings A en reliability/security/
+  maintainability/security-review.
+- **Cero `any`, cero `as any`, cero `// @ts-ignore`** en ~61.6k LOC
+  de `code/src/` (mantenido a lo largo de las 17 fases).
 - **`tsc --noEmit` + `npm run lint` (max-warnings 0) + `npm run
-  validate:modules` + `npm run build` + `npm run test`: EXIT=0 en los
-  5** en cada sub-fase de Phase-7 y Phase-8.
+  lint:tests` + `npm run validate:modules` + `npm run build` +
+  `npm run test`: EXIT=0 en los 6** en cada sub-fase de Phase-7..17.
 - **4 ADRs registrados**: ADR-001 cross-imports retrieval/curator →
   memory (Fase 2); ADR-002 PriorityBoost multiplicativo (Fase 5);
   ADR-003 ContextLayerKind ACL domain-vs-wire (Fase 5); ADR-004
   tar/fastembed wontfix con mitigacion (Phase-7 sub-fase 5).
-- **B-001..B-010 + B-CLI-1..B-CLI-5 + B-MCP-1 todos cerrados o
-  documentados como wontfix-con-workaround.**
+- **B-001..B-010 + B-CLI-1..B-CLI-5 + B-MCP-1..B-MCP-8 todos
+  cerrados o documentados como wontfix-con-workaround**. 0 issues
+  abiertas en GitHub al cierre de Phase-17.
 - **3 stubs `Pending*` justificados deferidos a v0.5** (multi-key
   envelope flow `export-key`/`rekey`/`add-key`) con JSDoc
   forward-compat + error tipado estable. Los otros 2 (UninstallHook
   → cerrado en Phase-7; mem.task.get/delete → cerrado en Phase-7)
   ya no son stubs.
-- **6 items backlog v0.5+** explicitos (multi-key, cold start
-  encrypted <500ms, perf >10K entries, hardening defensivo, swap
-  embedder para cerrar tar/fastembed highs, wire-schema cleanup
-  `memoria_db` → `recall_db`).
+- **5 items backlog v0.5+** restantes (multi-key, cold start
+  encrypted <500ms, perf >10K entries, swap embedder para cerrar
+  tar/fastembed highs, wire-schema cleanup `memoria_db` →
+  `recall_db`) + **W-3.5-SEC-L2 follow-up** (path-leak en 9+ Error
+  factories adicionales). El item "hardening defensivo" original
+  fue CLOSED en Phase-17.
 
-**Decisiones humanas resueltas:**
+**Decisiones humanas resueltas (todas las fases):**
 
 MVP architect review (5.6):
 - **D-101**: PriorityBoost MULTIPLICATIVO ratificado (`ADR-002`).
@@ -2964,51 +3048,76 @@ Phase-10 (GitFlow + repo publico + CI/CD):
   secrets, assets publicos) antes del flip; luego flip + protection
   inmediata.
 
+Phase-16 (promote stable):
+- **Q1**: promote `0.1.2-beta.6` → `0.1.2` STABLE via release branch
+  + tag + npm publish con canal `latest` (no flip de tag, publish
+  nueva version).
+- **Q2**: hard-deprecate `0.1.0` + `0.1.1` apuntando a `@latest`.
+
+Phase-17 (v0.5 hardening cycle):
+- **Q1**: iniciar v0.5 con hardening (item #4) antes que multi-key
+  envelope (item #1) — ROI/riesgo: 4 fixes pequeños vs feature mayor.
+- **Q2**: patron "1 fix por PR" del cycle 0.1.2-beta.* preservado.
+- **Q3**: cap StdioJsonRpcServer = 10 MiB default (~100x payloads
+  tipicos).
+- **Q4**: **Opcion C — NO cortar release branch al cierre del cycle**.
+  Acumular hardening fixes en develop hasta bug real surfaced o
+  feature plus.
+
 **Lecciones durables registradas:**
 
 1. **Smoke E2E del v0.1.0 original solo probo `--help`**, NO un tool
    real. Por eso B-CLI-1..5 y B-MCP-1 escaparon el pre-publish.
    Codificada en Phase-8: la suite "tools/call without workspace_id"
    (`tests/e2e/B-mcp-server-binary.test.ts`) invoca cada tool con
-   `arguments: {}` contra el real `dist/server.js` por JSON-RPC stdio
-   — el comportamiento exacto de Claude Code.
+   `arguments: {}` contra el real `dist/server.js` por JSON-RPC stdio.
 2. **Tests E2E que enmascaran el bug ayudan al test count, no a la
    correctness**. Los E2E del MVP pasaban `workspace_id` explicito en
-   cada `tools/call` cuando los clientes reales no lo hacen — bug de
-   diseno de test, no de codigo.
+   cada `tools/call` cuando los clientes reales no lo hacen.
 3. **Dogfood real con cliente MCP** captura bugs que ningun
    linter/test/architect review podia ver. Tiempo total Phase-8: ~30
-   minutos desde el descubrimiento hasta el smoke verificado contra
-   el paquete v0.1.1 publicado.
+   minutos desde el descubrimiento hasta el smoke verificado.
 4. **`gh secret set --body -` con stdin pipe trunca el valor a 1
    caracter** (Phase-10). Usar `--body "literal-value"`.
 5. **GitHub Actions log-masking corrompe URLs almacenadas como
-   secrets** (Phase-10). Hardcodear URLs publicas en el yaml; solo
-   tokens van como secret.
+   secrets** (Phase-10). Hardcodear URLs publicas en yaml.
 6. **Dependabot PRs corren en contexto fork-like y no ven Actions
-   secrets** (Phase-10). Configurar secret separado con
-   `gh secret set --app dependabot`.
+   secrets** (Phase-10). `gh secret set --app dependabot`.
 7. **SonarQube `PROJECT_ANALYSIS_TOKEN` (sqp_) requiere Bearer
-   auth** que el sonar-scanner CLI no usa por defecto. Usar
+   auth** que sonar-scanner CLI no usa por defecto. Usar
    `GLOBAL_ANALYSIS_TOKEN` (sqa_) o `USER_TOKEN` para CI.
 8. **GitHub branch protection requiere repo publico o GitHub
-   Pro/Team en orgs Free**. Sin upgrade, la unica via es el flip a
-   publico (que era la intencion eventual).
+   Pro/Team en orgs Free**. Sin upgrade, flip a publico.
 9. **Vitest local thresholds + SonarQube CI gate redundantes
    bloquean PRs durante recovery de deuda heredada**. Deferir
-   thresholds locales a SonarQube en CI via
-   `process.env.CI` switch — Sonar 95% es el commitment publico,
-   Vitest 100% domain/application sigue como objetivo aspiracional
-   en local.
+   thresholds locales a SonarQube en CI via `process.env.CI` switch.
+10. **El binario global de npm NO es el codigo de develop**
+    (Phase-17). Cuando se hacen fixes en develop sin publicar, el
+    dogfood local corre el binario stable anterior. Para validar
+    fixes: `recall-server` desde `code/dist/server.js` directamente
+    o tests integration.
+11. **El security-auditor amplia scope sistematicamente** (Phase-17).
+    El orquestador NO debe expandir scope del PR para cubrir todo
+    lo descubierto — patron "1 fix por PR". Abrir follow-up tracked.
+12. **Co-Authored-By trailer "Claude Opus 4.7 (1M context)" REQUIRED**
+    en cada commit. Verificable via `git log --format='%(trailers)'`.
 
-**Siguiente accion concreta:** ninguna inmediata para infraestructura.
-La proxima fase de codigo sigue siendo **v0.1.2-beta.1: cerrar
-B-MCP-3** (worker no instanciado, ver §6.14 + §8). Cualquier nuevo
-trabajo va via PR a `develop` con CI verde obligatorio (workflow
-`ci.yml` + SonarQube quality gate strict). El ADR system + el
-sistema de modulos absorben la evolucion sin cambios estructurales.
+**Siguiente accion concreta:** **NINGUNA inmediata**. Phase-17
+cerrada con decision Opcion C. La siguiente accion debe ser
+disparada por:
+1. Bug real surfaced en `@netzi/recall@0.1.2` stable, O
+2. Item del roadmap v0.5+ implementado (ver §8 "Roadmap v0.5+"), O
+3. W-3.5-SEC-L2 follow-up cerrado (9+ Error factories restantes), O
+4. Triage de los 8 Dependabot PRs abiertos (#49-#56).
+
+Cualquier nuevo trabajo va via PR a `develop` con CI verde
+obligatorio (`ci.yml` + SonarQube quality gate strict). El ADR
+system + el sistema de modulos absorben la evolucion sin cambios
+estructurales. El patron release cooling-beta esta intacto para el
+proximo `release/0.1.3-beta.0` o `release/0.1.3` cuando se decida
+cortar.
 
 ---
 
-_Ultima actualizacion: 2026-05-03 (Phase-17 v0.5 HARDENING CYCLE CERRADO + decisión Opción C tomada — diferir release hasta bug real o feature plus. 4 PRs (#43→#44→#45→#46) acumulados en `develop`, los 4 warnings defensivos consolidados de Fase 3 D-310 cerrados sin escalation humana. Cycle "1 fix por PR" preservado, security-auditor APPROVED WITH OBSERVATIONS en los 4. **12 observaciones consolidadas** para futuros ciclos (1 medium W-3.5-SEC-L2 — path-leak en 9+ Error factories adicionales workspace/secrets/curator + 11 low/info follow-ups). Tests 2588 (+28). HEAD develop `dde08bf`, HEAD main `29371f8`. `npm dist-tags` intactos: `{ latest: '0.1.2', beta: '0.1.2-beta.6' }`. Próximo release branch consolidará hardening + primer bug surfaced o feature v0.5 plus.)_
+_Ultima actualizacion: 2026-05-03 (Phase-17 v0.5 HARDENING CYCLE CERRADO + decisión Opción C tomada — diferir release hasta bug real o feature plus. 4 PRs (#43→#44→#45→#46) acumulados en `develop`, los 4 warnings defensivos consolidados de Fase 3 D-310 cerrados sin escalation humana. Cycle "1 fix por PR" preservado, security-auditor APPROVED WITH OBSERVATIONS en los 4. **12 observaciones consolidadas** para futuros ciclos (1 medium W-3.5-SEC-L2 — path-leak en 9+ Error factories adicionales workspace/secrets/curator + 11 low/info follow-ups). Tests 2588 (+28). HEAD develop `33d51a2` (post PR #48), HEAD main `29371f8` (sin cambios desde Phase-16). `npm dist-tags` intactos: `{ latest: '0.1.2', beta: '0.1.2-beta.6' }`. PR docs-only de reconcile drift en §7/§8/§11 (HANDOFF "Phase-12 fantasma" anterior) abierto. Próximo release branch consolidará hardening + primer bug surfaced o feature v0.5 plus.)_
 _Mantenedor: equipo Netzi Tech_
