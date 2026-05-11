@@ -4,9 +4,9 @@ import path from "node:path";
 import { err, ok, type Result } from "../../../../shared/domain/types/result.ts";
 import type {
   PreCommitHookUninstallReceipt,
-  PreCommitHookUninstallStatus,
   PreCommitHookUninstaller,
 } from "../../application/ports/out/pre-commit-hook-uninstaller.port.ts";
+import type { PreCommitHookUninstallStatus } from "../../application/ports/out/pre-commit-hook-uninstaller-status.guard.ts";
 import type { PathSanitizerError } from "../../domain/errors/path-sanitizer-error.ts";
 import type { PathSanitizerRule } from "../../domain/value-objects/path-sanitizer-rule.ts";
 import type { SanitizedPath } from "../../domain/value-objects/sanitized-path.ts";

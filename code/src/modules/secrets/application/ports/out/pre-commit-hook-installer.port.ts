@@ -1,27 +1,7 @@
 import type { Result } from "../../../../../shared/domain/types/result.ts";
 import type { SanitizedPath } from "../../../domain/value-objects/sanitized-path.ts";
 import type { PathSanitizerError } from "../../../domain/errors/path-sanitizer-error.ts";
-
-/**
- * Set of legal `PreCommitHookInstallStatus` values describing the
- * outcome of an `install(...)` call.
- *
- * - `installed`: the hook file was created.
- * - `already-managed`: a hook file managed by this codebase already
- *   existed (idempotent re-install). Detected via a managed-by
- *   marker the adapter writes into the hook content.
- * - `replaced-foreign`: a foreign hook file existed and was
- *   replaced. Surfaced separately so the caller can decide whether
- *   to surface a warning.
- */
-const PRE_COMMIT_HOOK_INSTALL_STATUSES = [
-  "installed",
-  "already-managed",
-  "replaced-foreign",
-] as const;
-
-export type PreCommitHookInstallStatus =
-  (typeof PRE_COMMIT_HOOK_INSTALL_STATUSES)[number];
+import type { PreCommitHookInstallStatus } from "./pre-commit-hook-installer-status.guard.ts";
 
 /**
  * Outcome of a successful `install(...)` call.
@@ -89,19 +69,4 @@ export interface PreCommitHookInstaller {
    * status without instantiating the receipt.
    */
   isStatus?(candidate: string): candidate is PreCommitHookInstallStatus;
-}
-
-/**
- * Type guard helper exported as a free function so consumers can
- * narrow status strings without instantiating an installer adapter.
- *
- * Lives next to the union to keep the source of truth compact.
- */
-export function isPreCommitHookInstallStatus(
-  candidate: string,
-): candidate is PreCommitHookInstallStatus {
-  for (const known of PRE_COMMIT_HOOK_INSTALL_STATUSES) {
-    if (known === candidate) return true;
-  }
-  return false;
 }
