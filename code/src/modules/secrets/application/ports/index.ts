@@ -25,11 +25,11 @@ export type {
   PreCommitHookInstallReceipt,
   PreCommitHookInstallStatus,
 } from "./out/pre-commit-hook-installer.port.ts";
-export { isPreCommitHookInstallStatus } from "./out/pre-commit-hook-installer.port.ts";
+export { isPreCommitHookInstallStatus } from "./out/pre-commit-hook-installer-status.guard.ts";
 
 export type {
   PreCommitHookUninstaller,
   PreCommitHookUninstallReceipt,
   PreCommitHookUninstallStatus,
 } from "./out/pre-commit-hook-uninstaller.port.ts";
-export { isPreCommitHookUninstallStatus } from "./out/pre-commit-hook-uninstaller.port.ts";
+export { isPreCommitHookUninstallStatus } from "./out/pre-commit-hook-uninstaller-status.guard.ts";

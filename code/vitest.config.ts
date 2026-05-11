@@ -68,12 +68,14 @@ export default defineConfig({
         // metric without hiding any real gap (every executable adapter
         // implementing the port is still measured).
         "src/**/*.port.ts",
-        // Exception: these port files ship an executable type-guard
-        // helper (`isPreCommitHookInstallStatus`,
-        // `isPreCommitHookUninstallStatus`) alongside the interface,
-        // so they must remain measurable.
-        "!src/modules/secrets/application/ports/out/pre-commit-hook-installer.port.ts",
-        "!src/modules/secrets/application/ports/out/pre-commit-hook-uninstaller.port.ts",
+        // Note on port purity: `*.port.ts` files are 100% type-only
+        // by D-021 convention (erased by `tsc`, zero runtime). Any
+        // runtime helper that narrows a port-related union (e.g. a
+        // type guard) lives in a sibling `*-status.guard.ts` file —
+        // see `pre-commit-hook-installer-status.guard.ts` for the
+        // canonical example. This avoids `!` negation patterns
+        // inside `coverage.exclude`, which trigger vitest#10164
+        // and produce empty lcov reports under vitest 4.
         // Pure repository contracts (driven ports, modular convention).
         // Same reasoning as `*.port.ts` — every file here is a single
         // `export interface XRepository { ... }`.
