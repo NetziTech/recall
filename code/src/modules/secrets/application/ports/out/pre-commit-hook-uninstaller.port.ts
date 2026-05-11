@@ -4,16 +4,6 @@ import type { PathSanitizerError } from "../../../domain/errors/path-sanitizer-e
 import type { PreCommitHookUninstallStatus } from "./pre-commit-hook-uninstaller-status.guard.ts";
 
 /**
- * Re-export the uninstall-status type so existing consumers that
- * import it from the port file (the canonical location prior to the
- * vitest#10164 driven refactor) keep working without churn.
- *
- * The runtime helper (`isPreCommitHookUninstallStatus`) lives in the
- * sibling `.guard.ts` file and must be imported from there directly.
- */
-export type { PreCommitHookUninstallStatus };
-
-/**
  * Outcome of a successful `uninstall(...)` call.
  *
  * Note: `hookPath` is the SANITISED path of the hook file the

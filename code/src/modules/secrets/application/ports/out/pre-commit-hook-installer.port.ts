@@ -4,16 +4,6 @@ import type { PathSanitizerError } from "../../../domain/errors/path-sanitizer-e
 import type { PreCommitHookInstallStatus } from "./pre-commit-hook-installer-status.guard.ts";
 
 /**
- * Re-export the install-status type so existing consumers that import
- * it from the port file (the canonical location prior to the
- * vitest#10164 driven refactor) keep working without churn.
- *
- * The runtime helper (`isPreCommitHookInstallStatus`) lives in the
- * sibling `.guard.ts` file and must be imported from there directly.
- */
-export type { PreCommitHookInstallStatus };
-
-/**
  * Outcome of a successful `install(...)` call.
  */
 export interface PreCommitHookInstallReceipt {

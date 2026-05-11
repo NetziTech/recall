@@ -11,9 +11,9 @@ import { describe, expect, it } from "vitest";
 import { UninstallPreCommitHookUseCase } from "../../../../src/modules/secrets/application/use-cases/uninstall-pre-commit-hook.use-case.ts";
 import type {
   PreCommitHookUninstallReceipt,
-  PreCommitHookUninstallStatus,
   PreCommitHookUninstaller,
 } from "../../../../src/modules/secrets/application/ports/out/pre-commit-hook-uninstaller.port.ts";
+import type { PreCommitHookUninstallStatus } from "../../../../src/modules/secrets/application/ports/out/pre-commit-hook-uninstaller-status.guard.ts";
 import { PathSanitizerError } from "../../../../src/modules/secrets/domain/errors/path-sanitizer-error.ts";
 import { SanitizedPath } from "../../../../src/modules/secrets/domain/value-objects/sanitized-path.ts";
 import { err, isErr, isOk, ok } from "../../../../src/shared/domain/types/result.ts";

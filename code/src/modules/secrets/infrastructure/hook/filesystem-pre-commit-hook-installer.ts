@@ -4,9 +4,9 @@ import path from "node:path";
 import { err, ok, type Result } from "../../../../shared/domain/types/result.ts";
 import type {
   PreCommitHookInstallReceipt,
-  PreCommitHookInstallStatus,
   PreCommitHookInstaller,
 } from "../../application/ports/out/pre-commit-hook-installer.port.ts";
+import type { PreCommitHookInstallStatus } from "../../application/ports/out/pre-commit-hook-installer-status.guard.ts";
 import type { PathSanitizerError } from "../../domain/errors/path-sanitizer-error.ts";
 import type { PathSanitizerRule } from "../../domain/value-objects/path-sanitizer-rule.ts";
 import type { SanitizedPath } from "../../domain/value-objects/sanitized-path.ts";
