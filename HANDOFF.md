@@ -14,7 +14,7 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-05-12 (Phase-21 roadmap v0.5+ autonomic batch CERRADA — 5 PRs #66-#70: (a) **W-3.5-SEC-L2** path-leak fix en 12 Error factories (workspace/secrets/curator), patron `details: { path }` replicando PR #45 → CERRADO; (b) **`@types/node@25`** bump habilitado via signature tightening `Uint8Array<ArrayBuffer>` sin `as` casts (3 VOs encryption domain + 3 AES-GCM adapters); (c) **Coverage restore 90→95** docu en `sonar-project.properties` + tests reales +21 VALOR en 4 archivos (json-memory-importer/exporter, json-encryption-config-repo, node-workspace-filesystem) — aggregate 95.17% → ~95.69%; (d) **W-3.4-PERF-H2** `markPrunedBatch` (1 transaction vs N fsyncs) con mask paralelo para per-row idempotency events → CERRADO; (e) **ADR-005** multi-key envelope flow (Q1-Q5 architect review pendiente) + **ADR-006** OS keychain <500ms (decision: defer, SLO <1500ms aceptable) PROPOSED; (f) doc drift PR #70 fix JSDoc port. **4 validadores arquitectonicos post-merge** (clean-arch, ddd, solid, security) reportaron APROBADO. 2649 tests passing en 215 archivos (+41 vs Phase-20 baseline 2608). Coverage Istanbul: stmt 96.77% / br 90.7% / fn 98.51% / lines 98.04%; agregado SonarQube ~95.69%. **0 issues + 0 PRs abiertos**. **Verificacion 2026-05-12 via API SonarQube** (`api/qualitygates/show` + `api/qualitygates/project_status`): gate `MCP Memoria Strict` ya tiene `coverage LT 95` y `new_coverage LT 95` server-side (>=95 exigido), proyecto `recall` en status `OK` con coverage actual 95.7% / new_coverage 99.4%. El "flip 90→95" estaba CERRADO desde antes de la sesion de auditoria del HANDOFF Phase-21 (probablemente nunca llego al 90 server-side; el doc drift venia de Phase-20). **Phase-22 doc-only ADR-005 ACCEPTED + Phase-23 codigo Fase 1+2 (5 PRs mergeados + 1 wontfix re-confirmado)**: Phase-22 cerro Q1-Q5 via review formal de 3 validadores + spec Bech32 BIP-173 congelada. Phase-23 (misma sesion, continuacion) implemento pasos 1-5 del plan iteracion 2 con 5 PRs mergeados a develop: [#73](https://github.com/NetziTech/recall/pull/73) A1 secureZero (`d7706f6`), [#74](https://github.com/NetziTech/recall/pull/74) B Vec0SimilarityFinder batch (`577ed3a`, **CIERRA W-3.4-PERF-H3 HIGH**), [#75](https://github.com/NetziTech/recall/pull/75) A4 encryption.audit_log con migracion 009 + master_fp local-only + append-only triggers (`42cec4d`), [#77](https://github.com/NetziTech/recall/pull/77) A3 PrintableMasterKey Bech32 BIP-173 con vectores V1/V2/V3 congelados (`74874e6`), [#78](https://github.com/NetziTech/recall/pull/78) A2 CLI prompts library con Shannon entropy + SIGINT zeroize + NFKC (`4f2b7a8`). PR [#76](https://github.com/NetziTech/recall/pull/76) tar@7 override CERRADO wontfix (causa: tar@7.5.15 ESM no exporta `default`; fastembed ESM hace `import tar from "tar"` → SyntaxError CI). Validadores ejecutados pre-merge para cada PR (clean-arch + solid + ddd + crypto + security segun aplique). 1 follow-up nuevo: FP-001 / W-Q4-CI-GATE (medium severity, anadir CI gate para `.toHex()` fuera del adapter). **Fase 3 EN CURSO**: A5 AddKeyFacade + A6 RekeyFacade + A7 ExportKeyFacade pendientes (serial, todos tocan composition/facades). HEAD develop: `74874e6`, 65 commits ahead de main. Ver §6.27 + §6.28) |
+| **Fecha del handoff** | 2026-05-12 (Phase-21 roadmap v0.5+ autonomic batch CERRADA — 5 PRs #66-#70: (a) **W-3.5-SEC-L2** path-leak fix en 12 Error factories (workspace/secrets/curator), patron `details: { path }` replicando PR #45 → CERRADO; (b) **`@types/node@25`** bump habilitado via signature tightening `Uint8Array<ArrayBuffer>` sin `as` casts (3 VOs encryption domain + 3 AES-GCM adapters); (c) **Coverage restore 90→95** docu en `sonar-project.properties` + tests reales +21 VALOR en 4 archivos (json-memory-importer/exporter, json-encryption-config-repo, node-workspace-filesystem) — aggregate 95.17% → ~95.69%; (d) **W-3.4-PERF-H2** `markPrunedBatch` (1 transaction vs N fsyncs) con mask paralelo para per-row idempotency events → CERRADO; (e) **ADR-005** multi-key envelope flow (Q1-Q5 architect review pendiente) + **ADR-006** OS keychain <500ms (decision: defer, SLO <1500ms aceptable) PROPOSED; (f) doc drift PR #70 fix JSDoc port. **4 validadores arquitectonicos post-merge** (clean-arch, ddd, solid, security) reportaron APROBADO. 2649 tests passing en 215 archivos (+41 vs Phase-20 baseline 2608). Coverage Istanbul: stmt 96.77% / br 90.7% / fn 98.51% / lines 98.04%; agregado SonarQube ~95.69%. **0 issues + 0 PRs abiertos**. **Verificacion 2026-05-12 via API SonarQube** (`api/qualitygates/show` + `api/qualitygates/project_status`): gate `MCP Memoria Strict` ya tiene `coverage LT 95` y `new_coverage LT 95` server-side (>=95 exigido), proyecto `recall` en status `OK` con coverage actual 95.7% / new_coverage 99.4%. El "flip 90→95" estaba CERRADO desde antes de la sesion de auditoria del HANDOFF Phase-21 (probablemente nunca llego al 90 server-side; el doc drift venia de Phase-20). **Phase-22 ACCEPTED + Phase-23 Fase 1+2 + Phase-24 Fase 3 — ITERACION 2 ADR-005 COMPLETA (10 PRs mergeados + 1 wontfix)**: plan de 7 pasos del apendice ADR-005 100% cerrado. PRs Phase-23: [#73](https://github.com/NetziTech/recall/pull/73) A1 secureZero, [#74](https://github.com/NetziTech/recall/pull/74) B Vec0SimilarityFinder batch (CIERRA W-3.4-PERF-H3 HIGH), [#75](https://github.com/NetziTech/recall/pull/75) A4 encryption.audit_log, [#77](https://github.com/NetziTech/recall/pull/77) A3 PrintableMasterKey Bech32, [#78](https://github.com/NetziTech/recall/pull/78) A2 CLI prompts library, [#79](https://github.com/NetziTech/recall/pull/79) HANDOFF Phase-23 docs. PRs Phase-24 (Fase 3): [#80](https://github.com/NetziTech/recall/pull/80) A5 AddKeyFacade, [#81](https://github.com/NetziTech/recall/pull/81) A6 RekeyFacade (con smoke-verify defence-in-depth), [#82](https://github.com/NetziTech/recall/pull/82) A7 ExportKeyFacade. PR [#76](https://github.com/NetziTech/recall/pull/76) tar@7 override CERRADO wontfix. 4 validadores pre-merge por cada PR. **11 follow-ups no-bloqueantes** acumulados (5 A5 + 3 A6 + 3 A7) tracked en §8. HEAD develop: `147a4b5`, **69 commits ahead de main**. Ver §6.27 + §6.28 + §6.29) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
 | **Fase actual** | **Phase-21 roadmap v0.5+ autonomic batch CERRADO en develop** — 5 PRs mergeados (#66-#70) cierran 3 items substantivos (W-3.5-SEC-L2 path-leak, `@types/node@25` bump, coverage restore 90→95, W-3.4-PERF-H2 markPrunedBatch) + diferen 2 items via ADR (ADR-005 multi-key + ADR-006 OS keychain). Auditoria arquitectonica formal post-merge (clean-architecture-validator + ddd-validator + solid-validator + security-auditor) reporta **APROBADO** sobre `c3b78c1..c0734b2`. Coverage Istanbul: stmt 96.77 / br 90.7 / fn 98.51 / lines 98.04; agregado SonarQube ~95.69%. 2649 tests passing en 215 archivos. **HEAD develop (post #70)**: `6f9ce32`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop **23 commits ahead de main** post-Phase-21 (era 18 al cierre Phase-20). **Accion humana pendiente**: flip SonarQube gate UI 90→95 + architect review ADR-005 Q1-Q5. Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + vitest 4 + Istanbul + `@types/node@25` + W-3.5-SEC-L2 + markPrunedBatch + 2 ADRs proposed + coverage 95% restored. Ver §6.26. Anterior: **Phase-20 vitest 4 + Istanbul + dead-cause refactor + gate 95→90 CERRADO** — PR #64 mergea (a) migración `vitest` 3.2.4→4.1.6 + `@vitest/coverage-v8`→`@vitest/coverage-istanbul` 4.1.6 (provider más maduro, evita re-litigar el cambio de counting model cuando vitest 5 salga), (b) `patches/vitest+4.1.6.patch` regenerado para el bug birpc 60s `onTaskUpdate` (vitest#8164) que sigue presente en 4.x, (c) **Refactor A**: eliminado patrón `options?: { cause?: unknown }` dead en 30+ error classes (2 root abstracts + 13 intermediates + 31 concrete simples + 7 mixed-options + 4 input-bag/required-options), signatures uniforme `(args..., cause?: unknown)` con cause directo al super, −150 LOC dead code; 7 callers SRC actualizados (raw-embedder-adapter, json-rpc-handler ×2, tool-dispatcher, secret-pattern, commander-cli-parser, path-sanitizer-rule, 3 mcp-server infra errors); 10 test files migrados al nuevo positional signature, (d) **Fase B** tests reales: `process-tty.ts` 25.9%→85.2% branches (stubbed stdin con EventEmitter + isTTY/setRawMode shim drive ENTER/CR/Ctrl-C/backspace/multi-event), `argon2id-kdf.ts` `classifyKdfError` 50%→100% branches (vi.mock @noble/hashes/argon2.js para drive OOM-like / generic / non-Error / pre-classified throws), equals(self) fast-path para EntityRef/TaskRef/TurnRef/ToolArgs, (e) `src/bootstrap/**` excluido del coverage (composition root analogue, ~840 LOC wiring), (f) SonarQube quality gate strict 95%→**90%** documentado en sonar-project.properties con roadmap de restauración al 95%. Coverage honesto Istanbul: stmt 96.5%, br 89.6%, fn 98.3%, lines 97.8%; **agregado SonarQube 95.17%** (vs baseline v3 inflado 96.4%). 2608 tests passing en 213 files. Roadmap v0.5+ #8 (vitest 4 re-evaluation) CLOSED; los 2 `@dependabot ignore this major version` en PRs #50/#59 siguen activos pero ahora son protectores forward (cuando salga vitest 5). Phase-16 `@netzi/recall@0.1.2` STABLE sigue intacto en `latest`. **HEAD develop (post #64)**: `8fce37e`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop diverge de main por **18 commits** (4 hardening Phase-17 + 1 refactor preparatorio + 7 dep bumps Phase-18 + 4 docs HANDOFF + 1 Node 24 LTS Phase-19 + 1 vitest 4 / refactor A / Fase B / gate down Phase-20). Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + @types/node 24 + vitest 4 + Istanbul + −150 LOC dead error code + bumps de stack (zod 4.4, hono, eslint, typescript-eslint, fast-uri, ip-address, express-rate-limit). |
 | **Lineas de codigo** | ~62,000 en `code/src/` + ~38,000 LOC de tests en **215 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-21 deltas**: +355 LOC neto en `code/src/` (W-3.5-SEC-L2 errors +191/-46, `@types/node@25` signature tightening +29/-11, markPrunedBatch port +40 + adapter +110 + use case +30/-7, doc drift fix +10/-3), +810 LOC de tests (+21 nuevos tests + 4 SQLite integration tests para markPrunedBatch + 2 nuevos test files para foreign-hook-exists-error + curator-infrastructure-error). 0 migraciones nuevas. ADR-005 + ADR-006 agregan ~135 lineas a `docs/12-lineamientos-arquitectura.md`. |
@@ -3654,6 +3654,101 @@ agents. Each PR validated pre-merge.
 
 ---
 
+## 6.29 Phase-24 — Iteracion 2 ADR-005 Fase 3: A5+A6+A7 facades — CERRADA (plan 7-pasos COMPLETO)
+
+**Fecha:** 2026-05-12 (misma sesion que Phase-22 + Phase-23, ultimo
+tramo).
+
+**Scope.** Cerrar los pasos 5, 6, 7 del plan iteracion 2 ADR-005 con
+los tres facades multi-key envelope: `AddKeyFacade`, `RekeyFacade`,
+`ExportKeyFacade`. Plan serial (los tres tocan
+`composition/facades/cli-facades.ts`).
+
+**Disparador.** Continuacion natural de Phase-23 Fase 1+2 (PR #79
+mergeado). Sin pausa, agente backend lanzado en cada paso + 4
+validadores pre-merge.
+
+**Resultado consolidado:**
+
+| Paso | Item | PR | Commit | Validadores |
+|---|---|---|---|---|
+| 5 | `AddKeyFacade` (Q1+Q2+Q4) | [#80](https://github.com/NetziTech/recall/pull/80) | `9a5704c` | clean-arch + ddd + solid + security APROBADO con 5 follow-ups |
+| 6 | `RekeyFacade` (Q2) | [#81](https://github.com/NetziTech/recall/pull/81) | `a740348` | clean-arch + ddd + solid APROBADO + security NEEDS-CHANGES (smoke-verify FIX aplicado) |
+| 7 | `ExportKeyFacade` (Q3) | [#82](https://github.com/NetziTech/recall/pull/82) | `147a4b5` | clean-arch + ddd + solid + security APROBADO con 3 follow-ups |
+
+**Iteracion 2 ADR-005 status final:**
+
+| Paso | Item | PR |
+|---|---|---|
+| 1 | `secureZero` helper | [#73](https://github.com/NetziTech/recall/pull/73) |
+| 2 | CLI prompts library | [#78](https://github.com/NetziTech/recall/pull/78) |
+| 3 | `PrintableMasterKey` VO + Bech32 | [#77](https://github.com/NetziTech/recall/pull/77) |
+| 4 | `encryption.audit_log` + adapter | [#75](https://github.com/NetziTech/recall/pull/75) |
+| 5 | `AddKeyFacade` | [#80](https://github.com/NetziTech/recall/pull/80) |
+| 6 | `RekeyFacade` | [#81](https://github.com/NetziTech/recall/pull/81) |
+| 7 | `ExportKeyFacade` | [#82](https://github.com/NetziTech/recall/pull/82) |
+
+**El plan de 7 pasos esta 100% COMPLETO.**
+
+**Decisiones de implementacion notables Fase 3:**
+
+1. **A5 `EncryptionLockedError` propio** en lugar de cross-import a
+   `WorkspaceLockedError` (ADR-001 cero cross-imports).
+2. **A5 refactor del use case**: use case orquesta `unlock` internamente
+   via `UnlockEncryption` puerto, porque el aggregate reload via
+   `findByWorkspace` siempre vuelve locked. El facade pasa
+   `currentPassphrase` al use case, no al `unlock` separado. Fix
+   descubierto en CI integration test, NO pre-merge.
+3. **A5 lazy init audit adapter**: `SqliteEncryptionAuditRepository`
+   prepara el statement INSERT lazy (en primer `append`, no en
+   constructor). Critico para que `recall init` no rompa con
+   `DatabaseUnavailableError` cuando el container se ensambla con
+   `UnavailableDatabaseConnection` stub.
+4. **A6 smoke-verify post-wrap**: tras `cipher.wrap`, hacer
+   `cipher.unwrap` round-trip ANTES de remover envelopes viejos.
+   Descubierto en security-auditor PR #81 — JSDoc PROMETIA
+   "defence-in-depth against a buggy cipher" pero no estaba
+   implementado. Fix con test de regresion.
+5. **A6 atomicity gap doc**: documentado el "residual atomicity gap"
+   (`repository.save` FS antes del audit chain SQL). Mismo lesser-evil
+   trade que A5. Tracked como ADR-007 candidato.
+6. **A6 snapshot ordenado de envelopes**: captura ANTES de mutar con
+   sort `createdAt ASC` para `removedEnvelopeIds` deterministico.
+7. **A7 read-only contract**: use case NO `repository.save`, no muta
+   aggregate. 6 puertos en constructor (vs 9-10 de A5/A6).
+8. **A7 refactor del handler**: `ExportKeyCommandHandler` ahora recibe
+   `Prompt` port (necesita pedir passphrase). Refactor invasivo del
+   wiring.
+9. **A7 warning UI en stdout**: handler imprime warning explicito
+   antes del banner. Master key NUNCA pasa por logger.
+
+**Issues CI debugging Fase 3 (4 ciclos):**
+
+PR #80 corrio 5 veces antes de pasar:
+1. Falla por NODE_MODULE_VERSION (audit adapter eager `db.prepare`) → lazy init.
+2. Falla `EncryptionLockedError` (use case reload locked config) → refactor use case orquesta unlock.
+3. Falla integration test wiring (test pasaba args orden viejo) → fix.
+4. Falla SonarQube S7778 (multiple push) → array literal.
+5. PASS.
+
+PR #81 corrio 1 vez y PASS (todos los issues catados pre-merge gracias al fix-trail de A5).
+
+PR #82 corrio 2 veces:
+1. Falla test `startsWith("m31-")` (grouping cosmetico genera `m31q-`, no `m31-`) → fix expectation.
+2. PASS.
+
+**Total cycles iteracion 2 ADR-005 (Phase-23 + Phase-24):**
+
+- 8 PRs mergeados (#73, #74, #75, #77, #78, #80, #81, #82) + 1 docs (#79) = 9 PRs.
+- 1 PR cerrado wontfix (#76).
+- ~10 ciclos CI debugging totales.
+- 4 validadores pre-merge por cada PR.
+
+**HEAD develop al cierre Phase-24:** `147a4b5`.
+**Develop vs main:** 69 commits ahead (era 18 al cierre de Phase-20).
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -4064,7 +4159,18 @@ del proyecto, vive aqui hasta cortar release.
 | ~~**@types/node@25 type assertions**~~ | ~~LOW~~ | ~~PR #60 (Phase-19)~~ | ~~Requeria 5 type assertions `as Uint8Array<ArrayBuffer>` en WebCrypto callsites~~ | **CERRADO Phase-21 PR #67** (`0ec625b`) — bump habilitado via signature tightening en lugar de `as` casts; strictly mas type-safe. |
 | ~~**SonarQube gate 90→95 restore**~~ | ~~LOW~~ | ~~Phase-20 §6.25 doc roadmap~~ | ~~Tests reales para cubrir ~108 missed branches en 6+ archivos antes de re-tightening gate~~ | **CERRADO Phase-21 PR #68** (`5c8f62d`) — +21 VALOR tests; aggregate ~95.69%. **Verificacion via API 2026-05-12** confirma gate server-side ya en >=95 (`coverage LT 95` + `new_coverage LT 95`); no requirio flip UI, el doc drift Phase-20 era una mala lectura del estado server-side. |
 | ~~**W-3.4-PERF-H2 markPrunedBatch**~~ | ~~HIGH~~ | ~~Phase 5 performance-auditor~~ | ~~PruneLowConfidence sin batch transaction; N fsyncs por candidato~~ | **CERRADO Phase-21 PR #69** (`c0734b2`) — `markPrunedBatch(...): Promise<readonly boolean[]>` con mask paralelo. Mirror del `applyDecayBatch` cerrado en Phase 5. |
-| ~~**ADR-005 multi-key envelope flow**~~ | ~~MEDIUM~~ | ~~Phase-21 §6.26 / `docs/12 §1.5.5`~~ | ~~3 facades `Pending*` (`AddKey`, `Rekey`, `ExportKey`) requieren architect review de Q1-Q5~~ | **ACCEPTED Phase-22 doc-only (2026-05-12)** — review formal de architect + crypto-security-expert + security-auditor cerro Q1-Q5; spec Bech32 BIP-173 congelada en `docs/11 §3` + ADR-005 apendice con DEBE-HACERSE por Q + plan de iteracion 2 (codigo) ready. |
+| ~~**ADR-005 multi-key envelope flow**~~ | ~~MEDIUM~~ | ~~Phase-21~~ | ~~3 facades `Pending*` requieren architect review Q1-Q5~~ | **CLOSED Phase-22+23+24** (2026-05-12) — Phase-22 ACCEPTED via review formal; Phase-23 implemento pasos 1-4 (PRs #73, #75, #77, #78); Phase-24 implemento pasos 5-7 (PRs #80, #81, #82). Plan 7-pasos 100% completo. |
+| **FP-A5-1 / UnlockFailed audit** | MEDIUM | Phase-24 §6.29 A5 security audit | Emitir `UnlockFailed` audit row cuando `CliAddKeyFacadeAdapter` recibe Err del unlock. Gap forense actual: brute-force passphrase contra AddKey NO deja huella. | OPEN tracked |
+| **FP-A5-2 / Passphrase Buffer end-to-end** | LOW | Phase-24 §6.29 A5 security audit | Migrar `Prompt` port a `Promise<Buffer>` + `Passphrase.fromBuffer(buf)` con `secureZero` end-to-end. Cierra el downgrade Buffer→string en VO `Passphrase.from()`. Coordinar con A2. | OPEN tracked |
+| **FP-A5-3 / Integration assert tightening** | LOW | Phase-24 §6.29 A5 security audit | Endurecer `unlockRows.length === 1` (no `>= 1`) en `add-key-facade.integration.test.ts:147`. El comentario del test sobreestima la redundancia. | OPEN tracked |
+| **FP-A5-4 / Envelope-pending state** | FUTURE v0.6+ | Phase-24 §6.29 A5 security audit | Marcar envelope como `pending` pre-save, commit a `active` despues del audit row para cerrar atomicity gap. Requiere schema migration + JSON config version bump. | OPEN deferred |
+| **FP-A5-5 / Single withUnlockedKey batch** | LOW | Phase-24 §6.29 A5 security audit | `withUnlockedKey` se invoca 3 veces (wrap, addEnvelope, fingerprint). Batch en un solo callback reduce master key RAM exposure. | OPEN tracked |
+| **F-A6-1 / UnlockSucceeded duplication** | LOW | Phase-24 §6.29 A6 security audit | Investigar si `UnlockEncryption.unlock` emite su propio `UnlockSucceeded` (duplicado con rekey chain). Consolidar para evitar ruido en `encryption_audit_log`. | OPEN tracked |
+| **F-A6-2 / UnlockFailed para rekey** | LOW | Phase-24 §6.29 A6 security audit | Confirmar que `UnlockUseCase` emite `UnlockFailed` ante wrong passphrase; si no, agregar `RekeyFailed` con reason="invalid-passphrase" para cerrar gap forense (mismo gap que FP-A5-1). | OPEN tracked |
+| **F-A6-3 / Threat model docs/11** | INFO | Phase-24 §6.29 A6 security audit | Documentar en `docs/11-seguridad-modos.md`: rekey envelope-only NO purga atacante con master comprometida. | OPEN tracked |
+| **FU-A7-1 / ExportKeyAttempted FAILURE** | LOW | Phase-24 §6.29 A7 security audit | Emitir `ExportKeyAttempted` con `outcome=FAILURE` para cerrar gap forense vs brute-force passphrase contra ExportKey (mismo patron FP-A5-1 / F-A6-2). | OPEN tracked |
+| **FU-A7-2 / last_export_at visibility** | LOW | Phase-24 §6.29 A7 security audit | Surface `last_export_at` en `recall health` para que el usuario detecte exports anomalos (defense in depth contra acceso no autorizado al terminal). | OPEN tracked |
+| **FU-A7-3 / pino redact printableMasterKey** | LOW | Phase-24 §6.29 A7 security audit | Anadir `"printableMasterKey"` + `"*.printableMasterKey"` a `DEFAULT_REDACT_PATHS` en `pino-logger.ts`. Defense contra futura regresion del codigo que pudiera loggear el campo. | OPEN tracked |
 | **ADR-006 OS keychain <500ms** | INFO | Phase-21 §6.26 / `docs/12 §1.5.6` | Encrypted cold start <500ms via OS keychain cache de derived key. Decision: NO implementar en v0.5, SLO <1500ms aceptable; Argon2id OWASP 2024 floors no negociables | PROPOSED — defer until user workflow justifies |
 | ~~**W-3.4-PERF-H3**~~ | ~~HIGH~~ | ~~Phase 5 performance-auditor~~ | ~~`Vec0SimilarityFinder` 1+1 lookup~~ | **CLOSED Phase-23 PR [#74](https://github.com/NetziTech/recall/pull/74)** (`577ed3a`) — refactor 2N → N+1 via `WHERE id IN (?,?,...)`. Firma del puerto intacta. |
 | **FP-001 / W-Q4-CI-GATE** | MEDIUM | Phase-23 §6.28 security-auditor en PR #75 audit | Anadir CI gate (eslint `no-restricted-syntax` o script grep) que rechace `.toHex()` fuera de `sqlite-encryption-audit-repository.ts` + `master_key_fp`/`MasterKeyFingerprint.toHex` en composition/, logger/, presentation/CLI/MCP. Barrier procedural (JSDoc + audit) es solido en codigo actual; riesgo es regresion futura cuando otro agente toque encryption sin leer JSDoc. NO bloquea merge. | OPEN tracked |
