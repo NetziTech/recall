@@ -1,0 +1,27 @@
+{
+  "$comment": "Frozen test vectors for PrintableMasterKey (ADR-005 Q3 / docs/11-seguridad-modos.md §3). DO NOT EDIT without bumping the HRP to 'm4' — every value here is part of the wire contract.",
+  "alphabet": "qpzry9x8gf2tvdw0s3jn54khce6mua7l",
+  "hrp": "m3",
+  "separator": "1",
+  "renderedLength": 61,
+  "vectors": {
+    "V1": {
+      "description": "master = 32 bytes of 0x00",
+      "masterKeyHex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "rendered": "m31qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqdff50q",
+      "renderedWithGrouping": "m31q-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqq-qqqd-ff50-q"
+    },
+    "V2": {
+      "description": "master = 32 bytes of 0xff",
+      "masterKeyHex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "rendered": "m31llllllllllllllllllllllllllllllllllllllllllllllllllls0h29xh",
+      "renderedWithGrouping": "m31l-llll-llll-llll-llll-llll-llll-llll-llll-llll-llll-llll-llll-lls0-h29x-h"
+    },
+    "V3": {
+      "description": "master = bytes 0x01..0x20 (1..32 inclusive)",
+      "masterKeyHex": "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+      "rendered": "m31qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5z5tpwxqergd3c8g7rusqzlxlcg",
+      "renderedWithGrouping": "m31q-ypqx-pq9q-crss-zg2p-vxq6-rs0z-qg3y-yc5z-5tpw-xqer-gd3c-8g7r-usqz-lxlc-g"
+    }
+  }
+}
