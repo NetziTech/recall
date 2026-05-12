@@ -327,7 +327,7 @@ export class PrintableMasterKey {
         { field: "printable_master_key" },
       );
     }
-    const stripped = raw.replace(/-/g, "");
+    const stripped = raw.replaceAll("-", "");
 
     // Strict lowercase: spec says wire form is lowercase only and
     // BIP-173 itself rejects mixed-case strings. We additionally
