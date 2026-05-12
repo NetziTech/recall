@@ -48,6 +48,8 @@ export { UuidV7IdGenerator } from "./id-generator/uuid-v7-id-generator.ts";
 export { FakeIdGenerator } from "./id-generator/fake-id-generator.ts";
 export type { FakeIdGeneratorOptions } from "./id-generator/fake-id-generator.ts";
 
+export { secureZero } from "./crypto/secure-zero.ts";
+
 export { InfrastructureError } from "./errors/infrastructure-error.ts";
 export { DatabaseError } from "./errors/database-error.ts";
 export type { DatabaseErrorCode } from "./errors/database-error.ts";
