@@ -29,6 +29,7 @@ export { WebCryptoRandomBytes } from "./random/web-crypto-random-bytes.ts";
 export { EncryptionKeyAdapter } from "./database/encryption-key-adapter.ts";
 
 export { JsonEncryptionConfigRepository } from "./persistence/json-encryption-config-repository.ts";
+export { SqliteEncryptionAuditRepository } from "./persistence/sqlite-encryption-audit-repository.ts";
 
 export { EncryptionInfrastructureError } from "./errors/encryption-infrastructure-error.ts";
 export { KdfDerivationFailedError } from "./errors/kdf-derivation-failed-error.ts";

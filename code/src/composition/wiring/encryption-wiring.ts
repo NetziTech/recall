@@ -30,6 +30,9 @@ import { InitializeEncryptionUseCase } from "../../modules/encryption/applicatio
 import { LockEncryptionUseCase } from "../../modules/encryption/application/use-cases/lock-encryption.use-case.ts";
 import { UnlockEncryptionUseCase } from "../../modules/encryption/application/use-cases/unlock-encryption.use-case.ts";
 import type { EncryptionConfigRepository } from "../../modules/encryption/domain/repositories/encryption-config-repository.ts";
+import type { EnvelopeCipher } from "../../modules/encryption/domain/services/envelope-cipher.ts";
+import type { Kdf } from "../../modules/encryption/application/ports/out/kdf.port.ts";
+import type { RandomBytes } from "../../modules/encryption/application/ports/out/random-bytes.port.ts";
 import {
   AesGcmEnvelopeCipher,
   AesGcmKeyValidator,
@@ -51,6 +54,26 @@ export interface EncryptionWiring {
   readonly destroyEncryption: DestroyEncryptionUseCase;
   readonly derivePassphraseKey: DerivePassphraseKeyUseCase;
   readonly repository: EncryptionConfigRepository;
+  /**
+   * Crypto primitives + RNG re-exposed so the composition root can
+   * wire the database-dependent `AddEnvelopeUseCase` (ADR-005
+   * multi-key flow) without duplicating the adapter instances. The
+   * use case lives outside this wiring file because it needs a live
+   * SQLite connection (audit-log adapter), which the bootstrap only
+   * opens AFTER the encryption module has been initialised.
+   */
+  readonly primitives: EncryptionPrimitives;
+}
+
+/**
+ * Subset of the encryption module's wired adapters that the
+ * composition root needs to construct database-dependent use cases
+ * (currently `AddEnvelopeUseCase`).
+ */
+export interface EncryptionPrimitives {
+  readonly kdf: Kdf;
+  readonly envelopeCipher: EnvelopeCipher;
+  readonly randomBytes: RandomBytes;
 }
 
 export interface EncryptionWiringOptions {
@@ -139,5 +162,6 @@ export function buildEncryptionWiring(
     destroyEncryption,
     derivePassphraseKey,
     repository,
+    primitives: { kdf, envelopeCipher, randomBytes },
   };
 }

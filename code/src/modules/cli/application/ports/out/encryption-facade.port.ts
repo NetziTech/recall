@@ -46,6 +46,15 @@ export interface RekeyFacade {
 
 export interface AddKeyFacadeInput {
   readonly rootPath: string;
+  /**
+   * Passphrase the workspace is CURRENTLY encrypted under. The facade
+   * runs unlock(current) BEFORE the multi-key add, so a wrong value
+   * surfaces as a `KeyValidationFailedError` (wire `-32108
+   * INVALID_KEY`) without touching the envelope list. ADR-005 Q1
+   * pins this requirement on the input shape (Phase-22 appendix in
+   * `docs/12-lineamientos-arquitectura.md` §1.5.5).
+   */
+  readonly currentPassphrase: string;
   readonly newPassphrase: string;
   readonly label: string | null;
 }
@@ -53,6 +62,17 @@ export interface AddKeyFacadeInput {
 export interface AddKeyFacadeOutput {
   readonly workspaceId: string;
   readonly keyId: string;
+  /**
+   * Identifier of the freshly minted envelope, formatted for direct
+   * CLI rendering. NOT a re-emission of the master key — add-key
+   * registers a new passphrase that wraps the SAME master key, so no
+   * new printable master is produced. The field name is preserved
+   * across {@link ExportKeyFacadeOutput}, {@link RekeyFacadeOutput}
+   * and this output so the CLI handler can reuse the existing
+   * banner spacing without a special case for add-key; the renderer
+   * decides whether to format the value as a key box or as a
+   * one-line id.
+   */
   readonly printableKey: string;
 }
 

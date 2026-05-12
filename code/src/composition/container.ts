@@ -63,6 +63,7 @@ import {
   TrackTaskFacadeAdapter,
 } from "./facades/mcp-server-facades.ts";
 import {
+  CliAddKeyFacadeAdapter,
   CliAuditFacadeAdapter,
   CliChangeModeFacadeAdapter,
   CliCuratorLogFacadeAdapter,
@@ -80,11 +81,12 @@ import {
   CliUninstallHookFacadeAdapter,
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
-  PendingAddKeyFacade,
   PendingExportKeyFacade,
   PendingRekeyFacade,
   PendingServerFacade,
 } from "./facades/cli-facades.ts";
+import { AddEnvelopeUseCase } from "../modules/encryption/application/use-cases/add-envelope.use-case.ts";
+import { SqliteEncryptionAuditRepository } from "../modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
   DestroyEncryptionFacadeAdapter,
   InitializeEncryptionFacadeAdapter,
@@ -410,7 +412,29 @@ export function buildContainer(options: ContainerOptions): Container {
 
     exportKey: new PendingExportKeyFacade(),
     rekey: new PendingRekeyFacade(),
-    addKey: new PendingAddKeyFacade(),
+    addKey: new CliAddKeyFacadeAdapter(
+      encryption.unlockEncryption,
+      // ADR-005 Q4: the add-envelope use case needs a live database
+      // connection for the audit-log adapter. The container is the
+      // first composition layer that has BOTH the encryption
+      // primitives (kdf / cipher / random) and the database open;
+      // we wire the use case here rather than inside
+      // `buildEncryptionWiring` to keep the wiring file free of
+      // database dependencies (the JSON-only adapters do not need
+      // one).
+      new AddEnvelopeUseCase(
+        encryption.repository,
+        new SqliteEncryptionAuditRepository(options.database),
+        encryption.primitives.kdf,
+        encryption.primitives.envelopeCipher,
+        encryption.primitives.randomBytes,
+        shared.idGenerator,
+        shared.clock,
+        options.database,
+        logger,
+      ),
+      workspace.detectWorkspace,
+    ),
 
     audit: new CliAuditFacadeAdapter(memory.auditMemory, workspace.detectWorkspace),
     sanitize: new CliSanitizeFacadeAdapter(secrets.sanitizePath),

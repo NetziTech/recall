@@ -5,6 +5,7 @@
  * can wire them with their adapters in one place.
  */
 
+export { AddEnvelopeUseCase } from "./add-envelope.use-case.ts";
 export { DerivePassphraseKeyUseCase } from "./derive-passphrase-key.use-case.ts";
 export { DestroyEncryptionUseCase } from "./destroy-encryption.use-case.ts";
 export { InitializeEncryptionUseCase } from "./initialize-encryption.use-case.ts";

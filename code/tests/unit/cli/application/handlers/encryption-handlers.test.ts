@@ -91,7 +91,9 @@ describe("AddKeyCommandHandler", () => {
 
   it("rejects mismatched passphrases", async () => {
     const facade = new StubAddKeyFacade();
-    const prompt = new ScriptedPrompt({ passphrases: ["a", "b"] });
+    // First passphrase = current; the second/third (new + confirm)
+    // differ, triggering the mismatch error.
+    const prompt = new ScriptedPrompt({ passphrases: ["current", "a", "b"] });
     const h = new AddKeyCommandHandler(facade, prompt, new SilentLogger());
     await expect(
       h.handle({
@@ -103,9 +105,11 @@ describe("AddKeyCommandHandler", () => {
     ).rejects.toBeInstanceOf(PassphraseMismatchError);
   });
 
-  it("happy path: forwards passphrase + label, prints key id + banner", async () => {
+  it("happy path: forwards current+new passphrase + label, prints key id + banner", async () => {
     const facade = new StubAddKeyFacade();
-    const prompt = new ScriptedPrompt({ passphrases: ["pp", "pp"] });
+    const prompt = new ScriptedPrompt({
+      passphrases: ["current-pp", "pp", "pp"],
+    });
     const h = new AddKeyCommandHandler(facade, prompt, new SilentLogger());
     const out = await h.handle({
       command: "add-key",
@@ -113,6 +117,7 @@ describe("AddKeyCommandHandler", () => {
       nonInteractive: false,
       label: "team-bob",
     });
+    expect(facade.lastInput?.currentPassphrase).toBe("current-pp");
     expect(facade.lastInput?.newPassphrase).toBe("pp");
     expect(facade.lastInput?.label).toBe("team-bob");
     expect(out.stdout).toContain("Nueva clave agregada");
