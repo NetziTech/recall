@@ -86,6 +86,10 @@ class RecordingWriter implements MemoryEntryWriter {
   public markPruned(): Promise<boolean> {
     return Promise.resolve(false);
   }
+
+  public markPrunedBatch(): Promise<readonly boolean[]> {
+    return Promise.resolve([]);
+  }
 }
 
 function makeProjection(

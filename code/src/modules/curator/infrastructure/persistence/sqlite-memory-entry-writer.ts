@@ -138,7 +138,7 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
         for (const item of input.items) {
           const key = item.kind.toString();
           const stmt = statementByKind.get(key);
-          /* c8 ignore start -- defensive: every kind from input was registered above; unreachable via public API since prepared statements + tableByKind are populated symmetrically over the same input set. */
+          /* istanbul ignore if -- defensive: every kind from input was registered above; unreachable via public API since prepared statements + tableByKind are populated symmetrically over the same input set. */
           if (stmt === undefined) {
             const err = new Error(`unprepared kind in batch: ${key}`);
             failureRef.current = {
@@ -147,7 +147,6 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
             };
             throw err;
           }
-          /* c8 ignore stop */
           try {
             const result = stmt.run(
               item.newConfidence.toNumber(),
@@ -276,6 +275,113 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
       );
     }
     return wasPruned;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/require-await -- impl is fully sync; `async` keeps interface throws as rejected promises (test contract).
+  public async markPrunedBatch(input: {
+    workspaceId: WorkspaceId;
+    items: readonly {
+      readonly kind: MemoryEntryKind;
+      readonly entryId: string;
+      readonly contentSnapshot: string;
+      readonly reasonKind:
+        | "low_confidence"
+        | "manual"
+        | "consolidated_into_other"
+        | "obsoleted";
+      readonly prunedAt: Timestamp;
+    }[];
+  }): Promise<readonly boolean[]> {
+    if (input.items.length === 0) return [];
+
+    // Pre-compile once: a single `INSERT` plus one `DELETE` per
+    // distinct kind appearing in the batch. The hot loop then makes
+    // only `stmt.run(...)` calls (no SQL string resolution, no
+    // dispatch). Mirrors `applyDecayBatch` (W-3.4-PERF-H1).
+    //
+    // Wrap the prepare phase in a try/catch so any prepare-time
+    // SQLite failure (e.g. table dropped between connection open
+    // and batch dispatch — only reachable via test fixtures or
+    // schema-corruption ops) surfaces as a typed
+    // `CuratorInfrastructureError.upsertFailed`, matching the
+    // wrapped shape the rest of the writer produces.
+    const insertStmt = this.db.prepare(SQL_INSERT_PRUNED);
+    const deleteStmtByKind = new Map<string, ReturnType<DatabaseConnection["prepare"]>>();
+    const tableByKind = new Map<string, string>();
+    try {
+      for (const item of input.items) {
+        const key = item.kind.toString();
+        if (deleteStmtByKind.has(key)) continue;
+        deleteStmtByKind.set(key, this.db.prepare(this.deleteSqlForKind(item.kind)));
+        tableByKind.set(key, SqliteMemoryEntryWriter.tableForKind(item.kind));
+      }
+    } catch (cause: unknown) {
+      /* istanbul ignore if -- defensive: prepare() itself never throws CuratorInfrastructureError (those wrap only run-time failures); branch exists for type-safety re-throw of nested wraps. */
+      if (cause instanceof CuratorInfrastructureError) throw cause;
+      throw CuratorInfrastructureError.upsertFailed("<batch-prepare>", cause);
+    }
+
+    interface FailureCause {
+      readonly table: string;
+      readonly cause: unknown;
+    }
+    const wasPrunedMask = new Array<boolean>(input.items.length).fill(false);
+    const workspaceIdString = input.workspaceId.toString();
+    const failureRef: { current: FailureCause | null } = { current: null };
+    try {
+      this.db.transaction((): void => {
+        for (let i = 0; i < input.items.length; i += 1) {
+          const item = input.items[i];
+          /* istanbul ignore if -- defensive: bounded loop indices, undefined only via misuse */
+          if (item === undefined) continue;
+          const key = item.kind.toString();
+          const deleteStmt = deleteStmtByKind.get(key);
+          /* istanbul ignore if -- defensive: every kind from input was registered above; unreachable via the public API since prepared statements are populated symmetrically over the same input set. */
+          if (deleteStmt === undefined) {
+            const err = new Error(`unprepared kind in batch: ${key}`);
+            failureRef.current = {
+              table: tableByKind.get(key) ?? "<unknown>",
+              cause: err,
+            };
+            throw err;
+          }
+          try {
+            insertStmt.run(
+              workspaceIdString,
+              key,
+              item.entryId,
+              item.contentSnapshot,
+              item.reasonKind,
+              item.prunedAt.toEpochMs(),
+            );
+            const result = deleteStmt.run(item.entryId);
+            wasPrunedMask[i] = result.changes > 0;
+          } catch (cause: unknown) {
+            // tableByKind is populated from the same key set as
+            // deleteStmtByKind during prepare (see the loop above);
+            // by the time we reach this per-item catch the key is
+            // always present.
+            failureRef.current = {
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- invariant: tableByKind has every key that deleteStmtByKind has; checked at prepare time.
+              table: tableByKind.get(key)!,
+              cause,
+            };
+            throw cause;
+          }
+        }
+      });
+    } catch (cause: unknown) {
+      const recorded = failureRef.current;
+      /* istanbul ignore if -- defensive: the inner per-item catch always sets `failureRef.current` before re-throwing, so by the time control reaches this outer catch `recorded` is non-null. The true arm fires only for transaction-level failures with no preceding row failure (e.g. driver-side abort), which the public API cannot trigger. */
+      if (recorded === null) {
+        throw CuratorInfrastructureError.upsertFailed("<batch>", cause);
+      }
+      throw CuratorInfrastructureError.upsertFailed(
+        recorded.table,
+        recorded.cause,
+      );
+    }
+    return wasPrunedMask;
   }
 
   // -- internals --------------------------------------------------------

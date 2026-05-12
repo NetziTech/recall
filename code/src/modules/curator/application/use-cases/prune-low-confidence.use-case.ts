@@ -110,8 +110,36 @@ export class PruneLowConfidenceUseCase implements PruneLowConfidence {
     const reason = PrunedReason.lowConfidence();
     let entriesPruned = 0;
 
+    // Performance (W-3.4-PERF-H2 closure): batch ALL candidates into
+    // a single SQL transaction via the writer's `markPrunedBatch`.
+    // Prior implementation issued one transaction per candidate
+    // (1 fsync each), which scaled linearly with candidate count —
+    // dominant cost for workspaces >10k entries. The batch wraps
+    // every (INSERT into pruned, DELETE from live) pair plus the
+    // domain-event emissions in a single SQLite transaction.
+    //
+    // Domain-event correctness: the writer returns a boolean mask
+    // parallel to the input array (`wasPrunedMask[i] === true` iff
+    // candidate i was actually deleted). We use the mask to drive
+    // `run.recordPrune(...)` only for the rows that survived the
+    // idempotency check — matching the per-row semantics of the
+    // previous loop.
+    const writerInputs = candidates.map((candidate) => ({
+      kind: candidate.kind,
+      entryId: candidate.id,
+      contentSnapshot: candidate.contentSnapshot,
+      reasonKind: "low_confidence" as const,
+      prunedAt: occurredAt,
+    }));
+
+    // Persist the pruned-entry snapshots first so the audit trail
+    // exists even if the writer's batch throws mid-way. The
+    // `prunedRepo.save(...)` calls are still per-row because the
+    // repository contract is append-only and the pruned table has a
+    // PK on (workspace, kind, id); a single failure should not roll
+    // back the entire batch of audit snapshots. (If `prunedRepo`
+    // grows a `saveBatch` in the future, this loop folds into it.)
     for (const candidate of candidates) {
-      // 1. Archive snapshot (audit trail before live row goes away).
       const snapshot = PrunedEntry.create({
         workspaceId: candidate.workspaceId,
         kind: candidate.kind,
@@ -121,20 +149,18 @@ export class PruneLowConfidenceUseCase implements PruneLowConfidence {
         prunedAt: occurredAt,
       });
       await this.prunedRepo.save(snapshot);
+    }
 
-      // 2. Drop live row (idempotent at the writer level).
-      const pruned = await this.writer.markPruned({
-        workspaceId: candidate.workspaceId,
-        kind: candidate.kind,
-        entryId: candidate.id,
-        contentSnapshot: candidate.contentSnapshot,
-        reasonKind: "low_confidence",
-        prunedAt: occurredAt,
-      });
-      if (!pruned) continue;
+    const wasPrunedMask = await this.writer.markPrunedBatch({
+      workspaceId: input.workspaceId,
+      items: writerInputs,
+    });
 
-      // 3. Record on the run aggregate so subscribers receive the
-      //    `EntryPruned` event after persistence.
+    for (let i = 0; i < candidates.length; i += 1) {
+      if (wasPrunedMask[i] !== true) continue;
+      const candidate = candidates[i];
+      /* istanbul ignore if -- defensive: candidates and wasPrunedMask are parallel arrays of identical length; undefined only reachable via misuse. */
+      if (candidate === undefined) continue;
       run.recordPrune({
         kind: candidate.kind,
         originalId: candidate.id,

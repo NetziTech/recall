@@ -92,6 +92,9 @@ class RecordingWriter implements MemoryEntryWriter {
     entryId: string;
     reasonKind: string;
   }> = [];
+  public readonly markPrunedBatchCalls: Array<{
+    itemCount: number;
+  }> = [];
   public defaultMarkPruned: boolean = true;
   public missingIds = new Set<string>();
 
@@ -119,6 +122,26 @@ class RecordingWriter implements MemoryEntryWriter {
     });
     if (this.missingIds.has(input.entryId)) return Promise.resolve(false);
     return Promise.resolve(this.defaultMarkPruned);
+  }
+
+  public markPrunedBatch(input: {
+    items: readonly {
+      readonly kind: MemoryEntryKind;
+      readonly entryId: string;
+      readonly reasonKind: string;
+    }[];
+  }): Promise<readonly boolean[]> {
+    this.markPrunedBatchCalls.push({ itemCount: input.items.length });
+    const mask = input.items.map((item) => {
+      this.markPrunedCalls.push({
+        kind: item.kind.toString(),
+        entryId: item.entryId,
+        reasonKind: item.reasonKind,
+      });
+      if (this.missingIds.has(item.entryId)) return false;
+      return this.defaultMarkPruned;
+    });
+    return Promise.resolve(mask);
   }
 }
 
