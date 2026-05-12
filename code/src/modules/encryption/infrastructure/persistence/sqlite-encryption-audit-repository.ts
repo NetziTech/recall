@@ -127,7 +127,12 @@ export class SqliteEncryptionAuditRepository
    * the contents into the SQLCipher BLOB slot during `run`, so the
    * adapter does not retain a reference past the call.
    */
-  public append(event: EncryptionAuditEvent): Promise<void> {
+  // Async signature mantiene compatibilidad con el puerto (Promise<void>)
+  // y preserva la semantica de rejection cuando uuidStringToBytes lanza.
+  // require-await se desactiva localmente: better-sqlite3 es sync; no hay
+  // await real pero la firma debe ser Promise<void> por contrato.
+  // eslint-disable-next-line @typescript-eslint/require-await
+  public async append(event: EncryptionAuditEvent): Promise<void> {
     const eventIdBytes = SqliteEncryptionAuditRepository.uuidStringToBytes(
       event.eventId.toString(),
     );
@@ -157,8 +162,6 @@ export class SqliteEncryptionAuditRepository
       event.outcome,
       detailJsonSql,
     );
-
-    return Promise.resolve();
   }
 
   // -- internals --------------------------------------------------------
