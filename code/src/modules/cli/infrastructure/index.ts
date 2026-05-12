@@ -14,3 +14,11 @@ export {
   CliInfrastructureError,
   type CliInfrastructureErrorCode,
 } from "./errors/cli-infrastructure-error.ts";
+export {
+  assertTty,
+  readPassphrase,
+  confirmPassphrase,
+  constantTimeEqualPadded,
+  assertStrongPassphrase,
+  shannonBits,
+} from "./prompts/index.ts";
