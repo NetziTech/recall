@@ -47,7 +47,10 @@ describe("integration / smoke / container wiring", () => {
     // Migration 008 (B-MCP-4 / issue #3) adds the `decisions.content`
     // column and rebuilds the FTS5 index over it so the wire `content`
     // field stops being silently dropped on `mem.remember`.
-    expect(versions).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    // Migration 009 (ADR-005 Q4 — Phase-22) creates the
+    // `encryption_audit_log` table with append-only triggers for the
+    // multi-key envelope flow audit trail.
+    expect(versions).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   });
 
   it("registered the six MVP tools on the registry", () => {
