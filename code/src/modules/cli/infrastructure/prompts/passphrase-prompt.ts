@@ -121,39 +121,47 @@ export async function readPassphrase(prompt: string): Promise<Buffer> {
       stdin.pause();
     };
 
+    const finishEnter = (): void => {
+      cleanup();
+      process.stdout.write("\n");
+      try {
+        const buf = encodeNfkc(collected);
+        collected = "";
+        resolve(buf);
+      } catch (err) {
+        collected = "";
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    };
+
+    const finishCtrlC = (): never => {
+      aborted = true;
+      cleanup();
+      process.stdout.write("\n");
+      collected = "";
+      // POSIX: 128 + SIGINT(2) = 130.
+      process.exit(130);
+    };
+
+    const applyBackspace = (): void => {
+      if (collected.length > 0) {
+        collected = collected.slice(0, -1);
+      }
+    };
+
     const onData = (chunk: string): void => {
       if (aborted) return;
       for (const char of chunk) {
-        // Enter (LF or CR) terminates the entry.
         if (char === "\r" || char === "\n") {
-          cleanup();
-          process.stdout.write("\n");
-          try {
-            const buf = encodeNfkc(collected);
-            collected = "";
-            resolve(buf);
-          } catch (err) {
-            collected = "";
-            reject(err instanceof Error ? err : new Error(String(err)));
-          }
+          finishEnter();
           return;
         }
-        // Ctrl-C cancels with SIGINT semantics.
         if (char === "") {
-          aborted = true;
-          cleanup();
-          process.stdout.write("\n");
-          collected = "";
-          // POSIX: 128 + SIGINT(2) = 130.
-          process.exit(130);
+          finishCtrlC();
         }
-        // Backspace: 0x7f (DEL, default on most modern terminals) and
-        // 0x08 (\b, Ctrl-H on some legacy terminals) both delete one
-        // character from the buffer. No-op on empty buffer.
+        // Backspace: 0x7f (DEL, modern) and 0x08 (\b, legacy Ctrl-H).
         if (char === "" || char === "\b") {
-          if (collected.length > 0) {
-            collected = collected.slice(0, -1);
-          }
+          applyBackspace();
           continue;
         }
         collected += char;
