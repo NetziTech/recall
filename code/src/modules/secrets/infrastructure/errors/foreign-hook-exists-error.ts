@@ -12,20 +12,29 @@ import { SecretsInfrastructureError } from "./secrets-infrastructure-error.ts";
  *
  * Invariants:
  * - `code` is the stable identifier `secrets.foreign-hook-exists`.
- * - `hookPath` echoes the absolute path of the offending hook so
- *   the CLI can surface it in the message. The path is NOT
- *   considered confidential (it is always
- *   `<workspaceRoot>/.git/hooks/pre-commit`).
+ * - The absolute path of the offending hook lives in
+ *   `details.path` (W-3.5-SEC-L2). Although the path is always
+ *   `<workspaceRoot>/.git/hooks/pre-commit` — i.e. derivable from
+ *   public state — we keep it out of `message` and inside a
+ *   structured field so the pino redactor (`details.path` is in
+ *   `DEFAULT_REDACT_PATHS`) can hide it from logs uniformly with
+ *   the other workspace-tier errors. The JSON-RPC wire mapper only
+ *   surfaces `message` to clients, so this also keeps absolute
+ *   paths out of remote responses.
  */
+export type ForeignHookExistsErrorDetails = Readonly<{
+  readonly path: string;
+}>;
+
 export class ForeignHookExistsError extends SecretsInfrastructureError {
   public readonly code = "secrets.foreign-hook-exists";
-  public readonly hookPath: string;
+  public readonly details: ForeignHookExistsErrorDetails;
 
   public constructor(hookPath: string, cause?: unknown) {
     super(
-      `pre-commit hook at ${hookPath} is not managed by recall; pass --force to overwrite`,
+      "pre-commit hook is not managed by recall; pass --force to overwrite",
       cause,
     );
-    this.hookPath = hookPath;
+    this.details = { path: hookPath };
   }
 }

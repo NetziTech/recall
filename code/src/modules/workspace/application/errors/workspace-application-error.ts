@@ -22,10 +22,34 @@ import { DomainError } from "../../../../shared/domain/errors/domain-error.ts";
  * keeps a single contract. The `code` is in the `workspace.app.*`
  * namespace to disambiguate from genuinely-domain errors
  * (`workspace.locked`, `workspace.invalid-mode-transition`, ...).
+ *
+ * Path/identifier redaction (W-3.5-SEC-L2, mirrors PR #45):
+ * - Absolute filesystem paths attached to these errors live in the
+ *   structured {@link WorkspaceApplicationError.details} bag, NOT in
+ *   `message`. Pino's `DEFAULT_REDACT_PATHS` covers `details.path`
+ *   and `*.details.path` so the value is redacted whenever the error
+ *   travels through the logger. The JSON-RPC wire mapper only
+ *   surfaces `message` to clients, so the same convention prevents
+ *   leaks across that boundary too.
  */
+export type WorkspaceApplicationErrorDetails = Readonly<Record<string, unknown>>;
+
 export abstract class WorkspaceApplicationError extends DomainError {
-  protected constructor(message: string, cause?: unknown) {
+  /**
+   * Structured fields that supplement {@link Error.message} without
+   * appearing inside the message string. Always defined (empty object
+   * when the subclass has nothing to attach) so callers can dot-access
+   * `details.path` without an undefined-guard.
+   */
+  public readonly details: WorkspaceApplicationErrorDetails;
+
+  protected constructor(
+    message: string,
+    details: WorkspaceApplicationErrorDetails,
+    cause?: unknown,
+  ) {
     super(message, cause);
+    this.details = details;
   }
 }
 
@@ -33,16 +57,19 @@ export abstract class WorkspaceApplicationError extends DomainError {
  * Raised when an operation that requires an existing workspace is
  * invoked on a path where none is found. The CLI maps this to the
  * `invalidConfig` exit code (`docs/07-instalacion.md`).
+ *
+ * The requested filesystem path lives in `details.path` (not in
+ * `message`) so pino redacts it when logged and the JSON-RPC wire
+ * payload does not leak it to remote MCP clients.
  */
 export class NoWorkspaceAtPathError extends WorkspaceApplicationError {
   public readonly code = "workspace.app.no-workspace-at-path";
-  public readonly rootPath: string;
 
   public constructor(rootPath: string, cause?: unknown) {
     super(
-      `no workspace found at or above "${rootPath}"; run "recall init" first`,
+      'no workspace found at or above the requested path; run "recall init" first',
+      { path: rootPath },
       cause,
     );
-    this.rootPath = rootPath;
   }
 }
