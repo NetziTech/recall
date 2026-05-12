@@ -8,12 +8,19 @@ import { DomainError } from "../../../../../src/shared/domain/errors/domain-erro
 
 describe("WorkspaceApplicationError hierarchy", () => {
   it("NoWorkspaceAtPathError extends WorkspaceApplicationError + DomainError", () => {
-    const e = new NoWorkspaceAtPathError("/no/such");
+    const ROOT = "/abs/no/such/workspace";
+    const e = new NoWorkspaceAtPathError(ROOT);
     expect(e).toBeInstanceOf(WorkspaceApplicationError);
     expect(e).toBeInstanceOf(DomainError);
     expect(e.code).toBe("workspace.app.no-workspace-at-path");
-    expect(e.rootPath).toBe("/no/such");
-    expect(e.message).toContain("/no/such");
+  });
+
+  it("keeps the absolute path out of message and into details.path", () => {
+    const ROOT = "/abs/no/such/workspace";
+    const e = new NoWorkspaceAtPathError(ROOT);
+    expect(e.message).not.toContain(ROOT);
+    expect(e.details).toEqual({ path: ROOT });
+    expect(e.message).toContain('run "recall init"');
   });
 
   it("preserves cause when provided", () => {

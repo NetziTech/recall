@@ -197,4 +197,77 @@ describe("mapErrorToJsonRpc", () => {
     const out = mapErrorToJsonRpc(new WeirdAppError("weird"));
     expect(out.code).toBe(-32602);
   });
+
+  describe("W-3.5-SEC-L2 path-leak redaction across the wire envelope", () => {
+    const SECRET_ROOT = "/Users/alice/private/workspace";
+    const SECRET_HOOK = "/Users/alice/private/workspace/.git/hooks/pre-commit";
+
+    it("WorkspaceInfrastructureError.configMissing does not leak the path", async () => {
+      const { WorkspaceInfrastructureError } = await import(
+        "../../../../src/modules/workspace/infrastructure/errors/workspace-infrastructure-error.ts"
+      );
+      const out = mapErrorToJsonRpc(
+        WorkspaceInfrastructureError.configMissing(SECRET_ROOT),
+      );
+      expect(out.message).not.toContain(SECRET_ROOT);
+      expect(out.message).not.toContain("/Users/alice");
+    });
+
+    it("WorkspaceInfrastructureError.detectionFailed does not leak the path", async () => {
+      const { WorkspaceInfrastructureError } = await import(
+        "../../../../src/modules/workspace/infrastructure/errors/workspace-infrastructure-error.ts"
+      );
+      const out = mapErrorToJsonRpc(
+        WorkspaceInfrastructureError.detectionFailed(SECRET_ROOT, new Error("u")),
+      );
+      expect(out.message).not.toContain(SECRET_ROOT);
+    });
+
+    it("WorkspaceInfrastructureError.gitignoreUpdateFailed does not leak the path", async () => {
+      const { WorkspaceInfrastructureError } = await import(
+        "../../../../src/modules/workspace/infrastructure/errors/workspace-infrastructure-error.ts"
+      );
+      const out = mapErrorToJsonRpc(
+        WorkspaceInfrastructureError.gitignoreUpdateFailed(SECRET_ROOT, new Error("u")),
+      );
+      expect(out.message).not.toContain(SECRET_ROOT);
+    });
+
+    it("WorkspaceInfrastructureError.unlockTargetMissing does not leak the path", async () => {
+      const { WorkspaceInfrastructureError } = await import(
+        "../../../../src/modules/workspace/infrastructure/errors/workspace-infrastructure-error.ts"
+      );
+      const out = mapErrorToJsonRpc(
+        WorkspaceInfrastructureError.unlockTargetMissing(SECRET_ROOT),
+      );
+      expect(out.message).not.toContain(SECRET_ROOT);
+    });
+
+    it("NoWorkspaceAtPathError does not leak the path", async () => {
+      const { NoWorkspaceAtPathError } = await import(
+        "../../../../src/modules/workspace/application/errors/workspace-application-error.ts"
+      );
+      const out = mapErrorToJsonRpc(new NoWorkspaceAtPathError(SECRET_ROOT));
+      expect(out.message).not.toContain(SECRET_ROOT);
+    });
+
+    it("ForeignHookExistsError does not leak the hook path", async () => {
+      const { ForeignHookExistsError } = await import(
+        "../../../../src/modules/secrets/infrastructure/errors/foreign-hook-exists-error.ts"
+      );
+      const out = mapErrorToJsonRpc(new ForeignHookExistsError(SECRET_HOOK));
+      expect(out.message).not.toContain(SECRET_HOOK);
+      expect(out.message).not.toContain("/Users/alice");
+    });
+
+    it("CuratorInfrastructureError.scanFailed does not leak the path", async () => {
+      const { CuratorInfrastructureError } = await import(
+        "../../../../src/modules/curator/infrastructure/errors/curator-infrastructure-error.ts"
+      );
+      const out = mapErrorToJsonRpc(
+        CuratorInfrastructureError.scanFailed(SECRET_ROOT, new Error("u")),
+      );
+      expect(out.message).not.toContain(SECRET_ROOT);
+    });
+  });
 });
