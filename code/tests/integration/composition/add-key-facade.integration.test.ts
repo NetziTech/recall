@@ -91,8 +91,8 @@ describe("integration / composition / CliAddKeyFacadeAdapter — multi-key add",
       "../../../src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts"
     );
     const facade = new CliAddKeyFacadeAdapter(
-      ctx.encryption.unlockEncryption,
       new AddEnvelopeUseCase(
+        ctx.encryption.unlockEncryption,
         ctx.encryption.repository,
         new SqliteEncryptionAuditRepository(ctx.database),
         ctx.encryption.primitives.kdf,
@@ -165,8 +165,8 @@ describe("integration / composition / CliAddKeyFacadeAdapter — multi-key add",
       "../../../src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts"
     );
     const facade = new CliAddKeyFacadeAdapter(
-      ctx.encryption.unlockEncryption,
       new AddEnvelopeUseCase(
+        ctx.encryption.unlockEncryption,
         ctx.encryption.repository,
         new SqliteEncryptionAuditRepository(ctx.database),
         ctx.encryption.primitives.kdf,
