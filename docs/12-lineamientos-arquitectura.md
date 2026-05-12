@@ -545,11 +545,13 @@ arriba.
 
 #### 1.5.5 ADR-005 — Multi-key envelope flow (Pending stubs deferral)
 
-**Status:** PROPOSED — pendiente revision arquitectonica (architect +
-crypto-security-expert) antes de implementacion. Bloquea cierre de
-las 3 `Pending*` facades hasta que se acepte.
+**Status:** ACCEPTED — Q1-Q5 resueltas por review formal de 3 validadores
+(architect + crypto-security-expert + security-auditor) en sesion del
+2026-05-12. Detalle de las decisiones por Q en el apendice al final de
+este ADR. Las 3 `Pending*` facades pueden reemplazarse siguiendo el plan
+de implementacion abajo.
 
-**Fecha:** 2026-05-12.
+**Fecha:** 2026-05-12 (PROPOSED) → 2026-05-12 (ACCEPTED, mismo dia).
 
 **Contexto.** El modulo `encryption` ya soporta multiples envelopes a
 nivel de dominio (`EncryptionConfig.envelopes: KeyEnvelope[]`,
@@ -578,27 +580,292 @@ Hoy las 3 viven como `Pending*` stubs en
 | Q4 | **Audit trail por envelope.** `KeyEnvelopeAdded` y `KeyEnvelopeRemoved` existen como eventos de dominio; pero `secrets/` tiene un audit log dedicado para detecciones. ¿Estos eventos van al `secrets.audit_log` o a un nuevo `encryption.audit_log`? | Defense in depth + visibility |
 | Q5 | **CLI UX.** Cada comando (`add-key`, `rekey`, `export-key`) requiere TTY prompts no triviales (passphrase strength meter, confirmacion, advertencias de "una sola vez"). ¿Mover esto a una libreria de prompts compartida con `init`? | Reuso + tests |
 
-**Decision propuesta.** Mantener los 3 `Pending*` stubs hasta que la
-revision arquitectonica (architect + crypto-security-expert)
-responda Q1-Q5. Implementar AddKey primero como menor blast radius
-(Q1 + Q4), diferir Rekey + ExportKey a una segunda iteracion.
+**Decision (ACCEPTED).** Implementar AddKey primero (menor blast
+radius — Q1 + Q4), Rekey y ExportKey en iteracion posterior. Las 5
+decisiones Q1-Q5 estan resueltas en el apendice abajo.
 
-**Justificacion para no implementar autonomamente.**
+**Justificacion del orden de implementacion.**
 
-1. **API surface unica vez.** Cambiar `AddKeyFacadeInput` (agregar
-   `currentPassphrase`) post-release es un breaking change al CLI;
-   peor si lo emite un agente sin senorial input.
-2. **ExportKey representa material confidencial.** El rendering
-   format se persiste de facto cuando el usuario lo escribe en su
-   gestor de passwords; cambiarlo post-release rompe recuperacion.
-3. **Rekey impacta concurrencia.** Si el rekey re-cifra la DB
-   SQLCipher (opcion Q2-b), el procedimiento debe ser exclusivo (no
-   readers concurrentes) y manejar partial failure. Un mal diseno
-   aqui deja la DB en estado mixto irreversible.
+1. **API surface unica vez.** El input opaco al facade (sin TTY-in-use-case,
+   ver Q1 abajo) protege contra breaking changes futuros: si en v0.6
+   se anade soporte HTTP API, el facade no requiere cambios — solo
+   nueva fuente de passphrase en composition root.
+2. **ExportKey representa material confidencial.** El rendering format
+   se persiste de facto cuando el usuario lo escribe en su gestor de
+   passwords; cambiarlo post-release rompe recuperacion. La spec Bech32
+   esta congelada en `docs/11 §3` antes de implementar (ver Q3).
+3. **Rekey impacta concurrencia.** Decision Q2: rekey rota solo
+   envelopes (master estable). Esto elimina el escenario de partial
+   failure en `PRAGMA rekey` SQLCipher. Atomicidad por transaction
+   SQLite (`BEGIN IMMEDIATE`) sobre el `config.json` write.
 
-**Trigger de re-apertura.** El usuario abre review con architect +
-crypto-security-expert sobre Q1-Q5. Una vez resueltos, este ADR
-cambia a STATUS=ACCEPTED y se reemplazan los 3 `Pending*` stubs.
+**Apendice: decisiones por Q (ACCEPTED 2026-05-12).**
+
+Cada Q lista la decision final, el rationale convergente de los 3
+validadores, y los DEBE-HACERSE concretos para la implementacion.
+
+##### Q1 — Passphrase como input opaco al facade
+
+**Decision:** El `AddKeyFacade` (y los demas) reciben `currentPassphrase`
+en su input. El TTY prompt vive en `cli/infrastructure/prompts/` y es
+orquestado por el composition root, NO dentro del use case.
+
+**Rationale.** Architect rechazo la propuesta inicial "TTY directo en
+use case" por violar DIP: el use case en `encryption/application/` no
+puede importar TTY (que es presentation/infrastructure). Crypto y
+security validaron que el TTY orquestado en composition es seguro si
+cumple las condiciones abajo.
+
+**Implementacion (DEBE-HACERSE):**
+1. Facade input: `{ currentPassphrase: Passphrase, newPassphrase:
+   Passphrase, label: NonEmptyString }`. Passphrase es VO en
+   `encryption/domain/`.
+2. CLI adapter en `cli/infrastructure/prompts/passphrase-prompt.ts`
+   usa `process.stdin.setRawMode(true)` + `tcsetattr ECHO=0 ICANON=1`.
+3. Si `process.stdin.isTTY === false`, rechazar con error
+   `-32109 ERR_NO_TTY_FOR_PASSPHRASE` + exit code 2. No fallback a
+   stdin pipe (riesgo de leak via archivo input).
+4. Buffer del passphrase usa `Buffer.allocUnsafeSlow(N)` (sin pool) y
+   `buf.fill(0)` en `finally`.
+5. SIGINT handler ejecuta zero antes de `process.exit(130)`.
+6. Aplicar Unicode NFKC normalization explicita antes de pasarla al
+   KDF (NIST SP 800-63B §5.1.1.2).
+7. Warning en `docs/11 §7`: "No ejecutar `add-key`/`rekey`/`export-key`
+   dentro de tmux con logging activo ni asciinema". Limitacion
+   documentada, no resoluble criptograficamente.
+8. Test surface: port `IPasswordPrompt` con adapter `TtyPasswordPrompt`
+   (prod) + `InMemoryPasswordPrompt` (tests).
+
+##### Q2 — Rekey: rota envelopes (master estable)
+
+**Decision:** `RekeyFacade` rota solo envelopes mediante el patron
+`addEnvelope(new) → verify → removeEnvelope(old)` dentro de una sola
+transaccion SQLite (`BEGIN IMMEDIATE`). NO se invoca `PRAGMA rekey`
+SQLCipher. La master key permanece estable.
+
+**Rationale.** SQLCipher `PRAGMA rekey` tiene tres problemas: partial
+failure irreversible (paginas mezcladas), lock exclusivo O(rows),
+multiplica blast radius. El modelo del repo (`docs/11 §7`) ya define
+envelopes rotables / master estable.
+
+**Limite documentado (importante):** "Rekey de envelopes" NO mitiga
+compromise de la master key. Si la master fue leakeada (ej. memory
+dump del proceso, lectura del cache antes de chmod, swap file), rotar
+envelopes no expulsa al atacante. Esto es un limite arquitectonico,
+no un bug. Para "full key rotation" — futuro v0.6+ — sera un ADR-007
+con saga formal que coordine encryption + workspace + bootstrap.
+
+**Implementacion (DEBE-HACERSE):**
+1. `RekeyUseCase` opera sobre el agregado `EncryptionConfig`. Cero
+   cross-imports nuevos. Cero contacto con SQLCipher.
+2. Operacion atomica:
+   ```
+   tx.begin('IMMEDIATE')
+   config.addEnvelope(newEnvelope)
+   verify_unlock(config, newPassphrase)        // smoke test: el nuevo abre
+   config.removeEnvelope(oldEnvelope.id)
+   repository.save(config)                      // single write to disk
+   tx.commit()
+   ```
+3. `unlockWith` debe rechazar `envelope_id` ausentes de la config
+   actual sin caching en memoria (defensivo contra TOCTOU).
+4. Documentar en CLI help y `docs/11 §7`:
+   - "Rekey rota la passphrase. Procesos en vivo con la master
+     cacheada siguen operativos hasta que el proceso muera."
+   - "Si necesitas full key rotation (master + envelopes), backup tu
+     workspace, mode private, re-encrypt con nueva master."
+5. P2P concurrencia: si dos devs corren `add-key`/`rekey` en paralelo
+   sobre el mismo `config.json` versionado, el git merge falla
+   limpiamente sobre el array `envelopes`. Estrategia documentada
+   (union de envelopes, ultimo `removed_at` gana). Git merge driver
+   custom diferido a v0.6.
+
+##### Q3 — ExportKey: formato Bech32 (BIP-173)
+
+**Decision:** `ExportKeyFacade` renderiza la master key usando la
+spec Bech32 (BIP-173) congelada en `docs/11 §3` subseccion "Formato
+de la clave de recuperacion". HRP `m3`, alfabeto base32 lowercase,
+checksum BCH 6 chars (constante BIP-173 `0x2bc830a3`), longitud total
+61 chars con grouping cosmetico cada 4 chars.
+
+**Rationale.** Tres opciones evaluadas: (a) hex crudo —cero deteccion
+de typos, recovery footgun grave; (b) BIP-39 mnemonic —UX divergente
+de init, anade dependencia, no aporta seguridad cripto sobre Bech32;
+(c) `M3-ZK7L-...` ya en docs/11 sin checksum —misma footgun que hex.
+Bech32 BIP-173 esta auditado en Bitcoin desde 2017, detecta hasta 4
+errores en strings ≤90 chars, detecta swaps adyacentes (typeo humano
+mas comun). Implementacion auditada existe en npm `bech32`.
+
+**Implementacion (DEBE-HACERSE):**
+1. Crear VO `PrintableMasterKey` en
+   `encryption/domain/value-objects/printable-master-key.ts`.
+   Validacion en constructor: estructura `<hrp>1<data><checksum>`,
+   longitud exacta, checksum BCH.
+2. VO interno `PrintableKeyChecksum` para el polinomio BIP-173 (no
+   reimplementar; usar `bech32` npm).
+3. Use case `ExportMasterKeyUseCase` invoca el VO y retorna el string
+   renderizado (con grouping cosmetico `xxxx-xxxx-...`).
+4. Extender `UnlockEncryptionUseCase` para aceptar
+   `PrintableMasterKey` como segunda fuente de unlock (alternativa a
+   `Passphrase`). El parseo strip dashes + lowercase normalize + valida
+   checksum + decodifica 32 bytes.
+5. Comportamiento ante checksum-fail: **HARD REJECT** sin intentar
+   unlock. Mensaje: `"Recovery key invalid: checksum mismatch"` (con
+   posicion si t=1) o `"2+ errors detected"` (si t>=2).
+6. Flag `--skip-checksum` (recovery footgun documentado): loggea
+   `RECOVERY_SKIP_CHECKSUM` al `encryption.audit_log` antes de
+   intentar unlock.
+7. Test vectors congelados en
+   `code/tests/fixtures/printable-master-key.vectors.json`: 3 keys
+   validas + 3 con typos (single-char, transposition, unrecoverable).
+8. Migracion de claves legacy (v0.1.x sin checksum): documentada en
+   `docs/11 §3` subseccion "Migracion de claves legacy". Path:
+   `--skip-checksum` con warning + re-export con spec v3.
+
+##### Q4 — `encryption.audit_log` dedicado (NO `secrets.audit_log`)
+
+**Decision:** Crear tabla `encryption_audit_log` propia en el modulo
+encryption, con su migracion dedicada
+`009__encryption-audit-log.sql`. NO reusar la tabla del modulo
+secrets (bounded context distinto). NO crear modulo `audit/`
+separado (cross-imports proliferating, costo > beneficio para v0.5).
+
+**Rationale.** Convergencia de los 3 validadores:
+- Crypto: distintos consumers, distinta retention (secrets ~90d por
+  OWASP/GDPR; encryption indefinido por NIST SP 800-57 cryptoperiod
+  audit).
+- Architect: cada modulo audita su propio dominio. Pattern reusable
+  del adapter `sqlite-secret-audit-repository.ts`. Cero cross-imports.
+- Security: separacion de concerns — si un attacker injecta findings
+  crafted en `secrets.audit_log` no contamina events crypto.
+
+**Schema (CONGELADO en este ADR):**
+```sql
+-- migration 009__encryption-audit-log.sql
+CREATE TABLE encryption_audit_log (
+  event_id         BLOB PRIMARY KEY,    -- UUID v7 16 bytes
+  occurred_at_ms   INTEGER NOT NULL,
+  event_type       TEXT NOT NULL,       -- enum stricto, ver abajo
+  envelope_id      TEXT,                -- nullable (ej. RekeyStarted no tiene)
+  master_key_fp    TEXT,                -- SHA-256(master)[:8 bytes] = 16 hex chars
+                                        -- NUNCA stored offline / NUNCA loggeado por pino
+  actor_hint       TEXT,                -- "cli:add-key", "mcp:unlock", no user identity
+  outcome          TEXT NOT NULL,       -- enum: SUCCESS | FAILURE | TIMEOUT
+  detail_json      TEXT                 -- metadata sin secretos (ej. kdf_duration_ms)
+);
+CREATE INDEX idx_eal_ts ON encryption_audit_log(occurred_at_ms DESC);
+
+-- Append-only enforcement (rechazar UPDATE/DELETE)
+CREATE TRIGGER eal_no_update BEFORE UPDATE ON encryption_audit_log
+  BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
+CREATE TRIGGER eal_no_delete BEFORE DELETE ON encryption_audit_log
+  BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
+```
+
+**Decision sobre `master_key_fp`** (discrepancia entre crypto y
+security resuelta a favor de security):
+- Storage: SHA-256(master)[:8 bytes] = 16 hex chars. Permite
+  correlacionar eventos intra-workspace (UnlockFailed con
+  KeyEnvelopeRemoved) para forensics.
+- Mitigacion del riesgo de correlation cross-workspace: el `master_fp`
+  **nunca sale del audit log local** (no se loggea por pino, no se
+  exporta en backups por defecto). Vive solo dentro de SQLCipher.
+- CI gate (grep) en el repo: ningun otro lugar de codigo puede
+  loggear `master_key_fp`. Solo el repository adapter de audit lo
+  escribe; ningun caller lo lee fuera del adapter.
+
+**Eventos minimos (enum cerrado):**
+- `KeyEnvelopeAdded`
+- `KeyEnvelopeRemoved`
+- `RekeyStarted`
+- `RekeyCompleted`
+- `RekeyFailed`
+- `UnlockSucceeded`
+- `UnlockFailed` (envelope_id nullable si ningun envelope casa)
+- `ExportKeyEmitted`
+- `KdfTimeoutExceeded`
+- `RECOVERY_SKIP_CHECKSUM`
+- `KeyValidatorMismatch`
+- `LEGACY_KEY_UNLOCK`
+
+**Tamper-evidence:** Para v0.5: NO hash chain. SQLCipher provee
+integrity at-rest (AES-GCM). v1.0 podria agregar HMAC chain.
+
+**Implementacion (DEBE-HACERSE):**
+1. Migracion `009__encryption-audit-log.sql` con el schema arriba.
+2. Puerto out `EncryptionAuditLogRepository` en
+   `encryption/domain/repositories/`.
+3. Adapter `sqlite-encryption-audit-repository.ts` en
+   `encryption/infrastructure/persistence/`. Pattern del adapter
+   `sqlite-secret-audit-repository.ts` como referencia (NO copy-paste
+   del codigo, solo del pattern).
+4. CI gate: lint rule custom o grep en `npm run validate:audit-log`
+   que rechace `master_key_fp` fuera del adapter de audit.
+5. Detector cross-module en `secrets` que matche `m3...` (regex sobre
+   findings) y dispare `RECOVERY_KEY_LEAK_SUSPECTED` al
+   `encryption_audit_log`. Cross-event, no JOIN.
+
+##### Q5 — Prompts CLI en `cli/infrastructure/prompts/` (NO `shared/`)
+
+**Decision:** Los TTY prompts compartidos viven en
+`cli/infrastructure/prompts/`, NO en `shared/`.
+
+**Rationale.** Regla del repo `docs/12 §1.5 Regla 3`: "shared solo si
+2+ modulos lo usan". Aqui solo `cli/` lo usa, aunque con multiples
+comandos (`init`, `add-key`, `rekey`, `export-key`). N comandos del
+mismo modulo no es lo mismo que N modulos. Architect rechazo
+`shared/cli/prompts/` por contaminar el bounded context shared con
+presentation concerns. Crypto + security aceptaron la ubicacion en
+cli/infrastructure/.
+
+**Implementacion (DEBE-HACERSE):**
+1. Extraer las funciones de prompt de
+   `cli/infrastructure/output/process-tty.ts` a:
+   - `cli/infrastructure/prompts/passphrase-prompt.ts`
+   - `cli/infrastructure/prompts/confirm-prompt.ts`
+   - `cli/infrastructure/prompts/strength-meter.ts`
+   - `cli/infrastructure/prompts/index.ts` (barrel)
+2. Strength meter: NO usar zxcvbn (wordlists ~80MB rompe bundle
+   size). Usar Shannon entropy + length floor: `H >= 60 bits` (~12
+   chars random alfanumerico o ~5 palabras diceware). Documentar
+   formula.
+3. Double-entry confirm: literal compare (no trim, no normalize).
+   `crypto.timingSafeEqual` sobre buffers de igual longitud (padding
+   con random si difieren para no leakear longitud).
+4. Tests con `node-pty` para validar echo-off + SIGINT handling +
+   secure_zero.
+5. Helper `secureZero(buffer: Buffer): void` en
+   `shared/infrastructure/crypto/secure-zero.ts` (transversal por
+   uso futuro fuera de CLI). Prerequisito de Q1, Q5.
+
+##### Checklist de prerequisitos antes de iteracion 2 (codigo)
+
+Antes de empezar a implementar AddKey, los siguientes items deben
+estar en el repo (todos doc + un solo helper de codigo):
+
+- [x] Spec Bech32 BIP-173 en `docs/11 §3` subseccion nueva (Q3).
+- [x] ADR-005 con STATUS=ACCEPTED + apendice Q1-Q5 (este documento).
+- [ ] Helper `shared/infrastructure/crypto/secure-zero.ts` con tests
+      (prerequisito de Q1 + Q5; minima superficie de codigo).
+- [ ] CI gate documentado para `master_key_fp` (Q4) — se implementa
+      con el adapter pero documentar la regla aqui.
+
+##### Orden de implementacion (iteracion 2)
+
+1. **`shared/infrastructure/crypto/secure-zero.ts`** (prerequisito).
+2. **`cli/infrastructure/prompts/`** (Q5) — fundacion para todos los
+   comandos siguientes.
+3. **`encryption/domain/value-objects/printable-master-key.ts`** (Q3)
+   con vectores de prueba.
+4. **Migracion `009__encryption-audit-log.sql`** + adapter (Q4) —
+   observabilidad lista antes del primer flujo.
+5. **`AddKeyFacade`** (Q1 + Q2 + Q4) — menor blast radius.
+6. **`RekeyFacade`** (Q2) — con atomicidad transactional.
+7. **`ExportKeyFacade`** (Q3) — ultimo, requiere VO listo.
+
+**Trigger de re-apertura.** Solo si descubrimos durante implementacion
+algun edge case que invalide una de las 5 decisiones. En ese caso,
+abrir ADR-005a o ADR-007 segun corresponda; no mutar este ADR.
 
 #### 1.5.6 ADR-006 — Encrypted cold start <500ms via OS keychain (deferral)
 

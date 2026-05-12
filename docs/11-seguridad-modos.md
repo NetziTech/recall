@@ -156,9 +156,144 @@ abrir las DBs.
 recall unlock --workspace <path>           # Pegar clave + guardar en HOME
 recall forget-key --workspace <path>       # Borrar clave local; DB queda bloqueada
 recall export-key --workspace <path>       # Re-imprimir clave (si esta unlocked)
-recall rekey --workspace <path>            # Generar clave nueva, re-cifrar todo (v0.5+)
-recall add-key --workspace <path>          # Agregar clave secundaria (multi-key, v0.5+)
+recall rekey --workspace <path>            # Rotar envelopes (passphrases); master estable (v0.5+)
+recall add-key --workspace <path>          # Agregar envelope adicional (multi-key, v0.5+)
 ```
+
+### Formato de la clave de recuperacion (printable master key)
+
+El bloque mostrado al inicializar (`M3-ZK7L-...` en el ejemplo arriba) es un
+**placeholder ilustrativo**. El formato real esta definido por la spec
+Bech32 (BIP-173) y se ratifica en ADR-005 (`docs/12 §1.5.5`). Esta seccion
+es la fuente de verdad del rendering y del parser.
+
+**Por que Bech32 (BIP-173) y no hex / BIP-39 / un encoding custom:**
+
+| Opcion | Pros | Contras | Por que descartada / elegida |
+|---|---|---|---|
+| Hex crudo (`a3f8...`) | Trivial | Cero deteccion de errores de transcripcion; ambiguo (`B/8`, `0/O`) | Recovery footgun: un typo da "wrong key" sin pista de la posicion |
+| BIP-39 mnemonic | Humanamente memorable; wordlists validan | 24 palabras EN para 256 bits ~200 chars; depende de wordlist + i18n; UX divergente del init actual | Anade dependencia >2KB; no aporta seguridad cripto sobre Bech32 |
+| Encoding custom | Control total | Sin auditoria, sin libreria, alto riesgo de bug | Viola "no security custom" del repo (ADR-004) |
+| **Bech32 (BIP-173)** | Auditado en Bitcoin desde 2017; detecta hasta 4 errores en strings de ≤90 chars; detecta swaps adyacentes; implementacion en npm `bech32` | Curva de aprendizaje minima | **Elegida** |
+
+**Spec del rendering.**
+
+```
+Estructura:  <hrp> "1" <data> <checksum>
+
+  hrp        = "m3"
+                 ^  ^
+                 |  +-- version (mayor; bump en breaking changes del schema)
+                 +----- prefijo del producto (memoria/master key)
+
+  separador  = "1"                    (literal, una sola ocurrencia)
+
+  data       = Base32(master_key)     32 bytes -> 52 chars del alfabeto
+                                      Bech32 (qpzry9x8gf2tvdw0s3jn54khce6mua7l).
+                                      Codifica cada 5 bits a un char.
+
+  checksum   = 6 chars finales BCH    Polinomio BIP-173 const 0x2bc830a3,
+                                      computado sobre [hrp_expand || data].
+                                      Garantiza deteccion de hasta 4 errores
+                                      en strings hasta 90 chars.
+
+Longitud total:  2 + 1 + 52 + 6 = 61 chars.
+```
+
+**Grouping cosmetico al imprimir.** El string de 61 chars se renderiza con
+guiones cada 4 chars para legibilidad humana. Los guiones **NO** entran al
+checksum BCH y se eliminan antes de validar. Ejemplo de rendering:
+
+```
+m31-q92x-zy4g-7vnp-jw3t-cspr-fk6a-dx5n-zsre-h8m4-tk9q-x2pf-yvuc-3jhg-ldwa
+```
+
+(15 grupos de 4 + el ultimo grupo de 1; los grupos son uniformes excepto el
+ultimo. Implementacion: insertar `-` cada 4 chars al renderizar, strip
+todos los `-` al parsear.)
+
+**Alfabeto Bech32 (lowercase obligatorio en wire):**
+
+```
+0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+q  p  z  r  y  9  x  8  g  f  2  t  v  d  w  0
+
+16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+s  3  j  n  5  4  k  h  c  e  6  m  u  a  7  l
+```
+
+Excluye `1`, `b`, `i`, `o` por confusables con `l/I`, `8/B`, `1/l`, `0/O`.
+
+**Algoritmo de checksum** (referencia BIP-173, no reimplementar):
+- Input: `hrp_expand(hrp) || data_5bit_values`
+- Polinomio generador: `0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3`
+- Constante final: `0x2bc830a3` (Bech32, no Bech32m)
+- Output: 6 valores de 5 bits anexados al data
+
+**Vectores de prueba** (3 keys validas + 3 con typos):
+
+| # | Input | Resultado esperado |
+|---|---|---|
+| V1 | master = 32 bytes de `0x00` | `m31qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq2t3pgr` (rendering ejemplo; computar valor real en test) |
+| V2 | master = 32 bytes de `0xff` | (calcular con bech32 lib y fijar como test vector congelado) |
+| V3 | master = vector pseudo-random fijo | (fijar) |
+| T1 | V1 con char 8 flipped (`q`→`p`) | rejection con `error_position=8` |
+| T2 | V2 con swap chars 12-13 | rejection con `error_kind=transposition` |
+| T3 | V3 con 5 chars cambiados | rejection con `error_kind=unrecoverable` (>4 errores) |
+
+Los vectores deben ser congelados en el repo (probablemente
+`code/tests/fixtures/printable-master-key.vectors.json`) y referenciados
+por los unit tests del VO `PrintableMasterKey`.
+
+**Parser (path inverso).**
+
+```
+1.  Strip todos los caracteres `-` del input.
+2.  Lowercase normalize (Bech32 requiere case uniforme; rechazar mixed-case
+    como en BIP-173).
+3.  Validar longitud exacta: 61 chars.
+4.  Verificar prefix `m3` + separador `1` en posiciones 0..2.
+5.  Decodificar los 52 chars de data + 6 chars de checksum usando la
+    tabla del alfabeto (chars fuera del alfabeto -> rechazo con posicion).
+6.  Verificar el polinomio BCH. Si falla:
+       - reportar posicion de error si t=1 (corregible).
+       - reportar "unrecoverable" si t>=2.
+       - rechazo HARD-REJECT (no intentar unlock con la key candidata).
+7.  Si checksum OK, reconstruir los 32 bytes de master desde los 52
+    chars de data (decodificacion base32, ultimo char tiene 1 bit de
+    padding cero).
+```
+
+**Comportamiento ante checksum-fail:**
+
+- Por defecto: **HARD REJECT**. No intentar `unlockWith()`. Mensaje claro:
+  `"Recovery key invalid: checksum mismatch at position 14"` o
+  `"Recovery key invalid: 2+ errors detected, please re-check"`.
+- Override `--skip-checksum`: permite intentar unlock saltando la
+  verificacion BCH. Loggea evento `RECOVERY_SKIP_CHECKSUM` al
+  `encryption.audit_log` (ver `docs/12 §1.5.5` apendice Q4). Justificacion
+  documentada: usuarios con keys v0.1.x sin checksum (legacy) o casos de
+  emergencia. **No es la ruta default**.
+
+**Migracion de claves legacy (pre-spec).**
+
+Keys generadas antes de esta spec (ej. en v0.1.x si llegaron a usarse en
+algun workspace de prueba) **no tienen checksum** y no son parseables por
+el VO `PrintableMasterKey`. Path de migracion:
+
+1. Usuario corre `recall unlock --workspace . --skip-checksum`
+2. El facade detecta legacy y emite warning: `"Legacy key without
+   checksum. Re-export with 'recall export-key' to get the v3 format."`
+3. Despues del unlock exitoso, opcionalmente loggea
+   `LEGACY_KEY_UNLOCK` al audit_log.
+4. El usuario corre `recall export-key` que renderiza con la spec v3.
+
+**Implementacion (referencia).**
+
+Vive en `code/src/modules/encryption/domain/value-objects/printable-master-key.ts`
+como Value Object DDD. Usa la libreria `bech32` (npm package, BIP-173
+auditada). Tests con los vectores congelados. El reverse path es invocado
+por `UnlockEncryptionUseCase` cuando el input parece tener el prefix `m3`.
 
 ### Cuando usarlo
 
