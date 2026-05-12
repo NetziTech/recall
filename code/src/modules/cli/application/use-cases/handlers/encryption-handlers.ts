@@ -49,8 +49,13 @@ export class ExportKeyCommandHandler implements CommandHandler<"export-key"> {
 }
 
 /**
- * Handler for `recall rekey` (v0.5+). Pre-condition: workspace
- * unlocked. Generates a new master key and re-ciphers every envelope.
+ * Handler for `recall rekey` (ADR-005 Q2). Pre-condition: the
+ * operator must supply the CURRENT passphrase plus the NEW one
+ * (twice, for confirmation). Rotates the envelope list under the
+ * `addEnvelope(new) → verify → removeEnvelope(old)` pattern; the
+ * master key remains stable. See the use case JSDoc for the
+ * documented limit ("rekey does NOT mitigate a master-key
+ * compromise").
  */
 export class RekeyCommandHandler implements CommandHandler<"rekey"> {
   public readonly command = "rekey" as const;
@@ -69,19 +74,42 @@ export class RekeyCommandHandler implements CommandHandler<"rekey"> {
         { invariant: "cli.handler.passphrase-required" },
       );
     }
+    // ADR-005 Q2: collect the current passphrase first so a wrong
+    // value rejects the whole flow before any new envelope is
+    // generated. Mirrors the add-key handler's pattern.
+    const current = await this.prompt.readPassphrase(
+      "Passphrase actual (unlock): ",
+    );
     const first = await this.prompt.readPassphrase(
-      "Pega la nueva passphrase para reciframiento: ",
+      "Pega la nueva passphrase para la rotacion: ",
     );
     const second = await this.prompt.readPassphrase("Confirma la passphrase: ");
     if (first !== second) throw new PassphraseMismatchError();
-    const result = await this.facade.rekey({ rootPath, newPassphrase: first });
+    const result = await this.facade.rekey({
+      rootPath,
+      currentPassphrase: current,
+      newPassphrase: first,
+      label: invocation.label,
+    });
     this.logger.info(
-      { workspaceId: result.workspaceId },
+      {
+        workspaceId: result.workspaceId,
+        newKeyId: result.newKeyId,
+        removedCount: result.removedKeyIds.length,
+      },
       "rekey command completed",
     );
-    return CommandOutputClass.stdoutOnly(
-      renderEncryptionKeyBanner(result.printableKey),
-    );
+    const lines = [
+      `Rotacion completada. Nueva clave id: ${result.newKeyId}.`,
+      `Sobres eliminados: ${result.removedKeyIds.length}.`,
+      "",
+      renderEncryptionKeyBanner(result.newKeyId),
+    ];
+    return CommandOutputClass.create({
+      stdout: lines.join("\n"),
+      stderr: "",
+      exitCode: ExitCode.success(),
+    });
   }
 }
 

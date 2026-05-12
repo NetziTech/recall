@@ -62,16 +62,17 @@ import {
   CliInitializeWorkspaceFacadeAdapter,
   CliInstallHookFacadeAdapter,
   CliLockWorkspaceFacadeAdapter,
+  CliRekeyFacadeAdapter,
   CliSanitizeFacadeAdapter,
   CliStatsFacadeAdapter,
   CliUninstallHookFacadeAdapter,
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
   PendingExportKeyFacade,
-  PendingRekeyFacade,
   PendingServerFacade,
 } from "../../../src/composition/facades/cli-facades.ts";
 import { AddEnvelopeUseCase } from "../../../src/modules/encryption/application/use-cases/add-envelope.use-case.ts";
+import { RekeyEncryptionUseCase } from "../../../src/modules/encryption/application/use-cases/rekey-encryption.use-case.ts";
 import { SqliteEncryptionAuditRepository } from "../../../src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
   DestroyEncryptionFacadeAdapter,
@@ -380,7 +381,21 @@ export async function buildTestContainer(
     health: new CliHealthCheckFacadeAdapter(workspace.healthCheck),
 
     exportKey: new PendingExportKeyFacade(),
-    rekey: new PendingRekeyFacade(),
+    rekey: new CliRekeyFacadeAdapter(
+      new RekeyEncryptionUseCase(
+        encryption.unlockEncryption,
+        encryption.repository,
+        new SqliteEncryptionAuditRepository(database),
+        encryption.primitives.kdf,
+        encryption.primitives.envelopeCipher,
+        encryption.primitives.randomBytes,
+        idGenerator,
+        clock,
+        database,
+        logger,
+      ),
+      workspace.detectWorkspace,
+    ),
     addKey: new CliAddKeyFacadeAdapter(
       new AddEnvelopeUseCase(
         encryption.unlockEncryption,

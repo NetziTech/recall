@@ -75,6 +75,7 @@ import {
   CliInitializeWorkspaceFacadeAdapter,
   CliInstallHookFacadeAdapter,
   CliLockWorkspaceFacadeAdapter,
+  CliRekeyFacadeAdapter,
   CliResetQueueFacadeAdapter,
   CliSanitizeFacadeAdapter,
   CliStatsFacadeAdapter,
@@ -82,10 +83,10 @@ import {
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
   PendingExportKeyFacade,
-  PendingRekeyFacade,
   PendingServerFacade,
 } from "./facades/cli-facades.ts";
 import { AddEnvelopeUseCase } from "../modules/encryption/application/use-cases/add-envelope.use-case.ts";
+import { RekeyEncryptionUseCase } from "../modules/encryption/application/use-cases/rekey-encryption.use-case.ts";
 import { SqliteEncryptionAuditRepository } from "../modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
   DestroyEncryptionFacadeAdapter,
@@ -411,7 +412,28 @@ export function buildContainer(options: ContainerOptions): Container {
     health: new CliHealthCheckFacadeAdapter(workspace.healthCheck),
 
     exportKey: new PendingExportKeyFacade(),
-    rekey: new PendingRekeyFacade(),
+    rekey: new CliRekeyFacadeAdapter(
+      // ADR-005 Q2: rekey rotates the envelope list under the
+      // `addEnvelope(new) → verify → removeEnvelope(old)` pattern. The
+      // master key stays stable; SQLCipher `PRAGMA rekey` is NOT
+      // invoked. The use case needs a live `DatabaseConnection` for
+      // the audit-log adapter; we wire it here (alongside add-key)
+      // because the encryption wiring file is intentionally free of
+      // database dependencies.
+      new RekeyEncryptionUseCase(
+        encryption.unlockEncryption,
+        encryption.repository,
+        new SqliteEncryptionAuditRepository(options.database),
+        encryption.primitives.kdf,
+        encryption.primitives.envelopeCipher,
+        encryption.primitives.randomBytes,
+        shared.idGenerator,
+        shared.clock,
+        options.database,
+        logger,
+      ),
+      workspace.detectWorkspace,
+    ),
     addKey: new CliAddKeyFacadeAdapter(
       // ADR-005 Q4: the add-envelope use case needs a live database
       // connection for the audit-log adapter. The container is the

@@ -254,7 +254,9 @@ export class StubRekeyFacade implements RekeyFacade {
   public lastInput?: RekeyFacadeInput;
   public output: RekeyFacadeOutput = {
     workspaceId: "00000000-0000-7000-8000-000000000001",
-    printableKey: "M3-NEW-KEY",
+    newKeyId: "00000000-0000-7000-8000-000000000099",
+    removedKeyIds: ["00000000-0000-7000-8000-00000000aaaa"],
+    rotatedAt: "2026-05-12T00:00:00.000Z",
   };
   public rekey(input: RekeyFacadeInput): Promise<RekeyFacadeOutput> {
     this.lastInput = input;

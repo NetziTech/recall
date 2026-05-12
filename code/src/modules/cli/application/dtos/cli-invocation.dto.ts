@@ -65,6 +65,13 @@ export interface CliExportKeyInvocation extends CliInvocationCommon {
 
 export interface CliRekeyInvocation extends CliInvocationCommon {
   readonly command: "rekey";
+  /**
+   * Optional human-readable identifier for the freshly minted
+   * envelope created during the rotation (ADR-005 Q2). The CLI
+   * surface accepts `--label <name>`; the parser sets the field to
+   * `null` when the flag is absent.
+   */
+  readonly label: string | null;
 }
 
 export interface CliAddKeyInvocation extends CliInvocationCommon {
