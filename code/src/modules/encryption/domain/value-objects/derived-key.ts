@@ -82,9 +82,13 @@ export class DerivedKey {
 
   /**
    * The ONLY supported way to access the wrapped bytes. See
-   * `MasterKey.withBytes` for the rationale.
+   * `MasterKey.withBytes` for the rationale and the
+   * `Uint8Array<ArrayBuffer>` callback-parameter typing
+   * justification.
    */
-  public withBytes<TResult>(callback: (bytes: Uint8Array) => TResult): TResult {
+  public withBytes<TResult>(
+    callback: (bytes: Uint8Array<ArrayBuffer>) => TResult,
+  ): TResult {
     const copy = new Uint8Array(this.bytes);
     return callback(copy);
   }

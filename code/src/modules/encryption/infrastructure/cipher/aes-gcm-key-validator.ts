@@ -115,7 +115,7 @@ function getSubtle(): webcrypto.SubtleCrypto {
 
 async function importMasterKey(
   subtle: webcrypto.SubtleCrypto,
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
 ): Promise<webcrypto.CryptoKey> {
   try {
     return await subtle.importKey(

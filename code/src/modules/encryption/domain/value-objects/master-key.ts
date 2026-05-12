@@ -113,8 +113,20 @@ export class MasterKey {
    * the callback (e.g. by capturing it in a closure assigned to an
    * outer variable). The convention is enforced by code review and
    * by lint rules in the secrets/security validators.
+   *
+   * Buffer ownership: the callback parameter is typed as
+   * `Uint8Array<ArrayBuffer>` (not the looser
+   * `Uint8Array<ArrayBufferLike>`) to document the runtime
+   * guarantee — `new Uint8Array(this.bytes)` always allocates an
+   * `ArrayBuffer`-backed view, never a `SharedArrayBuffer`-backed
+   * one. The tighter type lets downstream Web Crypto callsites
+   * (`subtle.importKey("raw", bytes, ...)`) consume the buffer
+   * without an explicit cast under `@types/node@25`'s stricter
+   * `BufferSource` definition.
    */
-  public withBytes<TResult>(callback: (bytes: Uint8Array) => TResult): TResult {
+  public withBytes<TResult>(
+    callback: (bytes: Uint8Array<ArrayBuffer>) => TResult,
+  ): TResult {
     const copy = new Uint8Array(this.bytes);
     return callback(copy);
   }
