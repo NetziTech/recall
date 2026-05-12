@@ -66,6 +66,7 @@ import type { InstallPreCommitHook } from "../../modules/secrets/application/por
 import type { UninstallPreCommitHook } from "../../modules/secrets/application/ports/in/uninstall-pre-commit-hook.port.ts";
 import type { SanitizePath } from "../../modules/secrets/application/ports/in/sanitize-path.port.ts";
 import type { AddEnvelope } from "../../modules/encryption/application/ports/in/add-envelope.port.ts";
+import type { ExportMasterKey } from "../../modules/encryption/application/ports/in/export-master-key.port.ts";
 import type { RekeyEncryption } from "../../modules/encryption/application/ports/in/rekey-encryption.port.ts";
 // UnlockEncryption is invoked internally by AddEnvelopeUseCase since the
 // refactor that merged unlock + addEnvelope into a single use case (the
@@ -288,25 +289,65 @@ export class CliHealthCheckFacadeAdapter implements HealthCheckFacade {
 // ─── Encryption facades (stubs) ─────────────────────────────────────────
 
 /**
- * Stub for `ExportKeyFacade`. The encryption module does not yet
- * expose the "re-print the master key once" flow; the master key is
- * a transient process-local secret that lives in `MasterKey` VO and
- * is wiped on first use. Surfacing it again would require either:
- *   (a) caching the printable form during init, or
- *   (b) a deterministic key-from-passphrase derivation the
- *       encryption module's KDF does not provide (intentional).
+ * Cross-module facade adapter that fulfils the CLI's
+ * {@link ExportKeyFacade} port using the encryption module's
+ * {@link ExportMasterKey} use case.
  *
- * The decision belongs to the architect (`docs/11 §3`) — for Fase 4
- * the facade throws.
+ * ADR-005 Q3 (Phase-22 appendix, `docs/12-lineamientos-arquitectura.md`
+ * §1.5.5 Q3) + `docs/11-seguridad-modos.md` §3: the master key is
+ * re-rendered as a Bech32 BIP-173 string (HRP `m3`, 61 chars + BCH
+ * checksum) suitable for one-shot stdout display. The output is
+ * stdout-only — NEVER through the MCP channel — and the use case
+ * emits a single `ExportKeyEmitted` audit row per invocation.
+ *
+ * Flow:
+ * 1. Detect the workspace at `rootPath` so the facade can resolve
+ *    the canonical `WorkspaceId` without forcing the wire shape to
+ *    carry one. Refuses with `CliFacadeNotImplementedError` if no
+ *    workspace is found.
+ * 2. Convert `currentPassphrase: string` into a `Passphrase` value
+ *    object at the boundary (the VO trims whitespace and enforces
+ *    the 12-char minimum).
+ * 3. Invoke `ExportMasterKey.exportMasterKey(...)`. The use case
+ *    orchestrates unlock + render + audit row internally.
+ * 4. Project the typed output onto the wire shape, calling
+ *    `printableMasterKey.toRenderedWithGrouping()` to produce the
+ *    dash-grouped human-friendly form the CLI handler renders on
+ *    stdout. The `PrintableMasterKey` VO reference is dropped at
+ *    the end of this method; the GC reclaims the wrapped bytes
+ *    soon after the rendered string is on the wire.
  */
-export class PendingExportKeyFacade implements ExportKeyFacade {
-  public export(_input: ExportKeyFacadeInput): Promise<ExportKeyFacadeOutput> {
-    return Promise.reject(
-      new CliFacadeNotImplementedError(
+export class CliExportKeyFacadeAdapter implements ExportKeyFacade {
+  public constructor(
+    private readonly exportMasterKeyUseCase: ExportMasterKey,
+    private readonly detectWorkspace: DetectWorkspace,
+  ) {}
+
+  public async export(
+    input: ExportKeyFacadeInput,
+  ): Promise<ExportKeyFacadeOutput> {
+    const detection = await this.detectWorkspace.detect({
+      startPath: WorkspacePath.create(input.rootPath),
+    });
+    if (!detection.found) {
+      throw new CliFacadeNotImplementedError(
         "ExportKeyFacade",
-        "no master-key recovery path implemented yet",
-      ),
-    );
+        `no workspace at ${input.rootPath}`,
+      );
+    }
+    const workspaceId = detection.workspace.getId();
+    const currentPassphrase = Passphrase.from(input.currentPassphrase);
+
+    const result = await this.exportMasterKeyUseCase.exportMasterKey({
+      workspaceId,
+      currentPassphrase,
+    });
+
+    return {
+      workspaceId: workspaceId.toString(),
+      printableMasterKey: result.printableMasterKey.toRenderedWithGrouping(),
+      exportedAt: new Date(result.exportedAt.toEpochMs()).toISOString(),
+    };
   }
 }
 

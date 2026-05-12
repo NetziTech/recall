@@ -240,7 +240,8 @@ export class StubExportKeyFacade implements ExportKeyFacade {
   public lastInput?: ExportKeyFacadeInput;
   public output: ExportKeyFacadeOutput = {
     workspaceId: "00000000-0000-7000-8000-000000000001",
-    printableKey: "M3-ZK7L-XXXX-YYYY",
+    printableMasterKey: "m3-zk7l-xxxx-yyyy",
+    exportedAt: "2026-05-12T00:00:00.000Z",
   };
   public export(
     input: ExportKeyFacadeInput,

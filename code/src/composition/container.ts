@@ -82,10 +82,11 @@ import {
   CliUninstallHookFacadeAdapter,
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
-  PendingExportKeyFacade,
+  CliExportKeyFacadeAdapter,
   PendingServerFacade,
 } from "./facades/cli-facades.ts";
 import { AddEnvelopeUseCase } from "../modules/encryption/application/use-cases/add-envelope.use-case.ts";
+import { ExportMasterKeyUseCase } from "../modules/encryption/application/use-cases/export-master-key.use-case.ts";
 import { RekeyEncryptionUseCase } from "../modules/encryption/application/use-cases/rekey-encryption.use-case.ts";
 import { SqliteEncryptionAuditRepository } from "../modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
@@ -411,7 +412,25 @@ export function buildContainer(options: ContainerOptions): Container {
     changeMode: new CliChangeModeFacadeAdapter(workspace.changeMode),
     health: new CliHealthCheckFacadeAdapter(workspace.healthCheck),
 
-    exportKey: new PendingExportKeyFacade(),
+    exportKey: new CliExportKeyFacadeAdapter(
+      // ADR-005 Q3: export-key re-renders the master key as a
+      // Bech32 BIP-173 string for one-shot stdout display. The use
+      // case is read-only over the aggregate (no `repository.save`,
+      // no KDF / cipher / random-bytes), but still needs a live
+      // database connection for the single `ExportKeyEmitted` audit
+      // row. Wired here for the same reason as `addKey` / `rekey`:
+      // the container is the first layer that has both the encryption
+      // primitives and an open SQLite handle.
+      new ExportMasterKeyUseCase(
+        encryption.unlockEncryption,
+        new SqliteEncryptionAuditRepository(options.database),
+        shared.idGenerator,
+        shared.clock,
+        options.database,
+        logger,
+      ),
+      workspace.detectWorkspace,
+    ),
     rekey: new CliRekeyFacadeAdapter(
       // ADR-005 Q2: rekey rotates the envelope list under the
       // `addEnvelope(new) → verify → removeEnvelope(old)` pattern. The

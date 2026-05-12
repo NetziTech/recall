@@ -18,12 +18,36 @@
 
 export interface ExportKeyFacadeInput {
   readonly rootPath: string;
+  /**
+   * Passphrase that opens any currently-active envelope (ADR-005 Q3,
+   * `docs/12-lineamientos-arquitectura.md` §1.5.5 appendix). The
+   * facade runs `UnlockEncryption.unlock(currentPassphrase)` BEFORE
+   * rendering the master key so a wrong value surfaces as a
+   * `KeyValidationFailedError` (wire `-32108 INVALID_KEY`) without
+   * emitting an `ExportKeyEmitted` audit row.
+   */
+  readonly currentPassphrase: string;
 }
 
 export interface ExportKeyFacadeOutput {
   readonly workspaceId: string;
-  /** Human-grouped key (`M3-ZK7L-...`) ready for one-shot printing. */
-  readonly printableKey: string;
+  /**
+   * Human-grouped Bech32 BIP-173 master key (`m3-zk7l-...`, 61 raw
+   * chars + 15 cosmetic dashes) ready for one-shot stdout printing.
+   * The CLI handler MUST write this through the `Stdout` port — NEVER
+   * through the structured logger or the MCP channel — and discard
+   * the reference afterwards. The `PrintableMasterKey` VO upstream
+   * redacts itself on `toJSON()` so accidental logger calls do not
+   * leak, but the wire-level string here is the rendered form.
+   */
+  readonly printableMasterKey: string;
+  /**
+   * ISO-8601 timestamp the use case stamped on the `ExportKeyEmitted`
+   * audit row. Re-emitted on the wire so the CLI footer matches the
+   * SQL row by construction — operators reconciling stdout output
+   * with the audit log have a forensic anchor.
+   */
+  readonly exportedAt: string;
 }
 
 export interface ExportKeyFacade {
