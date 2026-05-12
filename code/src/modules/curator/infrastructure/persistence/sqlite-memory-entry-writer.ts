@@ -357,8 +357,13 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
             const result = deleteStmt.run(item.entryId);
             wasPrunedMask[i] = result.changes > 0;
           } catch (cause: unknown) {
+            // tableByKind is populated from the same key set as
+            // deleteStmtByKind during prepare (see the loop above);
+            // by the time we reach this per-item catch the key is
+            // always present.
             failureRef.current = {
-              table: tableByKind.get(key) ?? "<unknown>",
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- invariant: tableByKind has every key that deleteStmtByKind has; checked at prepare time.
+              table: tableByKind.get(key)!,
               cause,
             };
             throw cause;
@@ -367,13 +372,14 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
       });
     } catch (cause: unknown) {
       const recorded = failureRef.current;
-      if (recorded !== null) {
-        throw CuratorInfrastructureError.upsertFailed(
-          recorded.table,
-          recorded.cause,
-        );
+      /* istanbul ignore if -- defensive: the inner per-item catch always sets `failureRef.current` before re-throwing, so by the time control reaches this outer catch `recorded` is non-null. The true arm fires only for transaction-level failures with no preceding row failure (e.g. driver-side abort), which the public API cannot trigger. */
+      if (recorded === null) {
+        throw CuratorInfrastructureError.upsertFailed("<batch>", cause);
       }
-      throw CuratorInfrastructureError.upsertFailed("<batch>", cause);
+      throw CuratorInfrastructureError.upsertFailed(
+        recorded.table,
+        recorded.cause,
+      );
     }
     return wasPrunedMask;
   }
