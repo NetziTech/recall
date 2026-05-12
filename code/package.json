@@ -81,5 +81,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.0.0",
     "vitest": "^4.1.6"
+  },
+  "overrides": {
+    "tar": "^7.5.7"
   }
 }
