@@ -37,36 +37,21 @@ export default defineConfig({
     globals: false,
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**"],
-    // pool: "threads" en lugar de "forks" para evitar el bug
-    // hardcoded del birpc timeout (60s) en vitest 3.x bajo Node
-    // 24 LTS Krypton. Worker Threads usan MessagePort RPC sin
-    // ese timeout, así que tests CPU-heavy como argon2id (KDF
-    // que en CI 2vCPU runners toma ~75s wall-clock incluso
-    // paralelizado con Promise.all) no triggerean
-    // `[vitest-worker]: Timeout calling "onTaskUpdate"` que
-    // rompía CI con exit 1 a pesar de 2588/2588 tests passing.
+    // pool: "forks" obligatorio porque `onnxruntime-node` (dep
+    // transitiva de `fastembed`) NO se carga en Worker Threads —
+    // el NAPI binding ya está registrado en el main thread, lo
+    // que rompe `Module did not self-register` cuando se intenta
+    // cargar en un thread worker. ~28 test files (todos los que
+    // importan workspace, bootstrap, composition, embedder o
+    // hacen mem.* operations) tocan onnxruntime transitivamente.
     //
-    // Compatibilidad verificada con nuestras deps native:
-    // - better-sqlite3-multiple-ciphers: soporta Worker Threads
-    //   (README: "Worker thread support for large/slow queries").
-    // - sqlite-vec: hereda la conexión, OK.
-    // - tiktoken (WASM): thread-safe.
-    // - fastembed (nativo + WASM): thread-safe en runtime async.
-    //
-    // Tests E2E que spawn `child_process.spawn(node, dist/cli.js)`
-    // siguen funcionando idénticos desde threads — spawn es
-    // libuv-level, no Worker-bound.
-    //
-    // Excepción: `tests/integration/G-mem-health.test.ts` usa
-    // `process.chdir()` para reproducir el wire adapter resolver
-    // (que lee `process.cwd()` en producción). Worker Threads
-    // NO permiten `process.chdir()` — limitación natural de Node.
-    // Por eso ese archivo se rutea a `pool: "forks"` via
-    // `poolMatchGlobs`, mientras el resto sigue en threads.
-    pool: "threads",
-    poolMatchGlobs: [
-      ["**/G-mem-health.test.ts", "forks"],
-    ],
+    // El bug del birpc 60s timeout que afectaba argon2id-kdf bajo
+    // Node 24 (vitest issue #8164) está resuelto vía patch-package:
+    // `patches/vitest+3.2.4.patch` cambia `DEFAULT_TIMEOUT = 6e4`
+    // → `6e5` (10 min) en `node_modules/vitest/dist/chunks/
+    // index.B521nVV-.js`. Sobrevive `npm ci` via el `postinstall`
+    // hook en `package.json`.
+    pool: "forks",
     // E2E tests spawn the bundled binary (`dist/cli.js`,
     // `dist/server.js`) via `child_process.spawn` and exchange
     // NDJSON frames. The `init --mode shared` flow runs every

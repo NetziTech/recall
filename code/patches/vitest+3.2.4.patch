@@ -1,0 +1,12 @@
+diff --git a/node_modules/vitest/dist/chunks/index.B521nVV-.js b/node_modules/vitest/dist/chunks/index.B521nVV-.js
+index e0ecf12..6d9cc4b 100644
+--- a/node_modules/vitest/dist/chunks/index.B521nVV-.js
++++ b/node_modules/vitest/dist/chunks/index.B521nVV-.js
+@@ -1,6 +1,6 @@
+ const TYPE_REQUEST = "q";
+ const TYPE_RESPONSE = "s";
+-const DEFAULT_TIMEOUT = 6e4;
++const DEFAULT_TIMEOUT = 6e5;
+ function defaultSerialize(i) {
+   return i;
+ }
