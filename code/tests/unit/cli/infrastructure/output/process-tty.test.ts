@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { NonInteractiveStdinError } from "../../../../../src/modules/cli/domain/errors/non-interactive-stdin-error.ts";
@@ -104,6 +106,139 @@ describe("NodeReadlinePrompt — confirm parses Spanish + English affirmatives",
       configurable: true,
     });
     expect(await prompt.confirm("?")).toBe(expected);
+  });
+});
+
+describe("NodeReadlinePrompt — readPassphrase against a stubbed TTY stdin", () => {
+  // The stdin singleton is replaced with a controlled EventEmitter that
+  // exposes the subset of `tty.ReadStream` API our adapter touches:
+  // `isTTY`, `isRaw`, `setRawMode`, `resume`, `pause`, `setEncoding`,
+  // `on`/`off` (inherited from EventEmitter). This exercises the entire
+  // raw-mode keystroke loop without requiring a real terminal — the
+  // CI worker is non-TTY and would otherwise short-circuit at the guard.
+  let origStdin: NodeJS.ReadStream;
+  let origStdoutWrite: typeof process.stdout.write;
+  let stdoutChunks: string[];
+
+  const buildStubStdin = (): NodeJS.ReadStream => {
+    const ee = new EventEmitter();
+    let rawMode = false;
+    const stub: Partial<NodeJS.ReadStream> & EventEmitter = ee;
+    Object.defineProperty(stub, "isTTY", { value: true, configurable: true });
+    Object.defineProperty(stub, "isRaw", {
+      get: () => rawMode,
+      configurable: true,
+    });
+    (stub as unknown as { setRawMode: (m: boolean) => NodeJS.ReadStream }).setRawMode = (
+      mode: boolean,
+    ): NodeJS.ReadStream => {
+      rawMode = mode;
+      return stub as NodeJS.ReadStream;
+    };
+    (stub as unknown as { resume: () => NodeJS.ReadStream }).resume = (): NodeJS.ReadStream =>
+      stub as NodeJS.ReadStream;
+    (stub as unknown as { pause: () => NodeJS.ReadStream }).pause = (): NodeJS.ReadStream =>
+      stub as NodeJS.ReadStream;
+    (stub as unknown as { setEncoding: (e: string) => NodeJS.ReadStream }).setEncoding = (): NodeJS.ReadStream =>
+      stub as NodeJS.ReadStream;
+    return stub as unknown as NodeJS.ReadStream;
+  };
+
+  beforeEach(() => {
+    origStdin = process.stdin;
+    origStdoutWrite = process.stdout.write.bind(process.stdout);
+    stdoutChunks = [];
+    process.stdout.write = ((c: unknown) => {
+      stdoutChunks.push(String(c));
+      return true;
+    }) as typeof process.stdout.write;
+  });
+
+  afterEach(() => {
+    Object.defineProperty(process, "stdin", {
+      value: origStdin,
+      configurable: true,
+    });
+    process.stdout.write = origStdoutWrite;
+  });
+
+  const installStub = (): NodeJS.ReadStream => {
+    const stub = buildStubStdin();
+    Object.defineProperty(process, "stdin", {
+      value: stub,
+      configurable: true,
+    });
+    return stub;
+  };
+
+  it("collects characters until ENTER, returns buffered passphrase", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("Pass: ");
+    // Allow the microtask queue to settle so the listener is wired.
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "s3cret");
+    stub.emit("data", "\n");
+    expect(await promise).toBe("s3cret");
+    // The prompt banner was written; the trailing newline too.
+    expect(stdoutChunks.join("")).toContain("Pass: ");
+    expect(stdoutChunks.join("")).toMatch(/\n$/);
+  });
+
+  it("accepts CR as the line terminator too", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("Q: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "abc\r");
+    expect(await promise).toBe("abc");
+  });
+
+  it("Ctrl-C rejects with PromptCancelledError", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("Pass: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "ab"); // Ctrl-C after two chars
+    await expect(promise).rejects.toBeInstanceOf(PromptCancelledError);
+  });
+
+  it("backspace (0x7f) removes the previous character", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("Pass: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "abcd\n"); // abc, del → "ab", then 'd' → "abd"
+    expect(await promise).toBe("abd");
+  });
+
+  it("backspace (\\b) is also accepted as delete", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("P: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "xy\bz\n"); // xy, \b → "x", then 'z' → "xz"
+    expect(await promise).toBe("xz");
+  });
+
+  it("backspace on empty buffer is a no-op (no underflow)", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("P: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "hi\n");
+    expect(await promise).toBe("hi");
+  });
+
+  it("multiple emits accumulate into one buffer", async () => {
+    const stub = installStub();
+    const prompt = new NodeReadlinePrompt();
+    const promise = prompt.readPassphrase("P: ");
+    await new Promise((r) => setImmediate(r));
+    stub.emit("data", "a");
+    stub.emit("data", "b");
+    stub.emit("data", "c\n");
+    expect(await promise).toBe("abc");
   });
 });
 

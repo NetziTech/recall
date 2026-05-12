@@ -24,11 +24,8 @@ import { DomainError } from "../../../../shared/domain/errors/domain-error.ts";
  * (`workspace.locked`, `workspace.invalid-mode-transition`, ...).
  */
 export abstract class WorkspaceApplicationError extends DomainError {
-  protected constructor(message: string, options?: { cause?: unknown }) {
-    super(
-      message,
-      options !== undefined ? { cause: options.cause } : undefined,
-    );
+  protected constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }
 
@@ -41,10 +38,10 @@ export class NoWorkspaceAtPathError extends WorkspaceApplicationError {
   public readonly code = "workspace.app.no-workspace-at-path";
   public readonly rootPath: string;
 
-  public constructor(rootPath: string, options?: { cause?: unknown }) {
+  public constructor(rootPath: string, cause?: unknown) {
     super(
       `no workspace found at or above "${rootPath}"; run "recall init" first`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.rootPath = rootPath;
   }

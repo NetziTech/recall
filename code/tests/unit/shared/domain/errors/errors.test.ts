@@ -27,7 +27,7 @@ describe("DomainError", () => {
 
   it("preserves cause when provided", () => {
     const cause = new Error("under");
-    const err = new TestDomainError("wrap", { cause });
+    const err = new TestDomainError("wrap", cause);
     expect((err as unknown as { cause: unknown }).cause).toBe(cause);
   });
 
@@ -51,7 +51,7 @@ describe("InvalidInputError", () => {
 
   it("captures cause when provided", () => {
     const cause = new Error("u");
-    const err = new InvalidInputError("bad", { cause });
+    const err = new InvalidInputError("bad", undefined, cause);
     expect((err as unknown as { cause: unknown }).cause).toBe(cause);
   });
 });
@@ -70,7 +70,7 @@ describe("InvariantViolationError", () => {
 
   it("captures cause when provided", () => {
     const cause = new Error("u");
-    const err = new InvariantViolationError("v", { cause });
+    const err = new InvariantViolationError("v", undefined, cause);
     expect((err as unknown as { cause: unknown }).cause).toBe(cause);
   });
 });

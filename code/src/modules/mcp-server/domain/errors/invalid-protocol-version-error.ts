@@ -27,10 +27,10 @@ export class InvalidProtocolVersionError extends McpServerDomainError {
   public readonly code = "mcp-server.invalid-protocol-version";
   public readonly jsonRpcCode: number | null = INVALID_REQUEST;
 
-  public constructor(message: string, options?: { cause?: unknown }) {
+  public constructor(message: string, cause?: unknown) {
     super(
       message,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
   }
 }

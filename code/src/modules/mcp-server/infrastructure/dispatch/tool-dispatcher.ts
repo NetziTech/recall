@@ -149,7 +149,7 @@ export class ToolDispatcher {
       // The VO raised because the wire string is not one of the
       // six known literals. Same outcome as a missing registry
       // entry: `-32601 METHOD_NOT_FOUND`.
-      throw new UnknownToolError(toolNameRaw, { cause });
+      throw new UnknownToolError(toolNameRaw, cause);
     }
 
     // 2. Registry lookup.

@@ -180,6 +180,11 @@ describe("ToolArgs", () => {
     const c = ToolArgs.from({ x: 1 });
     expect(a.equals(c)).toBe(false);
   });
+
+  it("equals self returns true via fast path (this === other)", () => {
+    const a = ToolArgs.from({ x: 1 });
+    expect(a.equals(a)).toBe(true);
+  });
 });
 
 describe("ToolResult", () => {

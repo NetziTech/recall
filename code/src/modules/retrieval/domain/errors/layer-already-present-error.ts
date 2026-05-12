@@ -22,10 +22,10 @@ export class LayerAlreadyPresentError extends RetrievalDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly layerKind: ContextLayerKindValue;
 
-  public constructor(layerKind: ContextLayerKindValue, options?: { cause?: unknown }) {
+  public constructor(layerKind: ContextLayerKindValue, cause?: unknown) {
     super(
       `bundle already contains a layer of kind "${layerKind}"`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.layerKind = layerKind;
   }

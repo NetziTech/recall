@@ -23,9 +23,10 @@ describe("encryption errors", () => {
 
   it("EncryptionNotInitializedError with cause", () => {
     const cause = new Error("root");
-    const e = new EncryptionNotInitializedError(WorkspaceId.from(WS_ID), {
+    const e = new EncryptionNotInitializedError(
+      WorkspaceId.from(WS_ID),
       cause,
-    });
+    );
     expect(e.cause).toBe(cause);
   });
 
@@ -40,7 +41,7 @@ describe("encryption errors", () => {
 
   it("KeyValidationFailedError with cause", () => {
     const cause = new Error("root");
-    const e = new KeyValidationFailedError(WorkspaceId.from(WS_ID), { cause });
+    const e = new KeyValidationFailedError(WorkspaceId.from(WS_ID), cause);
     expect(e.cause).toBe(cause);
   });
 
@@ -55,7 +56,7 @@ describe("encryption errors", () => {
 
   it("LastEnvelopeRemovalError with cause", () => {
     const cause = new Error("root");
-    const e = new LastEnvelopeRemovalError(KeyId.from(KEY_ID), { cause });
+    const e = new LastEnvelopeRemovalError(KeyId.from(KEY_ID), cause);
     expect(e.cause).toBe(cause);
   });
 
@@ -71,7 +72,7 @@ describe("encryption errors", () => {
 
   it("MasterKeyMismatchError with cause", () => {
     const cause = new Error("root");
-    const e = new MasterKeyMismatchError(KeyId.from(KEY_ID), { cause });
+    const e = new MasterKeyMismatchError(KeyId.from(KEY_ID), cause);
     expect(e.cause).toBe(cause);
   });
 
@@ -93,12 +94,14 @@ describe("encryption errors", () => {
 
   it("WeakKdfParamsError with cause", () => {
     const cause = new Error("root");
-    const e = new WeakKdfParamsError({
-      parameter: "iterations",
-      actual: 1,
-      minimum: 3,
+    const e = new WeakKdfParamsError(
+      {
+        parameter: "iterations",
+        actual: 1,
+        minimum: 3,
+      },
       cause,
-    });
+    );
     expect(e.cause).toBe(cause);
   });
 });

@@ -42,10 +42,10 @@ export class MasterKeyMismatchError extends EncryptionDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly keyId: KeyId;
 
-  public constructor(keyId: KeyId, options?: { cause?: unknown }) {
+  public constructor(keyId: KeyId, cause?: unknown) {
     super(
       `cannot add key envelope ${keyId.toString()}: the wrapped master key does not match the workspace's current master key`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.keyId = keyId;
   }

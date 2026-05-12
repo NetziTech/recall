@@ -18,7 +18,7 @@ describe("WorkspaceApplicationError hierarchy", () => {
 
   it("preserves cause when provided", () => {
     const cause = new Error("u");
-    const e = new NoWorkspaceAtPathError("/x", { cause });
+    const e = new NoWorkspaceAtPathError("/x", cause);
     expect((e as unknown as { cause: unknown }).cause).toBe(cause);
   });
 });

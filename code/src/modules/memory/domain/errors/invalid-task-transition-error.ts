@@ -40,11 +40,11 @@ export class InvalidTaskTransitionError extends MemoryDomainError {
     taskId: TaskId,
     from: TaskStatus,
     to: TaskStatus,
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `task ${taskId.toString()} cannot transition from "${from.toString()}" to "${to.toString()}"`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.taskId = taskId;
     this.from = from;

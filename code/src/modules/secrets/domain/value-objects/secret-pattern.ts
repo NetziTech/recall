@@ -116,7 +116,8 @@ export class SecretPattern {
     } catch (cause) {
       throw new InvalidPatternError(
         `secret pattern source is not a valid regular expression`,
-        { patternName: input.name.toString(), cause },
+        { patternName: input.name.toString() },
+        cause,
       );
     }
     return new SecretPattern(input.name, input.kind, input.source, compiled);

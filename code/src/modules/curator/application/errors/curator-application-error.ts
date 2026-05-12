@@ -25,22 +25,10 @@ export class CuratorApplicationError extends Error {
   private constructor(
     code: CuratorApplicationErrorCode,
     message: string,
-    cause?: unknown,
   ) {
     super(message);
     this.name = "CuratorApplicationError";
     this.code = code;
-    if (cause !== undefined) {
-      // Non-enumerable so JSON.stringify does not leak the underlying
-      // exception (mirrors the pattern in `domain-error.ts` and
-      // `infrastructure-error.ts`).
-      Object.defineProperty(this, "cause", {
-        value: cause,
-        enumerable: false,
-        writable: false,
-        configurable: true,
-      });
-    }
   }
 
   /**

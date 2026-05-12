@@ -192,11 +192,13 @@ export class PathSanitizerRule {
       return ok(SanitizedPath.create(canonical));
     } catch (cause) {
       return err(
-        new PathSanitizerError({
-          kind: "invalid-separator",
-          rawPath,
+        new PathSanitizerError(
+          {
+            kind: "invalid-separator",
+            rawPath,
+          },
           cause,
-        }),
+        ),
       );
     }
   }

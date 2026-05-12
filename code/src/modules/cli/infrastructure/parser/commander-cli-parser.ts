@@ -400,10 +400,11 @@ function mapCommanderError(err: unknown, argv: readonly string[]): Error {
         typeof candidate.message === "string"
           ? candidate.message
           : "missing or invalid argument";
-      return new InvalidCommandArgsError(message, {
-        commandName: argv[0] ?? "<unknown>",
-        cause: err,
-      });
+      return new InvalidCommandArgsError(
+        message,
+        { commandName: argv[0] ?? "<unknown>" },
+        err,
+      );
     }
   }
   return err instanceof Error ? err : new Error(String(err));

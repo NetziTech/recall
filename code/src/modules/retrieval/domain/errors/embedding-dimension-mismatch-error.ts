@@ -31,13 +31,13 @@ export class EmbeddingDimensionMismatchError extends RetrievalDomainError {
 
   public constructor(
     input: { expectedDim: number; actualDim: number },
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `embedding dimension mismatch: expected ${String(
         input.expectedDim,
       )}, got ${String(input.actualDim)}`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.expectedDim = input.expectedDim;
     this.actualDim = input.actualDim;

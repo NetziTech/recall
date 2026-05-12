@@ -30,10 +30,10 @@ export class KeyValidationFailedError extends EncryptionDomainError {
   public readonly jsonRpcCode: number | null = JsonRpcErrorCodes.INVALID_KEY;
   public readonly workspaceId: WorkspaceId;
 
-  public constructor(workspaceId: WorkspaceId, options?: { cause?: unknown }) {
+  public constructor(workspaceId: WorkspaceId, cause?: unknown) {
     super(
       `key validation failed for workspace ${workspaceId.toString()}: the candidate key does not match the workspace validator`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.workspaceId = workspaceId;
   }

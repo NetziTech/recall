@@ -21,10 +21,10 @@ export class UnknownCommandError extends CliDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly attempted: string;
 
-  public constructor(attempted: string, options?: { cause?: unknown }) {
+  public constructor(attempted: string, cause?: unknown) {
     super(
       `unknown CLI command: "${attempted}"`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.attempted = attempted;
   }

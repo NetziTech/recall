@@ -26,9 +26,10 @@ export class InvariantViolationError extends DomainError {
 
   public constructor(
     message: string,
-    options?: { invariant?: string; cause?: unknown },
+    options?: { invariant?: string },
+    cause?: unknown,
   ) {
-    super(message, options !== undefined ? { cause: options.cause } : undefined);
+    super(message, cause);
     this.invariant = options?.invariant ?? null;
   }
 }

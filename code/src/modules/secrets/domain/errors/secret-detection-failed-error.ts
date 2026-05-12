@@ -37,12 +37,10 @@ export class SecretDetectionFailedError extends SecretsDomainError {
 
   public constructor(
     message: string,
-    options?: { detectorName?: string; cause?: unknown },
+    options?: { detectorName?: string },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options !== undefined ? { cause: options.cause } : undefined,
-    );
+    super(message, cause);
     this.detectorName = options?.detectorName ?? null;
   }
 }

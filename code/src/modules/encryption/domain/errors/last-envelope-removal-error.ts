@@ -30,10 +30,10 @@ export class LastEnvelopeRemovalError extends EncryptionDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly keyId: KeyId;
 
-  public constructor(keyId: KeyId, options?: { cause?: unknown }) {
+  public constructor(keyId: KeyId, cause?: unknown) {
     super(
       `cannot remove key envelope ${keyId.toString()}: it is the only remaining envelope and removing it would make the workspace unrecoverable`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.keyId = keyId;
   }

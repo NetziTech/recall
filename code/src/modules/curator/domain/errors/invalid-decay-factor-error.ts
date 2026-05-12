@@ -23,10 +23,10 @@ export class InvalidDecayFactorError extends CuratorDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly value: number;
 
-  public constructor(value: number, options?: { cause?: unknown }) {
+  public constructor(value: number, cause?: unknown) {
     super(
       `decay factor must be a finite number in the half-open interval (0, 1] (got: ${String(value)})`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.value = value;
   }

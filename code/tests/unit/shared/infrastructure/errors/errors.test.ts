@@ -23,7 +23,7 @@ describe("InfrastructureError", () => {
 
   it("preserves cause when provided", () => {
     const cause = new Error("u");
-    const e = new TestInfraError("wrap", { cause });
+    const e = new TestInfraError("wrap", cause);
     expect((e as unknown as { cause: unknown }).cause).toBe(cause);
   });
 

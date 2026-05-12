@@ -25,10 +25,10 @@ export class WorkspaceLockedError extends WorkspaceDomainError {
   public readonly workspaceId: WorkspaceId;
   public readonly jsonRpcCode: number | null = JsonRpcErrorCodes.ENCRYPTED_LOCKED;
 
-  public constructor(workspaceId: WorkspaceId, options?: { cause?: unknown }) {
+  public constructor(workspaceId: WorkspaceId, cause?: unknown) {
     super(
       `workspace ${workspaceId.toString()} is encrypted and locked; an unlock step is required before performing this operation`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.workspaceId = workspaceId;
   }

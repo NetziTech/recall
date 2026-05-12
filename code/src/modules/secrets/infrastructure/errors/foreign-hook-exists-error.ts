@@ -21,10 +21,10 @@ export class ForeignHookExistsError extends SecretsInfrastructureError {
   public readonly code = "secrets.foreign-hook-exists";
   public readonly hookPath: string;
 
-  public constructor(hookPath: string, options?: { cause?: unknown }) {
+  public constructor(hookPath: string, cause?: unknown) {
     super(
       `pre-commit hook at ${hookPath} is not managed by recall; pass --force to overwrite`,
-      options?.cause !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.hookPath = hookPath;
   }

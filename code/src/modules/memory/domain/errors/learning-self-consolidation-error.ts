@@ -19,10 +19,10 @@ export class LearningSelfConsolidationError extends MemoryDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly learningId: LearningId;
 
-  public constructor(learningId: LearningId, options?: { cause?: unknown }) {
+  public constructor(learningId: LearningId, cause?: unknown) {
     super(
       `learning ${learningId.toString()} cannot be consolidated into itself`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.learningId = learningId;
   }

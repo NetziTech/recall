@@ -269,8 +269,7 @@ describe("PathSanitizerError", () => {
     const err = new PathSanitizerError({
       kind: "invalid-separator",
       rawPath: "x",
-      cause,
-    });
+    }, cause);
     expect(err.cause).toBe(cause);
   });
 });

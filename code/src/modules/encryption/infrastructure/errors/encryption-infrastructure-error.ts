@@ -54,10 +54,10 @@ import { InfrastructureError } from "../../../../shared/infrastructure/errors/in
  *   wrapped primitive.
  */
 export abstract class EncryptionInfrastructureError extends InfrastructureError {
-  protected constructor(message: string, options?: { cause?: unknown }) {
+  protected constructor(message: string, cause?: unknown) {
     super(
       message,
-      options?.cause !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
   }
 }

@@ -97,14 +97,14 @@ export class RawEmbedderAdapter implements Embedder {
       switch (cause.code) {
         case "embedder.initialisation-failed":
         case "embedder.not-initialised":
-          return new EmbedderUnavailableError(cause.message, { cause });
+          return new EmbedderUnavailableError(cause.message, undefined, cause);
         case "embedder.embed-failed":
         case "embedder.dimension-mismatch":
-          return new EmbedFailedError(cause.message, { cause });
+          return new EmbedFailedError(cause.message, cause);
       }
     }
     const message = cause instanceof Error ? cause.message : String(cause);
-    return new EmbedFailedError(message, { cause });
+    return new EmbedFailedError(message, cause);
   }
 
   private static toVector(raw: RawEmbedding): EmbeddingVector {

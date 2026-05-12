@@ -92,7 +92,7 @@ export class JsonRpcHandler {
     try {
       parsed = JSON.parse(rawText);
     } catch (cause) {
-      const error = new ParseError("payload is not valid JSON", { cause });
+      const error = new ParseError("payload is not valid JSON", cause);
       this.logger.warn(
         { errorCode: error.code, jsonRpcCode: error.jsonRpcCode },
         "json-rpc parse failed",
@@ -128,7 +128,7 @@ export class JsonRpcHandler {
         // Bad id shape per JSON-RPC §4.1 → `-32600`.
         const error = new InvalidRequestError(
           "request id is not a valid JSON-RPC 2.0 id (string or integer number)",
-          { cause },
+          cause,
         );
         this.logger.warn(
           { errorCode: error.code, jsonRpcCode: error.jsonRpcCode },

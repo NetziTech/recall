@@ -16,12 +16,12 @@
 export abstract class RetrievalInfrastructureError extends Error {
   public abstract readonly code: string;
 
-  protected constructor(message: string, options?: { cause?: unknown }) {
+  protected constructor(message: string, cause?: unknown) {
     super(message);
     this.name = new.target.name;
-    if (options?.cause !== undefined) {
+    if (cause !== undefined) {
       Object.defineProperty(this, "cause", {
-        value: options.cause,
+        value: cause,
         enumerable: false,
         writable: false,
         configurable: true,
@@ -55,7 +55,7 @@ class TiktokenLoadFailedError extends RetrievalInfrastructureError {
   public readonly code = "retrieval.tiktoken-load-failed";
 
   public constructor(cause: unknown) {
-    super("tiktoken encoder could not be loaded", { cause });
+    super("tiktoken encoder could not be loaded", cause);
   }
 }
 

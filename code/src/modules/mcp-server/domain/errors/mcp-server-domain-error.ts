@@ -31,10 +31,7 @@ export abstract class McpServerDomainError extends DomainError {
    */
   public abstract readonly jsonRpcCode: number | null;
 
-  protected constructor(message: string, options?: { cause?: unknown }) {
-    super(
-      message,
-      options !== undefined ? { cause: options.cause } : undefined,
-    );
+  protected constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }
