@@ -382,8 +382,8 @@ export async function buildTestContainer(
     exportKey: new PendingExportKeyFacade(),
     rekey: new PendingRekeyFacade(),
     addKey: new CliAddKeyFacadeAdapter(
-      encryption.unlockEncryption,
       new AddEnvelopeUseCase(
+        encryption.unlockEncryption,
         encryption.repository,
         new SqliteEncryptionAuditRepository(database),
         encryption.primitives.kdf,
