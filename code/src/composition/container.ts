@@ -413,7 +413,6 @@ export function buildContainer(options: ContainerOptions): Container {
     exportKey: new PendingExportKeyFacade(),
     rekey: new PendingRekeyFacade(),
     addKey: new CliAddKeyFacadeAdapter(
-      encryption.unlockEncryption,
       // ADR-005 Q4: the add-envelope use case needs a live database
       // connection for the audit-log adapter. The container is the
       // first composition layer that has BOTH the encryption
@@ -422,7 +421,15 @@ export function buildContainer(options: ContainerOptions): Container {
       // `buildEncryptionWiring` to keep the wiring file free of
       // database dependencies (the JSON-only adapters do not need
       // one).
+      //
+      // The use case orchestrates unlock internally — it delegates
+      // to UnlockEncryption to load the aggregate as unlocked-in-
+      // memory before appending the new envelope. Aggregates are
+      // rebuilt from `config.json` on every `findByWorkspace`, so
+      // the use case must own the unlock step (the unlocked master
+      // key never persists to disk).
       new AddEnvelopeUseCase(
+        encryption.unlockEncryption,
         encryption.repository,
         new SqliteEncryptionAuditRepository(options.database),
         encryption.primitives.kdf,

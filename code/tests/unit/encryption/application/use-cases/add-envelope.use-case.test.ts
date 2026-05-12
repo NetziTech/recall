@@ -20,8 +20,10 @@ import { MasterKey } from "../../../../../src/modules/encryption/domain/value-ob
 import { Passphrase } from "../../../../../src/modules/encryption/domain/value-objects/passphrase.ts";
 import { SaltBytes } from "../../../../../src/modules/encryption/domain/value-objects/salt-bytes.ts";
 import type { Kdf } from "../../../../../src/modules/encryption/application/ports/out/kdf.port.ts";
+import type { UnlockEncryption } from "../../../../../src/modules/encryption/application/ports/in/unlock-encryption.port.ts";
+import { KeyValidationFailedError } from "../../../../../src/modules/encryption/domain/errors/key-validation-failed-error.ts";
 import type { DatabaseConnection } from "../../../../../src/shared/application/ports/database-connection.port.ts";
-import { ok } from "../../../../../src/shared/domain/types/result.ts";
+import { err, ok } from "../../../../../src/shared/domain/types/result.ts";
 import { Timestamp } from "../../../../../src/shared/domain/value-objects/timestamp.ts";
 import { WorkspaceId } from "../../../../../src/shared/domain/value-objects/workspace-id.ts";
 import { FakeClock } from "../../../../../src/shared/infrastructure/clock/fake-clock.ts";
@@ -141,9 +143,42 @@ const fakeCipher: EnvelopeCipher = {
   unwrap: async () => Promise.resolve(MasterKey.from(MASTER_BYTES)),
 };
 
+/**
+ * Stub `UnlockEncryption` that drives the test scenarios:
+ * - `unlockOutcome === "ok"`: returns ok(config) where config is the
+ *   in-memory unlocked aggregate (mirrors the real use case after a
+ *   successful unlock).
+ * - `unlockOutcome === "not-initialized"`: returns err(EncryptionNot...).
+ * - `unlockOutcome === "wrong-passphrase"`: returns err(KeyValidationFailed).
+ */
+class StubUnlockEncryption implements UnlockEncryption {
+  public unlockCalls = 0;
+  public constructor(
+    private readonly outcome:
+      | { kind: "ok"; config: EncryptionConfig }
+      | { kind: "not-initialized" }
+      | { kind: "wrong-passphrase" },
+  ) {}
+  public async unlock(): ReturnType<UnlockEncryption["unlock"]> {
+    this.unlockCalls += 1;
+    if (this.outcome.kind === "ok") {
+      return Promise.resolve(ok(this.outcome.config));
+    }
+    if (this.outcome.kind === "not-initialized") {
+      return Promise.resolve(
+        err(new EncryptionNotInitializedError(WorkspaceId.from(WS_ID))),
+      );
+    }
+    return Promise.resolve(
+      err(new KeyValidationFailedError(WorkspaceId.from(WS_ID))),
+    );
+  }
+}
+
 const build = (
   override: {
     initialConfig?: EncryptionConfig | null;
+    unlockOutcome?: "ok" | "not-initialized" | "wrong-passphrase";
   } = {},
 ): {
   useCase: AddEnvelopeUseCase;
@@ -151,6 +186,7 @@ const build = (
   audit: RecordingAuditRepo;
   db: StubTransaction;
   logger: RecordingLogger;
+  unlock: StubUnlockEncryption;
 } => {
   const initial =
     override.initialConfig === undefined
@@ -160,7 +196,16 @@ const build = (
   const audit = new RecordingAuditRepo();
   const db = new StubTransaction();
   const logger = new RecordingLogger();
+  const unlockOutcome = override.unlockOutcome ?? "ok";
+  const unlock = new StubUnlockEncryption(
+    unlockOutcome === "ok"
+      ? { kind: "ok", config: initial ?? makeUnlockedConfig() }
+      : unlockOutcome === "not-initialized"
+        ? { kind: "not-initialized" }
+        : { kind: "wrong-passphrase" },
+  );
   const useCase = new AddEnvelopeUseCase(
+    unlock,
     repo,
     audit,
     fakeKdf,
@@ -173,7 +218,7 @@ const build = (
     db,
     logger,
   );
-  return { useCase, repo, audit, db, logger };
+  return { useCase, repo, audit, db, logger, unlock };
 };
 
 describe("AddEnvelopeUseCase", () => {
@@ -182,6 +227,7 @@ describe("AddEnvelopeUseCase", () => {
 
     const output = await useCase.addEnvelope({
       workspaceId: WorkspaceId.from(WS_ID),
+      currentPassphrase: Passphrase.from("current-strong-passphrase"),
       newPassphrase: Passphrase.from("another-strong-passphrase"),
       label: KeyLabel.create("alice@laptop"),
     });
@@ -219,32 +265,51 @@ describe("AddEnvelopeUseCase", () => {
     expect(db.transactionCalls).toBe(1);
   });
 
-  it("throws EncryptionNotInitializedError when the config does not exist", async () => {
-    const { useCase } = build({ initialConfig: null });
+  it("throws EncryptionNotInitializedError when the unlock use case reports the config is missing", async () => {
+    const { useCase, repo, audit } = build({
+      initialConfig: null,
+      unlockOutcome: "not-initialized",
+    });
     await expect(
       useCase.addEnvelope({
         workspaceId: WorkspaceId.from(WS_ID),
+        currentPassphrase: Passphrase.from("current-strong-passphrase"),
         newPassphrase: Passphrase.from("another-strong-passphrase"),
         label: null,
       }),
     ).rejects.toBeInstanceOf(EncryptionNotInitializedError);
+    // No write side effects.
+    expect(repo.saveCount).toBe(0);
+    expect(audit.events).toHaveLength(0);
   });
 
-  it("throws EncryptionLockedError when the aggregate is locked", async () => {
-    const unlocked = makeUnlockedConfig();
-    // Drain init events + lock the aggregate so findByWorkspace
-    // returns a locked config (mirrors the real rehydrate path).
-    unlocked.pullEvents();
-    unlocked.lock({ occurredAt: Timestamp.fromEpochMs(1_700_000_800_000) });
-    const { useCase, repo, audit } = build({ initialConfig: unlocked });
+  it("throws KeyValidationFailedError when the current passphrase is wrong", async () => {
+    const { useCase, repo, audit } = build({ unlockOutcome: "wrong-passphrase" });
     await expect(
       useCase.addEnvelope({
         workspaceId: WorkspaceId.from(WS_ID),
+        currentPassphrase: Passphrase.from("incorrect-passphrase"),
+        newPassphrase: Passphrase.from("another-strong-passphrase"),
+        label: null,
+      }),
+    ).rejects.toBeInstanceOf(KeyValidationFailedError);
+    expect(repo.saveCount).toBe(0);
+    expect(audit.events).toHaveLength(0);
+  });
+
+  it("defensive: throws EncryptionLockedError if unlock returns a still-locked aggregate", async () => {
+    const lockedConfig = makeUnlockedConfig();
+    lockedConfig.pullEvents();
+    lockedConfig.lock({ occurredAt: Timestamp.fromEpochMs(1_700_000_800_000) });
+    const { useCase, repo, audit } = build({ initialConfig: lockedConfig });
+    await expect(
+      useCase.addEnvelope({
+        workspaceId: WorkspaceId.from(WS_ID),
+        currentPassphrase: Passphrase.from("current-strong-passphrase"),
         newPassphrase: Passphrase.from("another-strong-passphrase"),
         label: null,
       }),
     ).rejects.toBeInstanceOf(EncryptionLockedError);
-    // No write side effects.
     expect(repo.saveCount).toBe(0);
     expect(audit.events).toHaveLength(0);
   });
@@ -253,6 +318,7 @@ describe("AddEnvelopeUseCase", () => {
     const { useCase, repo } = build();
     await useCase.addEnvelope({
       workspaceId: WorkspaceId.from(WS_ID),
+      currentPassphrase: Passphrase.from("current-strong-passphrase"),
       newPassphrase: Passphrase.from("another-strong-passphrase"),
       label: null,
     });

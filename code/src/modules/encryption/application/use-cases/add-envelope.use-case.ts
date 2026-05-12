@@ -6,7 +6,6 @@ import { isErr } from "../../../../shared/domain/types/result.ts";
 import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empty-string.ts";
 import type { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts";
 import { EncryptionLockedError } from "../../domain/errors/encryption-locked-error.ts";
-import { EncryptionNotInitializedError } from "../../domain/errors/encryption-not-initialized-error.ts";
 import type { EncryptionAuditLogRepository } from "../../domain/repositories/encryption-audit-log-repository.ts";
 import type { EncryptionConfigRepository } from "../../domain/repositories/encryption-config-repository.ts";
 import type { EnvelopeCipher } from "../../domain/services/envelope-cipher.ts";
@@ -21,6 +20,7 @@ import type {
   AddEnvelopeInput,
   AddEnvelopeOutput,
 } from "../ports/in/add-envelope.port.ts";
+import type { UnlockEncryption } from "../ports/in/unlock-encryption.port.ts";
 import type { Kdf } from "../ports/out/kdf.port.ts";
 import type { RandomBytes } from "../ports/out/random-bytes.port.ts";
 
@@ -80,6 +80,7 @@ const ACTOR_HINT = "cli:add-key";
  */
 export class AddEnvelopeUseCase implements AddEnvelope {
   public constructor(
+    private readonly unlockUseCase: UnlockEncryption,
     private readonly configRepository: EncryptionConfigRepository,
     private readonly auditLogRepository: EncryptionAuditLogRepository,
     private readonly kdf: Kdf,
@@ -94,13 +95,24 @@ export class AddEnvelopeUseCase implements AddEnvelope {
   public async addEnvelope(
     input: AddEnvelopeInput,
   ): Promise<AddEnvelopeOutput> {
-    // 1. Load aggregate. Refuse if missing or locked.
-    const config = await this.configRepository.findByWorkspace(
-      input.workspaceId,
-    );
-    if (config === null) {
-      throw new EncryptionNotInitializedError(input.workspaceId);
+    // 1. Unlock the aggregate by delegating to UnlockEncryption.
+    //    The unlock use case loads the config from the repository
+    //    (rebuilt-from-JSON, hence locked) and derives the master
+    //    key from the supplied currentPassphrase. On success it
+    //    persists the audit-buffered events and returns the
+    //    unlocked-in-memory aggregate; we receive that exact
+    //    instance and continue mutating it.
+    const unlockResult = await this.unlockUseCase.unlock({
+      workspaceId: input.workspaceId,
+      passphrase: input.currentPassphrase,
+    });
+    if (isErr(unlockResult)) {
+      throw unlockResult.error;
     }
+    const config = unlockResult.value;
+    // Defence-in-depth: unlockResult should always come unlocked,
+    // but we re-check the aggregate state to avoid relying solely
+    // on the use case's contract (audit-log/replay safety).
     if (!config.isUnlocked()) {
       throw new EncryptionLockedError(input.workspaceId);
     }

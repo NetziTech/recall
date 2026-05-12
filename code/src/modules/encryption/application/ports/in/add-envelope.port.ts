@@ -29,6 +29,15 @@ import type { Passphrase } from "../../../domain/value-objects/passphrase.ts";
  */
 export interface AddEnvelopeInput {
   readonly workspaceId: WorkspaceId;
+  /**
+   * Passphrase that opens the currently-active envelope. The use case
+   * delegates unlock to {@link UnlockEncryption} internally so the
+   * fresh aggregate loaded from `EncryptionConfigRepository` becomes
+   * unlocked-in-memory before the new envelope is appended. Required
+   * because aggregates are rebuilt from `config.json` on every load
+   * (the unlocked master key never persists to disk).
+   */
+  readonly currentPassphrase: Passphrase;
   readonly newPassphrase: Passphrase;
   readonly label: KeyLabel | null;
 }

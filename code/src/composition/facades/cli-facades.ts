@@ -66,7 +66,10 @@ import type { InstallPreCommitHook } from "../../modules/secrets/application/por
 import type { UninstallPreCommitHook } from "../../modules/secrets/application/ports/in/uninstall-pre-commit-hook.port.ts";
 import type { SanitizePath } from "../../modules/secrets/application/ports/in/sanitize-path.port.ts";
 import type { AddEnvelope } from "../../modules/encryption/application/ports/in/add-envelope.port.ts";
-import type { UnlockEncryption } from "../../modules/encryption/application/ports/in/unlock-encryption.port.ts";
+// UnlockEncryption is invoked internally by AddEnvelopeUseCase since the
+// refactor that merged unlock + addEnvelope into a single use case (the
+// aggregate's in-memory unlocked state cannot survive `findByWorkspace`).
+// JSDoc references kept for documentation continuity.
 import { KeyLabel } from "../../modules/encryption/domain/value-objects/key-label.ts";
 import { Passphrase } from "../../modules/encryption/domain/value-objects/passphrase.ts";
 import { isErr } from "../../shared/domain/types/result.ts";
@@ -361,7 +364,6 @@ export class PendingRekeyFacade implements RekeyFacade {
  */
 export class CliAddKeyFacadeAdapter implements AddKeyFacade {
   public constructor(
-    private readonly unlockUseCase: UnlockEncryption,
     private readonly addEnvelopeUseCase: AddEnvelope,
     private readonly detectWorkspace: DetectWorkspace,
   ) {}
@@ -382,16 +384,14 @@ export class CliAddKeyFacadeAdapter implements AddKeyFacade {
     const label =
       input.label === null ? null : KeyLabel.create(input.label);
 
-    const unlockResult = await this.unlockUseCase.unlock({
-      workspaceId,
-      passphrase: currentPassphrase,
-    });
-    if (isErr(unlockResult)) {
-      throw unlockResult.error;
-    }
-
+    // The use case orchestrates unlock + addEnvelope internally so the
+    // unlocked aggregate from UnlockEncryption is the same instance
+    // mutated by addEnvelope (aggregates rebuilt-from-JSON via
+    // findByWorkspace are always locked; the unlocked master key
+    // never persists to disk).
     const addResult = await this.addEnvelopeUseCase.addEnvelope({
       workspaceId,
+      currentPassphrase,
       newPassphrase,
       label,
     });
