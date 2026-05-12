@@ -17,16 +17,39 @@ import {
 } from "../../../../fixtures/cli-fixtures.ts";
 
 describe("ExportKeyCommandHandler", () => {
-  it("prints the banner with the key", async () => {
+  it("rejects non-interactive mode", async () => {
     const facade = new StubExportKeyFacade();
-    const h = new ExportKeyCommandHandler(facade, new SilentLogger());
+    const prompt = new ScriptedPrompt();
+    const h = new ExportKeyCommandHandler(facade, prompt, new SilentLogger());
+    await expect(
+      h.handle({
+        command: "export-key",
+        workspacePath: "/tmp",
+        nonInteractive: true,
+      }),
+    ).rejects.toBeInstanceOf(InvariantViolationError);
+  });
+
+  it("happy path: prompts for current passphrase, prints banner + warning + footer", async () => {
+    const facade = new StubExportKeyFacade();
+    const prompt = new ScriptedPrompt({ passphrases: ["current-pp"] });
+    const h = new ExportKeyCommandHandler(facade, prompt, new SilentLogger());
     const out = await h.handle({
       command: "export-key",
       workspacePath: "/tmp",
       nonInteractive: false,
     });
+    // The facade received the prompted current passphrase.
+    expect(facade.lastInput?.currentPassphrase).toBe("current-pp");
+    // Warning copy is on stdout (one-shot, NO logger persistence).
+    expect(out.stdout).toContain("recovery master key");
+    expect(out.stdout).toContain("gestor de passwords");
+    // Banner + rendered key are on stdout.
     expect(out.stdout).toContain("Clave de cifrado");
-    expect(out.stdout).toContain("M3-ZK7L-XXXX-YYYY");
+    expect(out.stdout).toContain("m3-zk7l-xxxx-yyyy");
+    // Footer carries exportedAt + workspaceId for forensic anchoring.
+    expect(out.stdout).toContain("2026-05-12T00:00:00.000Z");
+    expect(out.stdout).toContain("00000000-0000-7000-8000-000000000001");
     expect(out.exitCode.isSuccess()).toBe(true);
   });
 });

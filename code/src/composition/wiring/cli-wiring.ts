@@ -163,7 +163,7 @@ export function buildCliWiring(options: CliWiringOptions): CliWiring {
     ),
 
     eraseHandler(
-      new ExportKeyCommandHandler(options.facades.exportKey, options.logger),
+      new ExportKeyCommandHandler(options.facades.exportKey, prompt, options.logger),
     ),
     eraseHandler(
       new RekeyCommandHandler(options.facades.rekey, prompt, options.logger),

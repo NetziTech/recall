@@ -20,16 +20,30 @@ import { PassphraseMismatchError } from "./workspace-handlers.ts";
 import { resolveRootPath } from "./root-path.ts";
 
 /**
- * Handler for `recall export-key`. Pre-condition: workspace
- * must be unlocked. The facade refuses on locked workspaces and
- * the dispatch maps the resulting domain error to
- * `lockedWorkspace` exit code.
+ * Handler for `recall export-key` (ADR-005 Q3). Pre-condition: the
+ * operator must supply the CURRENT passphrase so the in-memory
+ * aggregate can be unlocked BEFORE the master key is re-rendered.
+ *
+ * Output discipline (NON-NEGOTIABLE):
+ * - The rendered Bech32 master key is written to stdout via
+ *   `CommandOutput.stdoutOnly(...)` and a banner that includes a
+ *   prominent Spanish-language warning ("guarda esta clave en un
+ *   gestor seguro inmediatamente"). The handler does NOT pass the
+ *   printable key through `logger.info` because the logger pipeline
+ *   may persist structured records to disk — the
+ *   `PrintableMasterKey` VO upstream redacts itself on `toJSON()`
+ *   but the wire-level string here is the rendered form and the
+ *   handler treats it as one-shot stdout material.
+ * - `logger.info` is invoked ONLY with the workspace id + exportedAt
+ *   timestamp for operational tracing; the printable key is never
+ *   in the structured payload.
  */
 export class ExportKeyCommandHandler implements CommandHandler<"export-key"> {
   public readonly command = "export-key" as const;
 
   public constructor(
     private readonly facade: ExportKeyFacade,
+    private readonly prompt: Prompt,
     private readonly logger: Logger,
   ) {}
 
@@ -37,14 +51,48 @@ export class ExportKeyCommandHandler implements CommandHandler<"export-key"> {
     invocation: CliExportKeyInvocation,
   ): Promise<CommandOutput> {
     const rootPath = resolveRootPath(invocation.workspacePath);
-    const result = await this.facade.export({ rootPath });
+    if (invocation.nonInteractive) {
+      throw new InvariantViolationError(
+        "export-key requires a passphrase prompt; non-interactive mode not supported",
+        { invariant: "cli.handler.passphrase-required" },
+      );
+    }
+    // ADR-005 Q3: collect the current passphrase first so a wrong
+    // value rejects the whole flow before any audit row is emitted.
+    // Mirrors the add-key / rekey handler pattern (single passphrase
+    // here — no confirmation needed because we are not setting a new
+    // passphrase, only re-rendering existing material).
+    const currentPassphrase = await this.prompt.readPassphrase(
+      "Passphrase actual (unlock): ",
+    );
+
+    const result = await this.facade.export({
+      rootPath,
+      currentPassphrase,
+    });
+
     this.logger.info(
-      { workspaceId: result.workspaceId },
+      {
+        workspaceId: result.workspaceId,
+        exportedAt: result.exportedAt,
+      },
       "export-key command completed",
     );
-    return CommandOutputClass.stdoutOnly(
-      renderEncryptionKeyBanner(result.printableKey),
-    );
+
+    const lines = [
+      "Tu recovery master key esta a punto de mostrarse. Guardala en un",
+      "gestor de passwords seguro (1Password, Bitwarden) inmediatamente.",
+      "NO se mostrara de nuevo a menos que ejecutes este comando otra vez.",
+      "",
+      renderEncryptionKeyBanner(result.printableMasterKey),
+      `Generada en: ${result.exportedAt}`,
+      `Workspace id: ${result.workspaceId}`,
+    ];
+    return CommandOutputClass.create({
+      stdout: lines.join("\n"),
+      stderr: "",
+      exitCode: ExitCode.success(),
+    });
   }
 }
 

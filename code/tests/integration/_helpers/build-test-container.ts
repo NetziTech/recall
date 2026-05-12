@@ -56,6 +56,7 @@ import {
   CliCuratorLogFacadeAdapter,
   CliCuratorRunFacadeAdapter,
   CliExportFacadeAdapter,
+  CliExportKeyFacadeAdapter,
   CliHealthCheckFacadeAdapter,
   CliImportFacadeAdapter,
   CliImportHandoffFacadeAdapter,
@@ -68,10 +69,10 @@ import {
   CliUninstallHookFacadeAdapter,
   CliUnlockWorkspaceFacadeAdapter,
   CliWipeFacadeAdapter,
-  PendingExportKeyFacade,
   PendingServerFacade,
 } from "../../../src/composition/facades/cli-facades.ts";
 import { AddEnvelopeUseCase } from "../../../src/modules/encryption/application/use-cases/add-envelope.use-case.ts";
+import { ExportMasterKeyUseCase } from "../../../src/modules/encryption/application/use-cases/export-master-key.use-case.ts";
 import { RekeyEncryptionUseCase } from "../../../src/modules/encryption/application/use-cases/rekey-encryption.use-case.ts";
 import { SqliteEncryptionAuditRepository } from "../../../src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
@@ -380,7 +381,17 @@ export async function buildTestContainer(
     changeMode: new CliChangeModeFacadeAdapter(workspace.changeMode),
     health: new CliHealthCheckFacadeAdapter(workspace.healthCheck),
 
-    exportKey: new PendingExportKeyFacade(),
+    exportKey: new CliExportKeyFacadeAdapter(
+      new ExportMasterKeyUseCase(
+        encryption.unlockEncryption,
+        new SqliteEncryptionAuditRepository(database),
+        idGenerator,
+        clock,
+        database,
+        logger,
+      ),
+      workspace.detectWorkspace,
+    ),
     rekey: new CliRekeyFacadeAdapter(
       new RekeyEncryptionUseCase(
         encryption.unlockEncryption,
