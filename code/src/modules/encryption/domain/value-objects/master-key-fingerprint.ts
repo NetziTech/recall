@@ -195,8 +195,8 @@ export class MasterKeyFingerprint {
     if (this.hex.length !== other.hex.length) return false;
     let diff = 0;
     for (let i = 0; i < this.hex.length; i += 1) {
-      const a = this.hex.charCodeAt(i);
-      const b = other.hex.charCodeAt(i);
+      const a = this.hex.codePointAt(i) ?? 0;
+      const b = other.hex.codePointAt(i) ?? 0;
       diff |= a ^ b;
     }
     return diff === 0;

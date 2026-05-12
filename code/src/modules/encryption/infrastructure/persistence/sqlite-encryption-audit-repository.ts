@@ -127,7 +127,7 @@ export class SqliteEncryptionAuditRepository
    * the contents into the SQLCipher BLOB slot during `run`, so the
    * adapter does not retain a reference past the call.
    */
-  public async append(event: EncryptionAuditEvent): Promise<void> {
+  public append(event: EncryptionAuditEvent): Promise<void> {
     const eventIdBytes = SqliteEncryptionAuditRepository.uuidStringToBytes(
       event.eventId.toString(),
     );
@@ -177,7 +177,7 @@ export class SqliteEncryptionAuditRepository
    * raw string to the repository.
    */
   private static uuidStringToBytes(uuid: string): Uint8Array {
-    const hex = uuid.replace(/-/g, "");
+    const hex = uuid.replaceAll("-", "");
     if (hex.length !== UUID_HEX_LENGTH) {
       throw new Error(
         `event_id must canonically be a UUID v7 (32 hex digits after stripping dashes; got: ${String(hex.length)})`,
