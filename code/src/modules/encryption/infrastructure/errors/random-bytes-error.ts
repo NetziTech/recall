@@ -20,7 +20,7 @@ export class RandomBytesError extends EncryptionInfrastructureError {
   public readonly code = "crypto.random-bytes-failed";
 
   private constructor(message: string, cause?: unknown) {
-    super(message, cause !== undefined ? { cause } : undefined);
+    super(message, cause);
   }
 
   public static unavailable(): RandomBytesError {

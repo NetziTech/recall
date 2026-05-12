@@ -26,10 +26,10 @@ export class SessionAlreadyEndedError extends MemoryDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly sessionId: SessionId;
 
-  public constructor(sessionId: SessionId, options?: { cause?: unknown }) {
+  public constructor(sessionId: SessionId, cause?: unknown) {
     super(
       `session ${sessionId.toString()} has already ended and cannot accept further activity`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.sessionId = sessionId;
   }

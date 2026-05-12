@@ -23,7 +23,7 @@ export class InvalidRequestError extends McpServerInfrastructureError {
   public readonly code = "mcp-server.invalid-request";
   public override readonly jsonRpcCode: number = INVALID_REQUEST;
 
-  public constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  public constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }

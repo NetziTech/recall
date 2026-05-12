@@ -32,7 +32,7 @@ describe("WorkspaceDomainError hierarchy", () => {
     const e = new InvalidModeTransitionError(
       WorkspaceMode.encryptedMode(),
       WorkspaceMode.sharedMode(),
-      { cause },
+      cause,
     );
     expect((e as unknown as { cause: unknown }).cause).toBe(cause);
   });
@@ -46,7 +46,7 @@ describe("WorkspaceDomainError hierarchy", () => {
     expect(e.message).toContain(W_ID);
 
     const cause = new Error("x");
-    const eC = new WorkspaceAlreadyInitializedError(id, { cause });
+    const eC = new WorkspaceAlreadyInitializedError(id, cause);
     expect((eC as unknown as { cause: unknown }).cause).toBe(cause);
   });
 
@@ -59,7 +59,7 @@ describe("WorkspaceDomainError hierarchy", () => {
     expect(e.message).toContain(W_ID);
 
     const cause = new Error("x");
-    const eC = new WorkspaceLockedError(id, { cause });
+    const eC = new WorkspaceLockedError(id, cause);
     expect((eC as unknown as { cause: unknown }).cause).toBe(cause);
   });
 });

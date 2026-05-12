@@ -41,10 +41,10 @@ export class ToolDisabledError extends McpServerDomainError {
   public readonly jsonRpcCode: number | null = METHOD_NOT_FOUND;
   public readonly toolName: ToolName;
 
-  public constructor(toolName: ToolName, options?: { cause?: unknown }) {
+  public constructor(toolName: ToolName, cause?: unknown) {
     super(
       `tool "${toolName.toString()}" is registered but currently disabled`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.toolName = toolName;
   }

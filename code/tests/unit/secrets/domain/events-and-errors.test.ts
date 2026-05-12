@@ -85,10 +85,7 @@ describe("SecretDetectionFailedError", () => {
 
   it("captures detectorName + cause when supplied", () => {
     const cause = new Error("inner");
-    const e = new SecretDetectionFailedError("boom", {
-      detectorName: "regex.aws-key",
-      cause,
-    });
+    const e = new SecretDetectionFailedError("boom", { detectorName: "regex.aws-key" }, cause);
     expect(e.detectorName).toBe("regex.aws-key");
     expect(e.cause).toBe(cause);
   });

@@ -24,10 +24,10 @@ export class RelationSelfLoopError extends MemoryDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly endpoint: RelationEndpoint;
 
-  public constructor(endpoint: RelationEndpoint, options?: { cause?: unknown }) {
+  public constructor(endpoint: RelationEndpoint, cause?: unknown) {
     super(
       `relation cannot connect ${endpoint.kind} ${endpoint.idAsString()} to itself`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.endpoint = endpoint;
   }

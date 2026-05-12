@@ -22,12 +22,10 @@ export class InvalidRecallFiltersError extends RetrievalDomainError {
 
   public constructor(
     message: string,
-    options?: { field?: string; cause?: unknown },
+    options?: { field?: string },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options !== undefined ? { cause: options.cause } : undefined,
-    );
+    super(message, cause);
     this.field = options?.field ?? null;
   }
 }

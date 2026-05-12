@@ -63,14 +63,16 @@ export class PathSanitizerError extends SecretsDomainError {
   public readonly kind: PathSanitizerErrorKind;
   public readonly rawPath: string;
 
-  public constructor(input: {
-    kind: PathSanitizerErrorKind;
-    rawPath: string;
-    cause?: unknown;
-  }) {
+  public constructor(
+    input: {
+      kind: PathSanitizerErrorKind;
+      rawPath: string;
+    },
+    cause?: unknown,
+  ) {
     super(
       PathSanitizerError.buildMessage(input.kind, input.rawPath),
-      input.cause !== undefined ? { cause: input.cause } : undefined,
+      cause,
     );
     this.kind = input.kind;
     this.rawPath = input.rawPath;

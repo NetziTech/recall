@@ -22,10 +22,10 @@ export class DecisionSelfSupersessionError extends MemoryDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly decisionId: DecisionId;
 
-  public constructor(decisionId: DecisionId, options?: { cause?: unknown }) {
+  public constructor(decisionId: DecisionId, cause?: unknown) {
     super(
       `decision ${decisionId.toString()} cannot supersede itself`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.decisionId = decisionId;
   }

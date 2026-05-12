@@ -74,7 +74,7 @@ export class DatabaseError extends InfrastructureError {
     details: DatabaseErrorDetails,
     cause?: unknown,
   ) {
-    super(message, cause !== undefined ? { cause } : undefined);
+    super(message, cause);
     this.code = code;
     this.details = details;
   }

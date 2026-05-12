@@ -49,11 +49,11 @@ export class InvalidModeTransitionError extends WorkspaceDomainError {
   public constructor(
     from: WorkspaceMode,
     to: WorkspaceMode,
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `workspace mode transition "${from.toString()}" -> "${to.toString()}" is not allowed; an intermediate step is required`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.from = from;
     this.to = to;

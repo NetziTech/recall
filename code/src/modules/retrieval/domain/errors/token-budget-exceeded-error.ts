@@ -36,13 +36,13 @@ export class TokenBudgetExceededError extends RetrievalDomainError {
       availableTokens: number;
       maxTokens: number;
     },
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `requested ${String(input.requestedTokens)} tokens but only ${String(
         input.availableTokens,
       )} remain (cap: ${String(input.maxTokens)})`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.requestedTokens = input.requestedTokens;
     this.availableTokens = input.availableTokens;

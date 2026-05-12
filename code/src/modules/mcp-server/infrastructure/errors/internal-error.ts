@@ -22,7 +22,7 @@ export class InternalError extends McpServerInfrastructureError {
   public readonly code = "mcp-server.internal-error";
   public override readonly jsonRpcCode: number = INTERNAL_ERROR;
 
-  public constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  public constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }

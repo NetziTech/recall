@@ -70,7 +70,7 @@ export class EncryptionConfigPersistenceError extends EncryptionInfrastructureEr
     kind: EncryptionConfigPersistenceKind,
     cause?: unknown,
   ) {
-    super(message, cause !== undefined ? { cause } : undefined);
+    super(message, cause);
     this.kind = kind;
   }
 

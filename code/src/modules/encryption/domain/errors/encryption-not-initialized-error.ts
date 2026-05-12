@@ -29,10 +29,10 @@ export class EncryptionNotInitializedError extends EncryptionDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly workspaceId: WorkspaceId;
 
-  public constructor(workspaceId: WorkspaceId, options?: { cause?: unknown }) {
+  public constructor(workspaceId: WorkspaceId, cause?: unknown) {
     super(
       `encryption is not initialized for workspace ${workspaceId.toString()}; call mem.init with mode "encrypted" first`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.workspaceId = workspaceId;
   }

@@ -20,9 +20,10 @@ export class InvalidInputError extends DomainError {
 
   public constructor(
     message: string,
-    options?: { field?: string; cause?: unknown },
+    options?: { field?: string },
+    cause?: unknown,
   ) {
-    super(message, options !== undefined ? { cause: options.cause } : undefined);
+    super(message, cause);
     this.field = options?.field ?? null;
   }
 }

@@ -1,0 +1,13 @@
+diff --git a/node_modules/vitest/dist/chunks/index.Chj8NDwU.js b/node_modules/vitest/dist/chunks/index.Chj8NDwU.js
+index 5943b9b..cee05c3 100644
+--- a/node_modules/vitest/dist/chunks/index.Chj8NDwU.js
++++ b/node_modules/vitest/dist/chunks/index.Chj8NDwU.js
+@@ -27,7 +27,7 @@ function nanoid(size = 21) {
+ 
+ //#endregion
+ //#region src/main.ts
+-const DEFAULT_TIMEOUT = 6e4;
++const DEFAULT_TIMEOUT = 6e5;
+ const defaultSerialize = (i) => i;
+ const defaultDeserialize = defaultSerialize;
+ const { clearTimeout, setTimeout } = globalThis;

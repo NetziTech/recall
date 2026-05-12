@@ -27,10 +27,10 @@ export class CuratorRunAlreadyCompletedError extends CuratorDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly runId: CuratorRunId;
 
-  public constructor(runId: CuratorRunId, options?: { cause?: unknown }) {
+  public constructor(runId: CuratorRunId, cause?: unknown) {
     super(
       `curator run ${runId.toString()} has already been completed and cannot be mutated`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.runId = runId;
   }

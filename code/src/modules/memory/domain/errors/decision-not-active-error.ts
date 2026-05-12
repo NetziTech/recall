@@ -26,10 +26,10 @@ export class DecisionNotActiveError extends MemoryDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly decisionId: DecisionId;
 
-  public constructor(decisionId: DecisionId, options?: { cause?: unknown }) {
+  public constructor(decisionId: DecisionId, cause?: unknown) {
     super(
       `decision ${decisionId.toString()} is not active and cannot be superseded again`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.decisionId = decisionId;
   }

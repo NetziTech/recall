@@ -29,11 +29,11 @@ export class WorkspaceAlreadyInitializedError extends WorkspaceDomainError {
 
   public constructor(
     existingWorkspaceId: WorkspaceId,
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `workspace ${existingWorkspaceId.toString()} is already initialized; re-initialization is not allowed`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.existingWorkspaceId = existingWorkspaceId;
   }

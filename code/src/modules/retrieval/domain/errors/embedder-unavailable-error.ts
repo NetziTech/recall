@@ -43,12 +43,10 @@ export class EmbedderUnavailableError extends RetrievalDomainError {
 
   public constructor(
     message: string,
-    options?: { retryAfterMs?: number; cause?: unknown },
+    options?: { retryAfterMs?: number },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options?.cause === undefined ? undefined : { cause: options.cause },
-    );
+    super(message, cause);
     this.retryAfterMs = options?.retryAfterMs ?? null;
   }
 }

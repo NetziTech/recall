@@ -19,17 +19,20 @@ describe("CLI domain errors", () => {
 
   it("UnknownCommandError captures cause", () => {
     const cause = new Error("u");
-    const e = new UnknownCommandError("x", { cause });
+    const e = new UnknownCommandError("x", cause);
     expect((e as unknown as { cause: unknown }).cause).toBe(cause);
   });
 
   it("InvalidCommandArgsError captures command + field + cause", () => {
     const cause = new Error("u");
-    const e = new InvalidCommandArgsError("bad mode", {
-      commandName: "init",
-      field: "mode",
+    const e = new InvalidCommandArgsError(
+      "bad mode",
+      {
+        commandName: "init",
+        field: "mode",
+      },
       cause,
-    });
+    );
     expect(e.code).toBe("cli.invalid-command-args");
     expect(e.commandName).toBe("init");
     expect(e.field).toBe("mode");
@@ -49,7 +52,7 @@ describe("CLI domain errors", () => {
     expect(e.jsonRpcCode).toBeNull();
 
     const cause = new Error("u");
-    const e2 = new InvalidExitCodeError(999, { cause });
+    const e2 = new InvalidExitCodeError(999, cause);
     expect((e2 as unknown as { cause: unknown }).cause).toBe(cause);
   });
 });

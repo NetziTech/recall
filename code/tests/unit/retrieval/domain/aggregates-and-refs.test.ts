@@ -424,6 +424,11 @@ describe("TaskRef", () => {
     expect(a.equals(b)).toBe(true);
   });
 
+  it("equals(self) returns true via fast path", () => {
+    const ref = taskRefSample();
+    expect(ref.equals(ref)).toBe(true);
+  });
+
   it("equals() distinguishes different ids", () => {
     const otherId = "01952f3b-7d8c-7000-8000-aaaaaaaaaaab";
     expect(taskRefSample().equals(taskRefSample(otherId))).toBe(false);
@@ -436,6 +441,11 @@ describe("TurnRef", () => {
     expect(turnRefSample().equals(turnRefSample())).toBe(true);
   });
 
+  it("equals(self) returns true via fast path", () => {
+    const ref = turnRefSample();
+    expect(ref.equals(ref)).toBe(true);
+  });
+
   it("equals() distinguishes different ids", () => {
     const otherId = "01952f3b-7d8c-7000-8000-aaaaaaaaaaad";
     expect(turnRefSample().equals(turnRefSample(otherId))).toBe(false);
@@ -445,6 +455,11 @@ describe("TurnRef", () => {
 describe("EntityRef", () => {
   it("of() + equals() round-trip", () => {
     expect(entityRefSample().equals(entityRefSample())).toBe(true);
+  });
+
+  it("equals(self) returns true via fast path", () => {
+    const ref = entityRefSample();
+    expect(ref.equals(ref)).toBe(true);
   });
 
   it("equals() distinguishes different ids", () => {
@@ -1013,7 +1028,7 @@ describe("LayerAlreadyPresentError", () => {
 
   it("optionally accepts a cause", () => {
     const cause = new Error("inner");
-    const e = new LayerAlreadyPresentError("open_tasks", { cause });
+    const e = new LayerAlreadyPresentError("open_tasks", cause);
     expect(e.cause).toBe(cause);
   });
 });

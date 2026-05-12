@@ -45,15 +45,15 @@
 export abstract class InfrastructureError extends Error {
   public abstract readonly code: string;
 
-  protected constructor(message: string, options?: { cause?: unknown }) {
+  protected constructor(message: string, cause?: unknown) {
     super(message);
     this.name = new.target.name;
-    if (options?.cause !== undefined) {
+    if (cause !== undefined) {
       // `cause` is part of ES2022 Error options, but we set it explicitly
       // so that the property is non-enumerable (matches the convention in
       // `shared/domain/errors/domain-error.ts`).
       Object.defineProperty(this, "cause", {
-        value: options.cause,
+        value: cause,
         enumerable: false,
         writable: false,
         configurable: true,

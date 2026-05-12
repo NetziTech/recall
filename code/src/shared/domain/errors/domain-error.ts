@@ -21,14 +21,17 @@
 export abstract class DomainError extends Error {
   public abstract readonly code: string;
 
-  protected constructor(message: string, options?: { cause?: unknown }) {
+  protected constructor(message: string, cause?: unknown) {
     super(message);
     this.name = new.target.name;
-    if (options?.cause !== undefined) {
+    if (cause !== undefined) {
       // `cause` is part of the standard Error options bag (ES2022) but we
-      // assign it manually to avoid relying on a polyfill at runtime.
+      // assign it manually to avoid relying on a polyfill at runtime. Also
+      // pinned non-enumerable so `JSON.stringify(err)` doesn't dump the
+      // wrapped exception's payload — important when wrapping native
+      // errors that may carry secrets in `.message`.
       Object.defineProperty(this, "cause", {
-        value: options.cause,
+        value: cause,
         enumerable: false,
         writable: false,
         configurable: true,

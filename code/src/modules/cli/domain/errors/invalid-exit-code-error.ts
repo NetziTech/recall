@@ -20,10 +20,10 @@ export class InvalidExitCodeError extends CliDomainError {
   public readonly jsonRpcCode: number | null = null;
   public readonly attempted: number;
 
-  public constructor(attempted: number, options?: { cause?: unknown }) {
+  public constructor(attempted: number, cause?: unknown) {
     super(
       `exit code must be a non-negative integer in 0..255 (got: ${String(attempted)})`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.attempted = attempted;
   }

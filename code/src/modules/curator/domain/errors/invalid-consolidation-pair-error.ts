@@ -29,11 +29,11 @@ export class InvalidConsolidationPairError extends CuratorDomainError {
     winner: AffectedEntryRef,
     loser: AffectedEntryRef,
     reason: string,
-    options?: { cause?: unknown },
+    cause?: unknown,
   ) {
     super(
       `invalid consolidation pair (winner=${winner.kind.toString()}/${winner.id}, loser=${loser.kind.toString()}/${loser.id}): ${reason}`,
-      options !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
     this.winner = winner;
     this.loser = loser;

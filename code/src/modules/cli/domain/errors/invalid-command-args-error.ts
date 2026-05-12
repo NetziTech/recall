@@ -29,12 +29,10 @@ export class InvalidCommandArgsError extends CliDomainError {
 
   public constructor(
     message: string,
-    options: { commandName: string; field?: string; cause?: unknown },
+    options: { commandName: string; field?: string },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options.cause !== undefined ? { cause: options.cause } : undefined,
-    );
+    super(message, cause);
     this.commandName = options.commandName;
     this.field = options.field ?? null;
   }

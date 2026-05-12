@@ -35,15 +35,17 @@ export class WeakKdfParamsError extends EncryptionDomainError {
   public readonly actual: number;
   public readonly minimum: number;
 
-  public constructor(input: {
-    parameter: WeakKdfParameterName;
-    actual: number;
-    minimum: number;
-    cause?: unknown;
-  }) {
+  public constructor(
+    input: {
+      parameter: WeakKdfParameterName;
+      actual: number;
+      minimum: number;
+    },
+    cause?: unknown,
+  ) {
     super(
       `kdf parameter "${input.parameter}" is below the project minimum: ${String(input.actual)} < ${String(input.minimum)}`,
-      input.cause !== undefined ? { cause: input.cause } : undefined,
+      cause,
     );
     this.parameter = input.parameter;
     this.actual = input.actual;

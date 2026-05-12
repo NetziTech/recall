@@ -21,10 +21,10 @@ import { InfrastructureError } from "../../../../shared/infrastructure/errors/in
  *   the wrapped library.
  */
 export abstract class SecretsInfrastructureError extends InfrastructureError {
-  protected constructor(message: string, options?: { cause?: unknown }) {
+  protected constructor(message: string, cause?: unknown) {
     super(
       message,
-      options?.cause !== undefined ? { cause: options.cause } : undefined,
+      cause,
     );
   }
 }

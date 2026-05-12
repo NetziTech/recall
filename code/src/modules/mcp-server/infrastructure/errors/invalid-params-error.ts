@@ -31,15 +31,10 @@ export class InvalidParamsError extends McpServerInfrastructureError {
 
   public constructor(
     message: string,
-    options: {
-      details: readonly InvalidParamsIssue[];
-      cause?: unknown;
-    },
+    options: { details: readonly InvalidParamsIssue[] },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options.cause !== undefined ? { cause: options.cause } : undefined,
-    );
+    super(message, cause);
     // Defensive copy + freeze: the consumer (the JSON serialiser)
     // must not be able to mutate the issue list after construction.
     this.details = Object.freeze(options.details.slice());

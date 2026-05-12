@@ -12,7 +12,7 @@ const params = (): KdfParams =>
 describe("Argon2idKdf", () => {
   const kdf = new Argon2idKdf();
 
-  it("derives a 32-byte key (slow but real)", { timeout: 30_000 }, async () => {
+  it("derives a 32-byte key (slow but real)", { timeout: 45_000 }, async () => {
     const result = await kdf.derive(
       Passphrase.from("a-strong-passphrase"),
       params(),

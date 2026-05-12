@@ -23,7 +23,7 @@ export class ParseError extends McpServerInfrastructureError {
   public readonly code = "mcp-server.parse-error";
   public override readonly jsonRpcCode: number = PARSE_ERROR;
 
-  public constructor(message: string, options?: { cause?: unknown }) {
-    super(message, options);
+  public constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }

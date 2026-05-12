@@ -36,12 +36,10 @@ export class InvalidPatternError extends SecretsDomainError {
 
   public constructor(
     message: string,
-    options?: { patternName?: string; cause?: unknown },
+    options?: { patternName?: string },
+    cause?: unknown,
   ) {
-    super(
-      message,
-      options !== undefined ? { cause: options.cause } : undefined,
-    );
+    super(message, cause);
     this.patternName = options?.patternName ?? null;
   }
 }

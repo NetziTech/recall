@@ -28,10 +28,7 @@ export class EmbedFailedError extends RetrievalDomainError {
   public readonly code = "retrieval.embed-failed";
   public readonly jsonRpcCode: number | null = null;
 
-  public constructor(message: string, options?: { cause?: unknown }) {
-    super(
-      message,
-      options?.cause === undefined ? undefined : { cause: options.cause },
-    );
+  public constructor(message: string, cause?: unknown) {
+    super(message, cause);
   }
 }
