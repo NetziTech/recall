@@ -159,9 +159,8 @@ export class PruneLowConfidenceUseCase implements PruneLowConfidence {
     for (let i = 0; i < candidates.length; i += 1) {
       if (wasPrunedMask[i] !== true) continue;
       const candidate = candidates[i];
-      /* c8 ignore start -- bounded by candidates.length and mask is parallel */
+      /* istanbul ignore if -- defensive: candidates and wasPrunedMask are parallel arrays of identical length; undefined only reachable via misuse. */
       if (candidate === undefined) continue;
-      /* c8 ignore stop */
       run.recordPrune({
         kind: candidate.kind,
         originalId: candidate.id,

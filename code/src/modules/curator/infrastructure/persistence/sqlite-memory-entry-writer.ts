@@ -138,7 +138,7 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
         for (const item of input.items) {
           const key = item.kind.toString();
           const stmt = statementByKind.get(key);
-          /* c8 ignore start -- defensive: every kind from input was registered above; unreachable via public API since prepared statements + tableByKind are populated symmetrically over the same input set. */
+          /* istanbul ignore if -- defensive: every kind from input was registered above; unreachable via public API since prepared statements + tableByKind are populated symmetrically over the same input set. */
           if (stmt === undefined) {
             const err = new Error(`unprepared kind in batch: ${key}`);
             failureRef.current = {
@@ -147,7 +147,6 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
             };
             throw err;
           }
-          /* c8 ignore stop */
           try {
             const result = stmt.run(
               item.newConfidence.toNumber(),
@@ -317,6 +316,7 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
         tableByKind.set(key, SqliteMemoryEntryWriter.tableForKind(item.kind));
       }
     } catch (cause: unknown) {
+      /* istanbul ignore if -- defensive: prepare() itself never throws CuratorInfrastructureError (those wrap only run-time failures); branch exists for type-safety re-throw of nested wraps. */
       if (cause instanceof CuratorInfrastructureError) throw cause;
       throw CuratorInfrastructureError.upsertFailed("<batch-prepare>", cause);
     }
@@ -332,12 +332,11 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
       this.db.transaction((): void => {
         for (let i = 0; i < input.items.length; i += 1) {
           const item = input.items[i];
-          /* c8 ignore start -- defensive: bounded loop indices, undefined only via misuse */
+          /* istanbul ignore if -- defensive: bounded loop indices, undefined only via misuse */
           if (item === undefined) continue;
-          /* c8 ignore stop */
           const key = item.kind.toString();
           const deleteStmt = deleteStmtByKind.get(key);
-          /* c8 ignore start -- defensive: every kind from input was registered above; unreachable via the public API since prepared statements are populated symmetrically over the same input set. */
+          /* istanbul ignore if -- defensive: every kind from input was registered above; unreachable via the public API since prepared statements are populated symmetrically over the same input set. */
           if (deleteStmt === undefined) {
             const err = new Error(`unprepared kind in batch: ${key}`);
             failureRef.current = {
@@ -346,7 +345,6 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
             };
             throw err;
           }
-          /* c8 ignore stop */
           try {
             insertStmt.run(
               workspaceIdString,
