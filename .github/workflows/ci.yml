@@ -30,10 +30,10 @@ jobs:
           # SonarQube needs full history for accurate blame and new-code detection.
           fetch-depth: 0
 
-      - name: Setup Node 20
+      - name: Setup Node 24 (LTS Krypton)
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: code/package-lock.json
 

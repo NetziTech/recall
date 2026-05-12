@@ -37,6 +37,20 @@ export default defineConfig({
     globals: false,
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**"],
+    // pool: "forks" obligatorio porque `onnxruntime-node` (dep
+    // transitiva de `fastembed`) NO se carga en Worker Threads —
+    // el NAPI binding ya está registrado en el main thread, lo
+    // que rompe `Module did not self-register` cuando se intenta
+    // cargar en un thread worker. ~28 test files (todos los que
+    // importan workspace, bootstrap, composition, embedder o
+    // hacen mem.* operations) tocan onnxruntime transitivamente.
+    //
+    // El bug del birpc 60s timeout que afectaba argon2id-kdf bajo
+    // Node 24 (vitest issue #8164) está resuelto vía patch-package:
+    // `patches/vitest+3.2.4.patch` cambia `DEFAULT_TIMEOUT = 6e4`
+    // → `6e5` (10 min) en `node_modules/vitest/dist/chunks/
+    // index.B521nVV-.js`. Sobrevive `npm ci` via el `postinstall`
+    // hook en `package.json`.
     pool: "forks",
     // E2E tests spawn the bundled binary (`dist/cli.js`,
     // `dist/server.js`) via `child_process.spawn` and exchange

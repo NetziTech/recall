@@ -54,6 +54,7 @@
     "validate:modules": "tsx scripts/validate-modules.ts",
     "sonar": "sonar-scanner",
     "ci": "npm run typecheck && npm run lint && npm run validate:modules && npm run test:coverage",
+    "postinstall": "patch-package",
     "prepublishOnly": "npm run typecheck && npm run lint && npm run validate:modules && npm run build && npm run test"
   },
   "dependencies": {
@@ -70,9 +71,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^3.0.0",
     "eslint": "^10.2.1",
+    "patch-package": "^8.0.1",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^6.0.3",

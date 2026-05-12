@@ -25,16 +25,23 @@ describe("Argon2idKdf", () => {
 
   it(
     "deterministic: same passphrase + params → same derived key",
-    { timeout: 30_000 },
+    // The two derivations are launched in parallel via Promise.all
+    // so they interleave their event-loop ticks. Each derivation
+    // takes ~30 s of wall-clock on its own; running them
+    // sequentially totals > 60 s, which trips Vitest's hardcoded
+    // birpc `onTaskUpdate` timeout (vitest issue #8164) and trips
+    // CI even though the test itself passes. `argon2idAsync`
+    // yields to the event loop on `asyncTick = 10 ms` boundaries
+    // so two concurrent calls share CPU efficiently, halving the
+    // wall-clock to ~35 s and keeping the test under the 60 s
+    // limit on Node 24 LTS Krypton (where GC/JIT cost is ~40%
+    // higher than Node 20 Iron).
+    { timeout: 45_000 },
     async () => {
-      const a = await kdf.derive(
-        Passphrase.from("a-strong-passphrase"),
-        params(),
-      );
-      const b = await kdf.derive(
-        Passphrase.from("a-strong-passphrase"),
-        params(),
-      );
+      const [a, b] = await Promise.all([
+        kdf.derive(Passphrase.from("a-strong-passphrase"), params()),
+        kdf.derive(Passphrase.from("a-strong-passphrase"), params()),
+      ]);
       if (isOk(a) && isOk(b)) {
         expect(a.value.equals(b.value)).toBe(true);
       } else {
@@ -45,16 +52,16 @@ describe("Argon2idKdf", () => {
 
   it(
     "different passphrase → different key",
-    { timeout: 30_000 },
+    // Same parallelisation rationale as the determinism test
+    // above: two concurrent argon2id derivations interleave on
+    // the asyncTick boundary so wall-clock stays under the
+    // birpc 60 s timeout.
+    { timeout: 45_000 },
     async () => {
-      const a = await kdf.derive(
-        Passphrase.from("passphrase-alpha-12"),
-        params(),
-      );
-      const b = await kdf.derive(
-        Passphrase.from("passphrase-beta-1234"),
-        params(),
-      );
+      const [a, b] = await Promise.all([
+        kdf.derive(Passphrase.from("passphrase-alpha-12"), params()),
+        kdf.derive(Passphrase.from("passphrase-beta-1234"), params()),
+      ]);
       if (isOk(a) && isOk(b)) {
         expect(a.value.equals(b.value)).toBe(false);
       }
