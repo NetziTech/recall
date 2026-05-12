@@ -123,17 +123,18 @@ export default defineConfig({
         ? undefined
         : {
             // Local thresholds calibrated to the Istanbul provider
-            // baseline post Refactor A + Fase B tests (vitest 4.x).
-            // Istanbul counts optional-chain / nullish-coalesce branches
-            // that coverage-v8 v3 historically under-reported; the
-            // honest line/branch ratios under the new measurement are
-            // what the SonarQube agreggate metric `coverage` consumes
+            // baseline post Refactor A + Fase B tests + W-3.5-coverage
+            // restore PR (vitest 4.x). Istanbul counts optional-chain /
+            // nullish-coalesce branches that coverage-v8 v3 historically
+            // under-reported; the honest line/branch ratios are what
+            // the SonarQube agreggate metric `coverage` consumes
             // (lines + conditions weighted). The composite value the
-            // SonarQube quality gate evaluates is ~95.2%, which is
-            // above the strict gate threshold of 95.
-            lines: 95,
-            branches: 88,
-            functions: 95,
+            // SonarQube quality gate evaluates is ~95.6%, which is
+            // above the strict gate threshold of 95 (restored from
+            // the 90% temporary gate set in Phase-20).
+            lines: 96,
+            branches: 89,
+            functions: 96,
             statements: 95,
             "src/**/domain/**": {
               lines: 99,
@@ -149,7 +150,7 @@ export default defineConfig({
             },
             "src/**/infrastructure/**": {
               lines: 90,
-              branches: 82,
+              branches: 83,
               functions: 90,
               statements: 90,
             },

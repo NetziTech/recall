@@ -274,4 +274,226 @@ describe("JsonEncryptionConfigRepository", () => {
     expect(loaded2).not.toBeNull();
     expect(loaded2?.envelopeCount()).toBe(1);
   });
+
+  // Coverage focus: malformed inputs that exercise the
+  // ENCRYPTION_SLICE_SCHEMA / parseAlgorithm / parseKdfParams /
+  // parseValidatorBlob / parseEnvelope catch arms (lines 235, 269,
+  // 589, 612, 638, 686). Each writes a hand-crafted `.recall/config.json`
+  // with one field corrupted and asserts the repository raises
+  // `EncryptionConfigPersistenceError.malformed`.
+
+  const writeConfig = async (content: unknown): Promise<void> => {
+    const dir = path.join(workspaceRoot, ".recall");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      path.join(dir, "config.json"),
+      JSON.stringify(content, null, 2),
+      "utf8",
+    );
+  };
+
+  const validEnvelopeBlob = (): {
+    iv_b64: string;
+    ciphertext_b64: string;
+    tag_b64: string;
+  } => ({
+    iv_b64: Buffer.from(buf(12, 0xcd)).toString("base64"),
+    ciphertext_b64: Buffer.from(buf(32, 0xab)).toString("base64"),
+    tag_b64: Buffer.from(buf(16, 0xef)).toString("base64"),
+  });
+
+  const validKdfParams = (): {
+    memory_kib: number;
+    iterations: number;
+    parallelism: number;
+    salt_b64: string;
+  } => ({
+    memory_kib: 65536,
+    iterations: 3,
+    parallelism: 4,
+    salt_b64: Buffer.from(buf(16, 7)).toString("base64"),
+  });
+
+  const validSlice = (overrides: Record<string, unknown> = {}): Record<string, unknown> => ({
+    kdf: "argon2id",
+    kdf_params: validKdfParams(),
+    key_validator_blob_b64: {
+      iv_b64: Buffer.from(buf(12, 0x66)).toString("base64"),
+      ciphertext_b64: Buffer.from(buf(18, 0x55)).toString("base64"),
+      tag_b64: Buffer.from(buf(16, 0x77)).toString("base64"),
+    },
+    key_envelopes: [
+      {
+        id: KEY_ID,
+        created_at_ms: 1_700_000_000_000,
+        label: null,
+        kdf_params: validKdfParams(),
+        envelope: validEnvelopeBlob(),
+      },
+    ],
+    encryption_workspace_id: WS_ID,
+    encryption_created_at_ms: 1_700_000_000_000,
+    encryption_updated_at_ms: 1_700_000_000_000,
+    ...overrides,
+  });
+
+  const repoForWorkspace = (): JsonEncryptionConfigRepository =>
+    new JsonEncryptionConfigRepository({
+      workspaceRoot,
+      clock: new FakeClock({ initialMs: 1 }),
+      logger: new RecordingLogger(),
+    });
+
+  it("rejects slice with malformed kdf algorithm string", async () => {
+    await writeConfig(validSlice({ kdf: "not-a-real-algorithm" }));
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
+
+  it("rejects slice with malformed kdf_params (bad base64 salt)", async () => {
+    await writeConfig(
+      validSlice({
+        kdf_params: {
+          ...validKdfParams(),
+          salt_b64: "not!valid$base64",
+        },
+      }),
+    );
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
+
+  it("rejects slice with malformed validator blob (bad base64 ciphertext)", async () => {
+    await writeConfig(
+      validSlice({
+        key_validator_blob_b64: {
+          iv_b64: Buffer.from(buf(12, 0x66)).toString("base64"),
+          ciphertext_b64: "not_valid_base64=", // underscore is not standard alphabet
+          tag_b64: Buffer.from(buf(16, 0x77)).toString("base64"),
+        },
+      }),
+    );
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
+
+  it("rejects envelope with malformed inner ciphertext", async () => {
+    await writeConfig(
+      validSlice({
+        key_envelopes: [
+          {
+            id: KEY_ID,
+            created_at_ms: 1_700_000_000_000,
+            label: null,
+            kdf_params: validKdfParams(),
+            envelope: {
+              iv_b64: Buffer.from(buf(12, 0xcd)).toString("base64"),
+              ciphertext_b64: "ZZZ", // padding off, not a multiple of 4
+              tag_b64: Buffer.from(buf(16, 0xef)).toString("base64"),
+            },
+          },
+        ],
+      }),
+    );
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
+
+  it("rejects envelope blob with empty base64 string field", async () => {
+    await writeConfig(
+      validSlice({
+        key_envelopes: [
+          {
+            id: KEY_ID,
+            created_at_ms: 1_700_000_000_000,
+            label: null,
+            kdf_params: validKdfParams(),
+            envelope: {
+              iv_b64: "",
+              ciphertext_b64: Buffer.from(buf(32, 0xab)).toString("base64"),
+              tag_b64: Buffer.from(buf(16, 0xef)).toString("base64"),
+            },
+          },
+        ],
+      }),
+    );
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
+
+  it("rehydrates envelope label when present (non-null label branch)", async () => {
+    await writeConfig(
+      validSlice({
+        key_envelopes: [
+          {
+            id: KEY_ID,
+            created_at_ms: 1_700_000_000_000,
+            label: "primary-key",
+            kdf_params: validKdfParams(),
+            envelope: validEnvelopeBlob(),
+          },
+        ],
+      }),
+    );
+    const loaded = await repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID));
+    expect(loaded).not.toBeNull();
+    expect(loaded?.envelopeCount()).toBe(1);
+    const envelope = loaded?.getEnvelopes()[0];
+    expect(envelope?.label?.asString()).toBe("primary-key");
+  });
+
+  it("delete is a no-op when config.json exists but has no encryption slice", async () => {
+    // Configure file with only workspace-owned keys; the encryption-
+    // owned key set never matches, so `removedAnything` stays false
+    // (line 357) and delete emits a `no-encryption-slice` log line.
+    const dir = path.join(workspaceRoot, ".recall");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      path.join(dir, "config.json"),
+      JSON.stringify({ workspace_id: WS_ID, mode: "shared" }, null, 2),
+      "utf8",
+    );
+    const repo = repoForWorkspace();
+    await expect(repo.delete(WorkspaceId.from(WS_ID))).resolves.toBeUndefined();
+    // File should still exist with the unrelated keys intact.
+    const after = JSON.parse(
+      await fs.readFile(path.join(dir, "config.json"), "utf8"),
+    ) as Record<string, unknown>;
+    expect(after["workspace_id"]).toBe(WS_ID);
+    expect(after["mode"]).toBe("shared");
+    expect(after["key_envelopes"]).toBeUndefined();
+  });
+
+  it("delete is a no-op when config.json is not an object (string content)", async () => {
+    const dir = path.join(workspaceRoot, ".recall");
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(path.join(dir, "config.json"), '"not-an-object"', "utf8");
+    const repo = repoForWorkspace();
+    await expect(repo.delete(WorkspaceId.from(WS_ID))).resolves.toBeUndefined();
+  });
+
+  // Coverage: `fromBase64` rejection paths (lines 707, 710, 717, 725).
+  // Each exercises one of the four early-failure branches:
+  // empty / bad alphabet / bad padding length / silent truncation
+  // detected via round-trip.
+  it("rejects base64 fields that decode to silent truncation", async () => {
+    // "===" reencodes to "" (silent truncation: input had 4 chars, output
+    // re-encodes to 0). This hits the round-trip check at line 725.
+    await writeConfig(
+      validSlice({
+        kdf_params: {
+          ...validKdfParams(),
+          salt_b64: "====", // 4 chars of pure padding → decodes to empty → re-encodes to ""
+        },
+      }),
+    );
+    await expect(
+      repoForWorkspace().findByWorkspace(WorkspaceId.from(WS_ID)),
+    ).rejects.toBeInstanceOf(EncryptionConfigPersistenceError);
+  });
 });

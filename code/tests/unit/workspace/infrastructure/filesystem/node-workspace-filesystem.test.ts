@@ -690,3 +690,120 @@ describe("NodeWorkspaceFilesystem.ensureGitignore — atomic write contract (W-3
     expect(tmpLeftovers).toEqual([]);
   });
 });
+
+// Coverage focus: the defensive guards in `removeWorkspaceDirectory`
+// (lines 245 and 253) reject paths that do not end with the canonical
+// `.recall` segment or that contain a NUL byte. These branches are
+// otherwise unreachable through the public API (every callsite goes
+// through `workspaceDirPath` first, which always produces a canonical
+// suffix) so the only way to exercise them is via a stub that returns
+// a hand-crafted path.
+describe("NodeWorkspaceFilesystem.removeWorkspaceDirectory — defensive guards", () => {
+  it("happy path: removes the .recall directory and its contents", async () => {
+    await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
+    await fsAdapter.removeWorkspaceDirectory(ctx.rootPath);
+    const after = await fs
+      .stat(path.join(ctx.tmpDir, ".recall"))
+      .catch((err: unknown) => err);
+    expect(after).toBeInstanceOf(Error);
+  });
+
+  it("wraps rm errors as directoryRemoveFailed", async () => {
+    // Build a workspace, then make the .recall directory unremovable by
+    // chmodding the PARENT to read-only. rm reports the failure.
+    await fsAdapter.createWorkspaceDirectory(ctx.rootPath);
+    const parentDir = ctx.tmpDir;
+    if (process.platform !== "win32") {
+      await fs.chmod(parentDir, 0o500);
+      try {
+        await expect(
+          fsAdapter.removeWorkspaceDirectory(ctx.rootPath),
+        ).rejects.toBeInstanceOf(WorkspaceInfrastructureError);
+      } finally {
+        await fs.chmod(parentDir, 0o700);
+      }
+    }
+  });
+
+  it("rejects a non-canonical path produced by a buggy workspaceDirPath stub", () => {
+    // Spy on the private static workspaceDirPath to make it return a
+    // path that does NOT end with the canonical `.recall` segment.
+    const stub = vi
+      .spyOn(
+        NodeWorkspaceFilesystem as unknown as {
+          workspaceDirPath: (p: WorkspacePath) => string;
+        },
+        "workspaceDirPath",
+      )
+      .mockReturnValue("/tmp/not-canonical");
+    try {
+      return expect(
+        fsAdapter.removeWorkspaceDirectory(ctx.rootPath),
+      ).rejects.toBeInstanceOf(WorkspaceInfrastructureError);
+    } finally {
+      stub.mockRestore();
+    }
+  });
+
+  it("rejects a path containing a NUL byte produced by a buggy workspaceDirPath stub", () => {
+    const stub = vi
+      .spyOn(
+        NodeWorkspaceFilesystem as unknown as {
+          workspaceDirPath: (p: WorkspacePath) => string;
+        },
+        "workspaceDirPath",
+      )
+      .mockReturnValue("/tmp/has\0null/.recall");
+    try {
+      return expect(
+        fsAdapter.removeWorkspaceDirectory(ctx.rootPath),
+      ).rejects.toBeInstanceOf(WorkspaceInfrastructureError);
+    } finally {
+      stub.mockRestore();
+    }
+  });
+});
+
+// Coverage focus: `withGitignoreEntry`'s "already ends with \n" branch
+// (line 444) which short-circuits the newline-normalisation. The
+// existing private-mode tests seed with content ending in `\n` so this
+// branch IS reached, but the assertion on it is implicit; pin it
+// explicitly via byte-for-byte content checks.
+describe("NodeWorkspaceFilesystem.ensureGitignore — normalisation invariants", () => {
+  it("private: preserves \\n-terminated existing content without doubling the newline", async () => {
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    await fs.writeFile(gitignorePath, "foo\n", "utf8");
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+    const after = await fs.readFile(gitignorePath, "utf8");
+    expect(after).toBe("foo\n.recall/\n");
+  });
+
+  it("private: adds the missing trailing newline before appending the entry", async () => {
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    await fs.writeFile(gitignorePath, "foo", "utf8"); // no trailing newline
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.privateMode());
+    const after = await fs.readFile(gitignorePath, "utf8");
+    expect(after).toBe("foo\n.recall/\n");
+  });
+
+  it("shared: removes both the canonical `.recall/` line AND the bare `.recall` directory variant", async () => {
+    // Cover the `withoutGitignoreEntry` branch at line 456 that filters
+    // the bare `.recall` directory name (vs the canonical `.recall/`).
+    const gitignorePath = path.join(ctx.tmpDir, ".gitignore");
+    await fs.writeFile(
+      gitignorePath,
+      "node_modules\n.recall\nbuild/\n",
+      "utf8",
+    );
+    await fsAdapter.ensureGitignore(ctx.rootPath, WorkspaceMode.sharedMode());
+    const after = await fs.readFile(gitignorePath, "utf8").catch(() => null);
+    if (after !== null) {
+      expect(after).not.toContain(".recall\n");
+    } else {
+      // The implementation may also unlink the file if it ends up empty.
+      // Both outcomes are valid; the contract is "no `.recall` entry
+      // remains".
+      expect(after).toBeNull();
+    }
+  });
+});
