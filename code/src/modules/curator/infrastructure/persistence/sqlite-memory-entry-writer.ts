@@ -278,6 +278,108 @@ export class SqliteMemoryEntryWriter implements MemoryEntryWriter {
     return wasPruned;
   }
 
+  // eslint-disable-next-line @typescript-eslint/require-await -- impl is fully sync; `async` keeps interface throws as rejected promises (test contract).
+  public async markPrunedBatch(input: {
+    workspaceId: WorkspaceId;
+    items: readonly {
+      readonly kind: MemoryEntryKind;
+      readonly entryId: string;
+      readonly contentSnapshot: string;
+      readonly reasonKind:
+        | "low_confidence"
+        | "manual"
+        | "consolidated_into_other"
+        | "obsoleted";
+      readonly prunedAt: Timestamp;
+    }[];
+  }): Promise<readonly boolean[]> {
+    if (input.items.length === 0) return [];
+
+    // Pre-compile once: a single `INSERT` plus one `DELETE` per
+    // distinct kind appearing in the batch. The hot loop then makes
+    // only `stmt.run(...)` calls (no SQL string resolution, no
+    // dispatch). Mirrors `applyDecayBatch` (W-3.4-PERF-H1).
+    //
+    // Wrap the prepare phase in a try/catch so any prepare-time
+    // SQLite failure (e.g. table dropped between connection open
+    // and batch dispatch — only reachable via test fixtures or
+    // schema-corruption ops) surfaces as a typed
+    // `CuratorInfrastructureError.upsertFailed`, matching the
+    // wrapped shape the rest of the writer produces.
+    const insertStmt = this.db.prepare(SQL_INSERT_PRUNED);
+    const deleteStmtByKind = new Map<string, ReturnType<DatabaseConnection["prepare"]>>();
+    const tableByKind = new Map<string, string>();
+    try {
+      for (const item of input.items) {
+        const key = item.kind.toString();
+        if (deleteStmtByKind.has(key)) continue;
+        deleteStmtByKind.set(key, this.db.prepare(this.deleteSqlForKind(item.kind)));
+        tableByKind.set(key, SqliteMemoryEntryWriter.tableForKind(item.kind));
+      }
+    } catch (cause: unknown) {
+      if (cause instanceof CuratorInfrastructureError) throw cause;
+      throw CuratorInfrastructureError.upsertFailed("<batch-prepare>", cause);
+    }
+
+    interface FailureCause {
+      readonly table: string;
+      readonly cause: unknown;
+    }
+    const wasPrunedMask = new Array<boolean>(input.items.length).fill(false);
+    const workspaceIdString = input.workspaceId.toString();
+    const failureRef: { current: FailureCause | null } = { current: null };
+    try {
+      this.db.transaction((): void => {
+        for (let i = 0; i < input.items.length; i += 1) {
+          const item = input.items[i];
+          /* c8 ignore start -- defensive: bounded loop indices, undefined only via misuse */
+          if (item === undefined) continue;
+          /* c8 ignore stop */
+          const key = item.kind.toString();
+          const deleteStmt = deleteStmtByKind.get(key);
+          /* c8 ignore start -- defensive: every kind from input was registered above; unreachable via the public API since prepared statements are populated symmetrically over the same input set. */
+          if (deleteStmt === undefined) {
+            const err = new Error(`unprepared kind in batch: ${key}`);
+            failureRef.current = {
+              table: tableByKind.get(key) ?? "<unknown>",
+              cause: err,
+            };
+            throw err;
+          }
+          /* c8 ignore stop */
+          try {
+            insertStmt.run(
+              workspaceIdString,
+              key,
+              item.entryId,
+              item.contentSnapshot,
+              item.reasonKind,
+              item.prunedAt.toEpochMs(),
+            );
+            const result = deleteStmt.run(item.entryId);
+            wasPrunedMask[i] = result.changes > 0;
+          } catch (cause: unknown) {
+            failureRef.current = {
+              table: tableByKind.get(key) ?? "<unknown>",
+              cause,
+            };
+            throw cause;
+          }
+        }
+      });
+    } catch (cause: unknown) {
+      const recorded = failureRef.current;
+      if (recorded !== null) {
+        throw CuratorInfrastructureError.upsertFailed(
+          recorded.table,
+          recorded.cause,
+        );
+      }
+      throw CuratorInfrastructureError.upsertFailed("<batch>", cause);
+    }
+    return wasPrunedMask;
+  }
+
   // -- internals --------------------------------------------------------
 
   private decaySqlForKind(kind: MemoryEntryKind): string {

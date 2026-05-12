@@ -120,4 +120,45 @@ export interface MemoryEntryWriter {
     reasonKind: "low_confidence" | "manual" | "consolidated_into_other" | "obsoleted";
     prunedAt: Timestamp;
   }): Promise<boolean>;
+
+  /**
+   * Bulk variant of {@link markPruned} that wraps every item in a
+   * single SQL transaction. Mirrors the design of
+   * {@link applyDecayBatch}: prefer this method whenever the caller
+   * has multiple pending prunes; the per-row `markPruned(...)` is
+   * one transaction per row (one fsync each), which scales linearly
+   * and dominates curator wall-clock for workspaces with >10k
+   * candidates (W-3.4-PERF-H2 — performance-auditor Fase 5).
+   *
+   * Atomicity: either every prune lands or none — the transaction
+   * rolls back on the first per-row failure. Idempotency is
+   * preserved per row: items whose live row was already deleted are
+   * silently skipped (they do NOT count toward the returned
+   * `entriesPruned`).
+   *
+   * Returns an array of booleans parallel to `input.items`: `true`
+   * means the corresponding live row was present and got deleted;
+   * `false` means the row was already gone (re-prune is idempotent).
+   * The caller can use the mask to drive per-row domain-event
+   * emission without losing the "already-deleted" no-op semantics
+   * of the singular {@link markPruned}.
+   *
+   * Performance: pre-compiles one `INSERT` + one per-kind `DELETE`
+   * statement, then drives the per-row hot loop in a tight
+   * `stmt.run(...)` so the inner cost matches `applyDecayBatch`.
+   */
+  markPrunedBatch(input: {
+    workspaceId: WorkspaceId;
+    items: readonly {
+      readonly kind: MemoryEntryKind;
+      readonly entryId: string;
+      readonly contentSnapshot: string;
+      readonly reasonKind:
+        | "low_confidence"
+        | "manual"
+        | "consolidated_into_other"
+        | "obsoleted";
+      readonly prunedAt: Timestamp;
+    }[];
+  }): Promise<readonly boolean[]>;
 }

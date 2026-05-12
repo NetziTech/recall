@@ -543,6 +543,116 @@ arriba.
   estas dos advisories explicitamente como "documented wontfix per
   ADR-004" hasta que se cierren.
 
+#### 1.5.5 ADR-005 — Multi-key envelope flow (Pending stubs deferral)
+
+**Status:** PROPOSED — pendiente revision arquitectonica (architect +
+crypto-security-expert) antes de implementacion. Bloquea cierre de
+las 3 `Pending*` facades hasta que se acepte.
+
+**Fecha:** 2026-05-12.
+
+**Contexto.** El modulo `encryption` ya soporta multiples envelopes a
+nivel de dominio (`EncryptionConfig.envelopes: KeyEnvelope[]`,
+`addEnvelope(...)` + `removeEnvelope(...)` + `unlockWith(...)` que
+recorre la lista de envelopes hasta encontrar uno que abra). La
+infraestructura (`JsonEncryptionConfigRepository`, AES-GCM cipher,
+KDF Argon2id) tambien esta lista. Lo que falta son las 3 facades a
+nivel de aplicacion + CLI:
+
+| Facade | Proposito |
+|---|---|
+| `AddKeyFacade` | Agregar un envelope adicional con un passphrase nuevo (multi-usuario, recovery). |
+| `RekeyFacade` | Rotar la master key. Re-cifra todos los envelopes con una nueva master, opcionalmente re-cifra el contenido SQLCipher con la nueva clave. |
+| `ExportKeyFacade` | Re-imprimir la printable form del master key (recovery one-shot). |
+
+Hoy las 3 viven como `Pending*` stubs en
+`composition/facades/cli-facades.ts` que lanzan `CliFacadeNotImplementedError`.
+
+**Decisiones pendientes que bloquean la implementacion.**
+
+| # | Decision | Implicacion |
+|---|---|---|
+| Q1 | **AddKey: requiere passphrase actual?** En el flujo CLI no hay "session unlocked" — cada comando arranca con la config locked. AddKey necesita la master key en memoria, asi que el usuario debe re-introducir la passphrase actual antes de la nueva. Decision: ¿incluir `currentPassphrase` en `AddKeyFacadeInput`, o usar el TTY prompt del CLI para pedirla? | API surface + UX |
+| Q2 | **Rekey: contenido SQLCipher se re-cifra o no?** SQLCipher tiene `PRAGMA rekey = '...'` que re-cifra la DB en place; pero solo soporta UN passphrase activo. ¿Se hace coordinado (rekey de SQLCipher + rotacion de envelopes)? ¿O se mantiene el modelo "master key estable, envelopes rotables"? La spec en `docs/11 §7` dice "envelopes rotables", lo que implica que SQLCipher usa la MASTER (no la derived); rekey rotaria solo el envelope path, no SQLCipher. Confirmar. | Blast radius (1s vs O(rows)) + concurrencia |
+| Q3 | **ExportKey: que renderiza?** Tres opciones: (a) la master key cruda en hex; (b) un BIP-39 mnemonic; (c) el formato `M3-ZK7L-...` que ya existe en `docs/11 §3`. (c) tiene precedente en init pero no esta documentado el rendering. Decision: ¿usar (c) y formalizar la spec del checksum / Reed-Solomon? | Operacional + audit |
+| Q4 | **Audit trail por envelope.** `KeyEnvelopeAdded` y `KeyEnvelopeRemoved` existen como eventos de dominio; pero `secrets/` tiene un audit log dedicado para detecciones. ¿Estos eventos van al `secrets.audit_log` o a un nuevo `encryption.audit_log`? | Defense in depth + visibility |
+| Q5 | **CLI UX.** Cada comando (`add-key`, `rekey`, `export-key`) requiere TTY prompts no triviales (passphrase strength meter, confirmacion, advertencias de "una sola vez"). ¿Mover esto a una libreria de prompts compartida con `init`? | Reuso + tests |
+
+**Decision propuesta.** Mantener los 3 `Pending*` stubs hasta que la
+revision arquitectonica (architect + crypto-security-expert)
+responda Q1-Q5. Implementar AddKey primero como menor blast radius
+(Q1 + Q4), diferir Rekey + ExportKey a una segunda iteracion.
+
+**Justificacion para no implementar autonomamente.**
+
+1. **API surface unica vez.** Cambiar `AddKeyFacadeInput` (agregar
+   `currentPassphrase`) post-release es un breaking change al CLI;
+   peor si lo emite un agente sin senorial input.
+2. **ExportKey representa material confidencial.** El rendering
+   format se persiste de facto cuando el usuario lo escribe en su
+   gestor de passwords; cambiarlo post-release rompe recuperacion.
+3. **Rekey impacta concurrencia.** Si el rekey re-cifra la DB
+   SQLCipher (opcion Q2-b), el procedimiento debe ser exclusivo (no
+   readers concurrentes) y manejar partial failure. Un mal diseno
+   aqui deja la DB en estado mixto irreversible.
+
+**Trigger de re-apertura.** El usuario abre review con architect +
+crypto-security-expert sobre Q1-Q5. Una vez resueltos, este ADR
+cambia a STATUS=ACCEPTED y se reemplazan los 3 `Pending*` stubs.
+
+#### 1.5.6 ADR-006 — Encrypted cold start <500ms via OS keychain (deferral)
+
+**Status:** PROPOSED — pendiente decision de seguridad (architect +
+crypto-security-expert + security-auditor).
+
+**Fecha:** 2026-05-12.
+
+**Contexto.** El SLO actual de cold start encrypted es `<1500ms`
+(revisado en Fase 5 Decision E del architect-final-review desde el
+target original de `<400ms`). La barrera es la KDF Argon2id con
+parametros OWASP 2024 (64 MiB / 3 iter / 4 parallel) que toma
+~1.2-1.4s en hardware moderno. Bajar el target a `<500ms` sin
+debilitar el KDF requiere caching de la derived key fuera del
+proceso.
+
+**Mecanismo propuesto.** Almacenar la derived key (no la master ni
+la passphrase) en el OS keychain del usuario, indexed por
+`workspaceId`. El primer unlock paga el costo Argon2id completo; los
+siguientes recuperan la derived key del keychain en <50ms (lookup +
+permission check) y bypassan el KDF.
+
+**Decisiones pendientes que bloquean la implementacion.**
+
+| # | Decision | Implicacion |
+|---|---|---|
+| Q1 | **APIs por plataforma.** macOS: `Security.framework` keychain via `keytar` o `node-keytar`. Linux: `libsecret` via `keytar` (requiere `libsecret-1-0` instalado, falla en docker base images sin shell session). Windows: DPAPI via `keytar`. La degradacion grace cuando el keychain no esta disponible? Fallback al flow Argon2id estandar o error? | UX en CI / containers |
+| Q2 | **TTL del cache.** ¿La derived key vive en keychain para siempre o expira? Si expira, ¿cada cuanto? ¿Cuando el OS bloquea la sesion del usuario? `keytar` no expone TTL nativo. | Trade-off security/usability |
+| Q3 | **Modelo de amenaza.** Un atacante con acceso al keychain del usuario (e.g. via malware en el laptop) extrae la derived key sin necesidad de la passphrase. ¿Este es un threat que vale la pena soportar? Si si, el cache no debe existir. Si no, mitigation: vincular la derived key al `workspaceId` + checksum del `.recall/config.json` para invalidar el cache cuando el config cambia. | Aceptacion del trade-off |
+| Q4 | **Multi-key compatibility.** Cada envelope tiene su propio `derived key`. El cache puede tener N entries (1 por envelope). ¿Como se invalida cuando un envelope se rota? ¿Como se sincroniza? | Coordinacion con ADR-005 |
+| Q5 | **Auditoria.** Cada hit del cache deberia loggear un evento `EncryptionUnlockedFromCache`? El audit log local podria llenarse rapidamente. ¿Aggregate batched? | Cardinality del audit |
+
+**Decision propuesta.** No implementar en v0.5. Documentar el SLO
+revisado <1500ms como aceptable. Cuando un usuario pida explicitamente
+"unlock <500ms" para un workflow que lo justifique (e.g. spinning up
+50 workspaces en secuencia para CI), reabrir este ADR con respuestas
+a Q1-Q5.
+
+**Alternativas rechazadas.**
+
+1. **Reducir parametros Argon2id.** Rechazada: OWASP 2024 floor es
+   64 MiB / 3 iter / 4 parallel. Bajar de ahi es relajar el security
+   posture, fuera del modelo de amenaza.
+2. **Cache in-memory del proceso.** Util solo para el caso "mismo
+   proceso unlock + use", que ya es <1ms (el dominio mantiene la
+   master key en `EncryptionConfig`). No resuelve cold start.
+3. **Cache en disco encriptado por OS-bound secret.** Equivalente
+   al OS keychain pero con mas codigo custom; el keychain es el
+   mecanismo audited de facto.
+
+**Trigger de re-apertura.** Usuario justifica un workflow donde
+<500ms es load-bearing, **o** Q1-Q5 resueltas por architect +
+crypto-security-expert.
+
 ---
 
 ### 1.6 Cero `any`, type-safety total

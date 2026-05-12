@@ -303,6 +303,147 @@ describe("SqliteMemoryEntryWriter.markPruned", () => {
   });
 });
 
+describe("SqliteMemoryEntryWriter.markPrunedBatch (W-3.4-PERF-H2)", () => {
+  it("empty batch returns empty mask without touching the database", async () => {
+    const mask = await writer.markPrunedBatch({
+      workspaceId: makeWorkspaceId(),
+      items: [],
+    });
+    expect(mask).toEqual([]);
+  });
+
+  it("batches multiple kinds in a single transaction; returns a parallel mask", async () => {
+    // Pre-populate: 2 learnings + 1 turn live; one extra learning id
+    // is left absent to exercise the `wasPruned=false` arm.
+    db.prepare(`INSERT INTO learnings (id, confidence) VALUES (?, ?)`).run(
+      FIXED_LEARNING_UUID,
+      0.1,
+    );
+    const SECOND_LEARNING = "01952f3c-2222-7000-8000-cccccccccc02";
+    db.prepare(`INSERT INTO learnings (id, confidence) VALUES (?, ?)`).run(
+      SECOND_LEARNING,
+      0.1,
+    );
+    db.prepare(`INSERT INTO turns (id, confidence) VALUES (?, ?)`).run(
+      FIXED_TURN_UUID,
+      0.1,
+    );
+    const ABSENT_LEARNING = "01952f3c-2222-7000-8000-cccccccccc03";
+
+    const workspaceId = makeWorkspaceId();
+    const mask = await writer.markPrunedBatch({
+      workspaceId,
+      items: [
+        {
+          kind: MemoryEntryKind.learning(),
+          entryId: FIXED_LEARNING_UUID,
+          contentSnapshot: `{"id":"${FIXED_LEARNING_UUID}"}`,
+          reasonKind: "low_confidence",
+          prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+        },
+        {
+          kind: MemoryEntryKind.turn(),
+          entryId: FIXED_TURN_UUID,
+          contentSnapshot: `{"id":"${FIXED_TURN_UUID}"}`,
+          reasonKind: "low_confidence",
+          prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+        },
+        {
+          kind: MemoryEntryKind.learning(),
+          entryId: SECOND_LEARNING,
+          contentSnapshot: `{"id":"${SECOND_LEARNING}"}`,
+          reasonKind: "manual",
+          prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+        },
+        {
+          kind: MemoryEntryKind.learning(),
+          entryId: ABSENT_LEARNING,
+          contentSnapshot: `{"id":"${ABSENT_LEARNING}"}`,
+          reasonKind: "low_confidence",
+          prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+        },
+      ],
+    });
+
+    // Mask: live rows existed for indices 0/1/2, absent for index 3.
+    expect(mask).toEqual([true, true, true, false]);
+
+    // Live tables: only the absent id survives (because it was never
+    // there). All other live rows were deleted.
+    const learnings = db
+      .prepare(`SELECT id FROM learnings WHERE id IN (?, ?, ?)`)
+      .all(FIXED_LEARNING_UUID, SECOND_LEARNING, ABSENT_LEARNING);
+    expect(learnings).toEqual([]);
+    const turns = db
+      .prepare(`SELECT id FROM turns WHERE id = ?`)
+      .get(FIXED_TURN_UUID);
+    expect(turns).toBeUndefined();
+
+    // Audit trail: even for the absent id, the snapshot landed in
+    // `pruned`. This matches the singular `markPruned` semantics
+    // (audit snapshot is independent of whether the live row
+    // pre-existed).
+    const archives = db
+      .prepare(
+        `SELECT original_id FROM pruned WHERE workspace_id = ? ORDER BY original_id`,
+      )
+      .all(workspaceId.toString()) as { original_id: string }[];
+    expect(archives.map((a) => a.original_id).sort()).toEqual(
+      [FIXED_LEARNING_UUID, SECOND_LEARNING, ABSENT_LEARNING, FIXED_TURN_UUID].sort(),
+    );
+  });
+
+  it("rolls back the entire batch when ANY delete fails (transactional safety)", async () => {
+    db.prepare(`INSERT INTO learnings (id, confidence) VALUES (?, ?)`).run(
+      FIXED_LEARNING_UUID,
+      0.1,
+    );
+    db.prepare(`INSERT INTO turns (id, confidence) VALUES (?, ?)`).run(
+      FIXED_TURN_UUID,
+      0.1,
+    );
+
+    // Drop the turns table mid-batch to force a SQL error on the
+    // second item.
+    db.exec(`DROP TABLE turns`);
+
+    const workspaceId = makeWorkspaceId();
+    await expect(
+      writer.markPrunedBatch({
+        workspaceId,
+        items: [
+          {
+            kind: MemoryEntryKind.learning(),
+            entryId: FIXED_LEARNING_UUID,
+            contentSnapshot: "{}",
+            reasonKind: "low_confidence",
+            prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+          },
+          {
+            kind: MemoryEntryKind.turn(),
+            entryId: FIXED_TURN_UUID,
+            contentSnapshot: "{}",
+            reasonKind: "low_confidence",
+            prunedAt: Timestamp.fromEpochMs(ANCHOR_TIME_MS),
+          },
+        ],
+      }),
+    ).rejects.toThrow(CuratorInfrastructureError);
+
+    // The learning's live row STILL exists — the whole transaction
+    // (insert into pruned + delete from learnings) rolled back.
+    const liveLearning = db
+      .prepare(`SELECT id FROM learnings WHERE id = ?`)
+      .get(FIXED_LEARNING_UUID);
+    expect(liveLearning).toBeDefined();
+    // No audit-trail rows survived either.
+    const archives = db
+      .prepare(`SELECT COUNT(*) as n FROM pruned WHERE workspace_id = ?`)
+      .get(workspaceId.toString()) as { n: number };
+    expect(archives.n).toBe(0);
+  });
+});
+
 /**
  * Edge cases added to push the file's coverage above the 95% threshold.
  *
