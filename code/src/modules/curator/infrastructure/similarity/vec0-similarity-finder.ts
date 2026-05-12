@@ -25,11 +25,17 @@ import { CosineScore } from "../../domain/value-objects/cosine-score.ts";
 const KNN_PER_CANDIDATE = 8;
 
 /**
- * Zod schema for a row of the embedding lookup. The SELECT joins
- * `embedding_metadata` (curator-side) with the `embeddings` virtual
- * table; this schema validates the columns we read.
+ * Zod schema for a row of the batch embedding lookup. The SELECT pulls
+ * `(id, embedding)` from the `embeddings` virtual table for every
+ * candidate in a single round-trip (see {@link buildBatchLoadSql}).
+ *
+ * Refactor W-3.4-PERF-H3: previously the adapter ran one
+ * `SELECT ... WHERE id = ?` per candidate (the "1+1 lookup" N+1
+ * pattern). The new shape returns the embedding alongside its id so the
+ * caller can build an `id → embedding` map after a single query.
  */
 const EmbeddingRowSchema = z.object({
+  id: z.string().min(1),
   embedding: z.instanceof(Uint8Array),
 });
 
@@ -44,17 +50,26 @@ const KnnRowSchema = z.object({
 });
 
 /**
- * SQL that pulls the embedding for a given candidate. The curator does
- * not own the `embeddings` schema (it lives in `vectors.db` per
- * `docs/03-modelo-datos.md` §5); the adapter is wired with a
- * `DatabaseConnection` opened on the vectors DB at composition time.
+ * Builds the parametrised SQL for the batch embedding lookup. Generates
+ * one `?` placeholder per candidate id; the placeholders are bound
+ * positionally with `stmt.all(...ids)`. NEVER interpolate user data:
+ * only the placeholder count is templated, every id flows through the
+ * driver's prepared-statement binding.
+ *
+ * Why a dynamic placeholder list instead of `IN (json_each(?))` or a
+ * temp table: the candidate set is bounded by the consolidation budget
+ * (`< 500 per pass`, `docs/05-memoria-decay.md` §3), keeping the SQL
+ * size well below SQLite's 999-bind-parameter default limit. The
+ * dynamic IN list is the canonical, driver-agnostic approach.
  */
-const SQL_LOAD_EMBEDDING = `
-SELECT embedding
+function buildBatchLoadSql(count: number): string {
+  const placeholders = new Array<string>(count).fill("?").join(", ");
+  return `
+SELECT id, embedding
 FROM embeddings
-WHERE id = ?
-LIMIT 1
+WHERE id IN (${placeholders})
 `.trim();
+}
 
 /**
  * SQL for the cosine-distance KNN query on the sqlite-vec virtual
@@ -85,15 +100,16 @@ ORDER BY distance ASC
  * `docs/03-modelo-datos.md` §11). The composition root opens both
  * connections and supplies the right one here.
  *
- * Algorithm:
+ * Algorithm (refactor W-3.4-PERF-H3):
  * 1. Build a map `id → text` from the input candidates.
- * 2. For each candidate, fetch its embedding from the `embeddings`
- *    virtual table. If the embedding is missing (`embedding_status`
- *    pending/failed), skip the candidate.
- * 3. Run a KNN query asking for the `KNN_PER_CANDIDATE` closest
- *    neighbours. For each (a, b) pair where `a < b` (lexicographic),
- *    convert the distance to a cosine score and emit the pair if
- *    above threshold.
+ * 2. **Batch-load every embedding in a single `SELECT ... WHERE id IN
+ *    (?, ?, ...)` round-trip.** Candidates whose embedding is missing
+ *    (`embedding_status` pending/failed) are silently absent from the
+ *    map and skipped in step 3.
+ * 3. For each candidate that has an embedding, run a KNN query asking
+ *    for the `KNN_PER_CANDIDATE` closest neighbours. For each (a, b)
+ *    pair where `a < b` (lexicographic), convert the distance to a
+ *    cosine score and emit the pair if above threshold.
  * 4. Deduplicate pairs (`(a, b)` and `(b, a)` produce the same pair
  *    in our lexicographic ordering, but defensive deduplication is
  *    cheap).
@@ -104,11 +120,27 @@ ORDER BY distance ASC
  * and pins `cosine` as the metric, see `docs/03-modelo-datos.md`
  * §5). The conversion is `cosine_score = 1 - distance`.
  *
- * Performance:
- * - The adapter does NOT compute the full O(n²) cosine matrix; the
- *   sqlite-vec KNN cuts the work to O(n × log n) for typical
+ * Performance (W-3.4-PERF-H3, refactor):
+ * - Previously the adapter ran `2N` queries per pass (`N` embedding
+ *   lookups + `N` KNN queries). The new shape replaces the per-
+ *   candidate lookup with one batched `IN (...)` query, dropping the
+ *   round-trips to `N + 1`. For a 500-candidate pass: from ~1000 to
+ *   ~501 SQLite calls.
+ * - The KNN statement is prepared exactly once per pass (`db.prepare`
+ *   is invoked from this adapter at most twice: once for the batch
+ *   load, once for the KNN). The driver's own statement cache is not
+ *   relied upon for correctness; this adapter pins its own references.
+ * - The adapter still does NOT compute the full O(n²) cosine matrix;
+ *   the sqlite-vec KNN cuts the work to O(n × log n) for typical
  *   embedder dimensions (384–1024).
- * - Prepared statements are reused per candidate.
+ *
+ * Benchmark guidance: the N+1 pattern is structural — its cost is the
+ * driver-side round-trip overhead, which is invisible on `:memory:`
+ * fixtures (sub-microsecond per call). The synthetic benchmarks in
+ * `tests/benchmarks/` will not show a measurable delta; the refactor's
+ * value is realised on disk-backed prod databases (~50µs/call) and on
+ * future ANN-backed adapters where batched lookups unlock vectorised
+ * SIMD paths. See `HANDOFF.md` §8 (W-3.4-PERF-H3) for the rationale.
  *
  * Embedder dependency note: the MVP adapter does NOT recompute
  * embeddings on the fly — the consolidation pass strictly reads the
@@ -155,11 +187,14 @@ export class Vec0SimilarityFinder implements SimilarityFinder {
       return Promise.resolve(Object.freeze([]));
     }
 
-    const loadStmt = this.vectorsDb.prepare(SQL_LOAD_EMBEDDING);
+    // Batch-load every embedding in a single round-trip
+    // (W-3.4-PERF-H3). Candidates whose embedding is missing simply do
+    // not appear in the map and get skipped in the loop below.
+    const embeddingById = this.loadEmbeddingsBatch(input.candidates);
 
     for (const candidate of input.candidates) {
-      const vectorBytes = this.loadEmbeddingBytes(loadStmt, candidate);
-      if (vectorBytes === null) continue;
+      const vectorBytes = embeddingById.get(candidate.learningId);
+      if (vectorBytes === undefined) continue;
 
       let knnRows: readonly unknown[];
       try {
@@ -200,27 +235,53 @@ export class Vec0SimilarityFinder implements SimilarityFinder {
     return Promise.resolve(Object.freeze(out));
   }
 
-  private loadEmbeddingBytes(
-    loadStmt: ReturnType<DatabaseConnection["prepare"]>,
-    candidate: ConsolidationCandidate,
-  ): Uint8Array | null {
-    let row: unknown;
+  /**
+   * Single-round-trip lookup of every candidate's embedding bytes.
+   *
+   * Refactor W-3.4-PERF-H3: replaces the previous per-candidate
+   * `SELECT ... WHERE id = ?` loop (1+1 lookup, N+1 antipattern). The
+   * batch query uses positional `?` placeholders — one per candidate —
+   * bound via `stmt.all(...ids)`. The placeholder count is the only
+   * thing templated into the SQL string; every value still flows
+   * through the driver's prepared-statement binding.
+   *
+   * Failure mode: if the batch SELECT throws (a corrupted vectors.db,
+   * a closed connection, etc.), the adapter logs a warning and
+   * returns an empty map; downstream the loop sees every candidate
+   * as "missing embedding" and silently skips them, matching the
+   * `SimilarityFinder` contract.
+   *
+   * Rows whose Zod validation fails are dropped from the map (defensive:
+   * a corrupted row should not crash the entire pass).
+   */
+  private loadEmbeddingsBatch(
+    candidates: readonly ConsolidationCandidate[],
+  ): Map<string, Uint8Array> {
+    const ids = candidates.map((c) => c.learningId);
+    const sql = buildBatchLoadSql(ids.length);
+    const out = new Map<string, Uint8Array>();
+
+    let rows: readonly unknown[];
     try {
-      row = loadStmt.get(candidate.learningId);
+      const stmt = this.vectorsDb.prepare(sql);
+      rows = stmt.all(...ids);
     } catch (cause: unknown) {
       this.logger.warn(
         {
-          candidateId: candidate.learningId,
           err: cause instanceof Error ? cause.message : String(cause),
+          candidateCount: candidates.length,
         },
-        "curator: embedding lookup failed; skipping candidate",
+        "curator: batch embedding lookup failed; skipping consolidation pass",
       );
-      return null;
+      return out;
     }
-    if (row === undefined) return null;
-    const parsed = EmbeddingRowSchema.safeParse(row);
-    if (!parsed.success) return null;
-    return parsed.data.embedding;
+
+    for (const row of rows) {
+      const parsed = EmbeddingRowSchema.safeParse(row);
+      if (!parsed.success) continue;
+      out.set(parsed.data.id, parsed.data.embedding);
+    }
+    return out;
   }
 
   private parseKnnRow(raw: unknown): z.infer<typeof KnnRowSchema> | null {
