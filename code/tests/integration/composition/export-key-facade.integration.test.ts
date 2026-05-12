@@ -115,7 +115,10 @@ describe("integration / composition / CliExportKeyFacadeAdapter", () => {
 
     // Shape assertions on the wire output.
     expect(out.workspaceId.length).toBeGreaterThan(0);
-    expect(out.printableMasterKey.startsWith("m31-")).toBe(true);
+    // Cosmetic dashes group chars in 4s; the first group is `m31X` where
+    // X is the first data char (depending on master bytes), so we assert
+    // the HRP+separator prefix `m31` directly on the stripped form.
+    expect(out.printableMasterKey.startsWith("m31")).toBe(true);
     // 61 raw chars + 15 cosmetic dashes (= 76 chars) per `docs/11 §3`.
     const stripped = out.printableMasterKey.replaceAll("-", "");
     expect(stripped.length).toBe(PrintableMasterKey.renderedLength());
