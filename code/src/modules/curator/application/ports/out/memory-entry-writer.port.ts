@@ -11,9 +11,16 @@ import type { MemoryEntryKind } from "../../../domain/value-objects/memory-entry
  * kind-specific repository directly from `memory/domain`) for two
  * reasons:
  *
- * 1. ISP: the curator only needs three operations
- *    (`applyDecay`, `markPruned`, `tagAsStale`); a single narrow
- *    port keeps the test surface small.
+ * 1. ISP: the curator's mutation surface clusters into three
+ *    operation families (decay, prune, tag-as-stale), each with a
+ *    singular variant for ad-hoc calls and a batch variant for the
+ *    curator's bulk passes (`applyDecay` / `applyDecayBatch`,
+ *    `markPruned` / `markPrunedBatch`, `tagEntityAsStale`). Five
+ *    methods total, sharing the same dispatch semantics over
+ *    `MemoryEntryKind`, kept in a single narrow port because every
+ *    caller (the curator's prune / decay / self-heal use cases) is
+ *    in the same bounded context and the test surface remains
+ *    small. A sixth operation family would warrant segmentation.
  * 2. The implementation is a single SQLite-backed adapter
  *    (`SqliteMemoryEntryWriter` in
  *    `modules/curator/infrastructure/persistence/`). The adapter
