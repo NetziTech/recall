@@ -207,8 +207,14 @@ function getSubtle(): webcrypto.SubtleCrypto {
  * Generates a fresh 12-byte nonce from Node's CSPRNG. AES-GCM
  * security collapses on nonce reuse, so we use the platform's
  * canonical entropy source directly here.
+ *
+ * Return type is `Uint8Array<ArrayBuffer>` (not the looser
+ * `Uint8Array<ArrayBufferLike>`) to document that the helper
+ * always allocates a fresh `ArrayBuffer`-backed view — Web Crypto's
+ * `BufferSource` accepts only `<ArrayBuffer>` under
+ * `@types/node@25`'s stricter typings.
  */
-function generateNonce(): Uint8Array {
+function generateNonce(): Uint8Array<ArrayBuffer> {
   const buffer = new Uint8Array(AES_GCM_NONCE_LENGTH_BYTES);
   webcrypto.getRandomValues(buffer);
   return buffer;
@@ -223,7 +229,7 @@ function generateNonce(): Uint8Array {
  */
 async function importDerivedKey(
   subtle: webcrypto.SubtleCrypto,
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   usage: webcrypto.KeyUsage,
 ): Promise<webcrypto.CryptoKey> {
   try {

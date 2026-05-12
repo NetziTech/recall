@@ -115,7 +115,12 @@ function getSubtle(): webcrypto.SubtleCrypto {
   return webcrypto.subtle;
 }
 
-function generateNonce(): Uint8Array {
+/**
+ * Generates a fresh 12-byte nonce. See
+ * `aes-gcm-envelope-cipher.ts#generateNonce` for the
+ * `Uint8Array<ArrayBuffer>` return-typing rationale.
+ */
+function generateNonce(): Uint8Array<ArrayBuffer> {
   const buffer = new Uint8Array(AES_GCM_NONCE_LENGTH_BYTES);
   webcrypto.getRandomValues(buffer);
   return buffer;
@@ -123,7 +128,7 @@ function generateNonce(): Uint8Array {
 
 async function importMasterKey(
   subtle: webcrypto.SubtleCrypto,
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
 ): Promise<webcrypto.CryptoKey> {
   try {
     return await subtle.importKey(

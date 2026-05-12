@@ -88,7 +88,9 @@ export class SaltBytes {
    * codebase rule "secret material never leaves a VO via getter" is
    * easy to enforce when ALL crypto VOs follow it.
    */
-  public withBytes<TResult>(callback: (bytes: Uint8Array) => TResult): TResult {
+  public withBytes<TResult>(
+    callback: (bytes: Uint8Array<ArrayBuffer>) => TResult,
+  ): TResult {
     const copy = new Uint8Array(this.bytes);
     return callback(copy);
   }
