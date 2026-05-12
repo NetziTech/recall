@@ -14,7 +14,7 @@
 
 | Item | Estado |
 |---|---|
-| **Fecha del handoff** | 2026-05-12 (Phase-21 roadmap v0.5+ autonomic batch CERRADA — 5 PRs #66-#70: (a) **W-3.5-SEC-L2** path-leak fix en 12 Error factories (workspace/secrets/curator), patron `details: { path }` replicando PR #45 → CERRADO; (b) **`@types/node@25`** bump habilitado via signature tightening `Uint8Array<ArrayBuffer>` sin `as` casts (3 VOs encryption domain + 3 AES-GCM adapters); (c) **Coverage restore 90→95** docu en `sonar-project.properties` + tests reales +21 VALOR en 4 archivos (json-memory-importer/exporter, json-encryption-config-repo, node-workspace-filesystem) — aggregate 95.17% → ~95.69%; (d) **W-3.4-PERF-H2** `markPrunedBatch` (1 transaction vs N fsyncs) con mask paralelo para per-row idempotency events → CERRADO; (e) **ADR-005** multi-key envelope flow (Q1-Q5 architect review pendiente) + **ADR-006** OS keychain <500ms (decision: defer, SLO <1500ms aceptable) PROPOSED; (f) doc drift PR #70 fix JSDoc port. **4 validadores arquitectonicos post-merge** (clean-arch, ddd, solid, security) reportaron APROBADO. 2649 tests passing en 215 archivos (+41 vs Phase-20 baseline 2608). Coverage Istanbul: stmt 96.77% / br 90.7% / fn 98.51% / lines 98.04%; agregado SonarQube ~95.69%. **0 issues + 0 PRs abiertos**. **Verificacion 2026-05-12 via API SonarQube** (`api/qualitygates/show` + `api/qualitygates/project_status`): gate `MCP Memoria Strict` ya tiene `coverage LT 95` y `new_coverage LT 95` server-side (>=95 exigido), proyecto `recall` en status `OK` con coverage actual 95.7% / new_coverage 99.4%. El "flip 90→95" estaba CERRADO desde antes de la sesion de auditoria del HANDOFF Phase-21 (probablemente nunca llego al 90 server-side; el doc drift venia de Phase-20). **Phase-22 doc-only iteracion 1 ADR-005**: review formal de 3 validadores (architect + crypto-security-expert + security-auditor) + spec Bech32 BIP-173 congelada en `docs/11 §3` + ADR-005 actualizado a `STATUS=ACCEPTED` con apendice Q1-Q5. Decisiones finales: Q1 input opaco (TTY en cli/infrastructure orquestado por composition root); Q2 envelope-only rotation con atomicidad transactional + limite "no rota master comprometida" documentado; Q3 Bech32 BIP-173 HRP `m3` + 6 chars BCH checksum (61 chars total); Q4 `encryption.audit_log` dedicado con migracion `009__encryption-audit-log.sql` + schema congelado + master_fp local-only; Q5 prompts en `cli/infrastructure/prompts/` (NO shared, por regla 1.5 R3). Ver §6.26 + apendice ADR-005. **Ningun bloqueador**: iteracion 2 (codigo) ready cuando se decida. **Accion humana pendiente: ninguna critica**. Ver §6.26) |
+| **Fecha del handoff** | 2026-05-12 (Phase-21 roadmap v0.5+ autonomic batch CERRADA — 5 PRs #66-#70: (a) **W-3.5-SEC-L2** path-leak fix en 12 Error factories (workspace/secrets/curator), patron `details: { path }` replicando PR #45 → CERRADO; (b) **`@types/node@25`** bump habilitado via signature tightening `Uint8Array<ArrayBuffer>` sin `as` casts (3 VOs encryption domain + 3 AES-GCM adapters); (c) **Coverage restore 90→95** docu en `sonar-project.properties` + tests reales +21 VALOR en 4 archivos (json-memory-importer/exporter, json-encryption-config-repo, node-workspace-filesystem) — aggregate 95.17% → ~95.69%; (d) **W-3.4-PERF-H2** `markPrunedBatch` (1 transaction vs N fsyncs) con mask paralelo para per-row idempotency events → CERRADO; (e) **ADR-005** multi-key envelope flow (Q1-Q5 architect review pendiente) + **ADR-006** OS keychain <500ms (decision: defer, SLO <1500ms aceptable) PROPOSED; (f) doc drift PR #70 fix JSDoc port. **4 validadores arquitectonicos post-merge** (clean-arch, ddd, solid, security) reportaron APROBADO. 2649 tests passing en 215 archivos (+41 vs Phase-20 baseline 2608). Coverage Istanbul: stmt 96.77% / br 90.7% / fn 98.51% / lines 98.04%; agregado SonarQube ~95.69%. **0 issues + 0 PRs abiertos**. **Verificacion 2026-05-12 via API SonarQube** (`api/qualitygates/show` + `api/qualitygates/project_status`): gate `MCP Memoria Strict` ya tiene `coverage LT 95` y `new_coverage LT 95` server-side (>=95 exigido), proyecto `recall` en status `OK` con coverage actual 95.7% / new_coverage 99.4%. El "flip 90→95" estaba CERRADO desde antes de la sesion de auditoria del HANDOFF Phase-21 (probablemente nunca llego al 90 server-side; el doc drift venia de Phase-20). **Phase-22 doc-only ADR-005 ACCEPTED + Phase-23 codigo Fase 1+2 (5 PRs mergeados + 1 wontfix re-confirmado)**: Phase-22 cerro Q1-Q5 via review formal de 3 validadores + spec Bech32 BIP-173 congelada. Phase-23 (misma sesion, continuacion) implemento pasos 1-5 del plan iteracion 2 con 5 PRs mergeados a develop: [#73](https://github.com/NetziTech/recall/pull/73) A1 secureZero (`d7706f6`), [#74](https://github.com/NetziTech/recall/pull/74) B Vec0SimilarityFinder batch (`577ed3a`, **CIERRA W-3.4-PERF-H3 HIGH**), [#75](https://github.com/NetziTech/recall/pull/75) A4 encryption.audit_log con migracion 009 + master_fp local-only + append-only triggers (`42cec4d`), [#77](https://github.com/NetziTech/recall/pull/77) A3 PrintableMasterKey Bech32 BIP-173 con vectores V1/V2/V3 congelados (`74874e6`), [#78](https://github.com/NetziTech/recall/pull/78) A2 CLI prompts library con Shannon entropy + SIGINT zeroize + NFKC (`4f2b7a8`). PR [#76](https://github.com/NetziTech/recall/pull/76) tar@7 override CERRADO wontfix (causa: tar@7.5.15 ESM no exporta `default`; fastembed ESM hace `import tar from "tar"` → SyntaxError CI). Validadores ejecutados pre-merge para cada PR (clean-arch + solid + ddd + crypto + security segun aplique). 1 follow-up nuevo: FP-001 / W-Q4-CI-GATE (medium severity, anadir CI gate para `.toHex()` fuera del adapter). **Fase 3 EN CURSO**: A5 AddKeyFacade + A6 RekeyFacade + A7 ExportKeyFacade pendientes (serial, todos tocan composition/facades). HEAD develop: `74874e6`, 65 commits ahead de main. Ver §6.27 + §6.28) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
 | **Fase actual** | **Phase-21 roadmap v0.5+ autonomic batch CERRADO en develop** — 5 PRs mergeados (#66-#70) cierran 3 items substantivos (W-3.5-SEC-L2 path-leak, `@types/node@25` bump, coverage restore 90→95, W-3.4-PERF-H2 markPrunedBatch) + diferen 2 items via ADR (ADR-005 multi-key + ADR-006 OS keychain). Auditoria arquitectonica formal post-merge (clean-architecture-validator + ddd-validator + solid-validator + security-auditor) reporta **APROBADO** sobre `c3b78c1..c0734b2`. Coverage Istanbul: stmt 96.77 / br 90.7 / fn 98.51 / lines 98.04; agregado SonarQube ~95.69%. 2649 tests passing en 215 archivos. **HEAD develop (post #70)**: `6f9ce32`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop **23 commits ahead de main** post-Phase-21 (era 18 al cierre Phase-20). **Accion humana pendiente**: flip SonarQube gate UI 90→95 + architect review ADR-005 Q1-Q5. Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + vitest 4 + Istanbul + `@types/node@25` + W-3.5-SEC-L2 + markPrunedBatch + 2 ADRs proposed + coverage 95% restored. Ver §6.26. Anterior: **Phase-20 vitest 4 + Istanbul + dead-cause refactor + gate 95→90 CERRADO** — PR #64 mergea (a) migración `vitest` 3.2.4→4.1.6 + `@vitest/coverage-v8`→`@vitest/coverage-istanbul` 4.1.6 (provider más maduro, evita re-litigar el cambio de counting model cuando vitest 5 salga), (b) `patches/vitest+4.1.6.patch` regenerado para el bug birpc 60s `onTaskUpdate` (vitest#8164) que sigue presente en 4.x, (c) **Refactor A**: eliminado patrón `options?: { cause?: unknown }` dead en 30+ error classes (2 root abstracts + 13 intermediates + 31 concrete simples + 7 mixed-options + 4 input-bag/required-options), signatures uniforme `(args..., cause?: unknown)` con cause directo al super, −150 LOC dead code; 7 callers SRC actualizados (raw-embedder-adapter, json-rpc-handler ×2, tool-dispatcher, secret-pattern, commander-cli-parser, path-sanitizer-rule, 3 mcp-server infra errors); 10 test files migrados al nuevo positional signature, (d) **Fase B** tests reales: `process-tty.ts` 25.9%→85.2% branches (stubbed stdin con EventEmitter + isTTY/setRawMode shim drive ENTER/CR/Ctrl-C/backspace/multi-event), `argon2id-kdf.ts` `classifyKdfError` 50%→100% branches (vi.mock @noble/hashes/argon2.js para drive OOM-like / generic / non-Error / pre-classified throws), equals(self) fast-path para EntityRef/TaskRef/TurnRef/ToolArgs, (e) `src/bootstrap/**` excluido del coverage (composition root analogue, ~840 LOC wiring), (f) SonarQube quality gate strict 95%→**90%** documentado en sonar-project.properties con roadmap de restauración al 95%. Coverage honesto Istanbul: stmt 96.5%, br 89.6%, fn 98.3%, lines 97.8%; **agregado SonarQube 95.17%** (vs baseline v3 inflado 96.4%). 2608 tests passing en 213 files. Roadmap v0.5+ #8 (vitest 4 re-evaluation) CLOSED; los 2 `@dependabot ignore this major version` en PRs #50/#59 siguen activos pero ahora son protectores forward (cuando salga vitest 5). Phase-16 `@netzi/recall@0.1.2` STABLE sigue intacto en `latest`. **HEAD develop (post #64)**: `8fce37e`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop diverge de main por **18 commits** (4 hardening Phase-17 + 1 refactor preparatorio + 7 dep bumps Phase-18 + 4 docs HANDOFF + 1 Node 24 LTS Phase-19 + 1 vitest 4 / refactor A / Fase B / gate down Phase-20). Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + @types/node 24 + vitest 4 + Istanbul + −150 LOC dead error code + bumps de stack (zod 4.4, hono, eslint, typescript-eslint, fast-uri, ip-address, express-rate-limit). |
 | **Lineas de codigo** | ~62,000 en `code/src/` + ~38,000 LOC de tests en **215 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-21 deltas**: +355 LOC neto en `code/src/` (W-3.5-SEC-L2 errors +191/-46, `@types/node@25` signature tightening +29/-11, markPrunedBatch port +40 + adapter +110 + use case +30/-7, doc drift fix +10/-3), +810 LOC de tests (+21 nuevos tests + 4 SQLite integration tests para markPrunedBatch + 2 nuevos test files para foreign-hook-exists-error + curator-infrastructure-error). 0 migraciones nuevas. ADR-005 + ADR-006 agregan ~135 lineas a `docs/12-lineamientos-arquitectura.md`. |
@@ -3509,6 +3509,151 @@ develop. Sin codigo en `code/src/` — el typecheck-hook no se dispara.
 
 ---
 
+## 6.28 Phase-23 — Iteracion 2 ADR-005: pasos 1-5 codigo + 1 wontfix re-confirmado — EN CURSO (pasos 6-7 pendientes)
+
+**Fecha:** 2026-05-12 (misma sesion que Phase-22, continuacion).
+
+**Scope.** Implementar el plan de codigo de la iteracion 2 ADR-005
+acordado en Phase-22 §6.27 apendice. Plan de 7 pasos en orden
+secuencial + 1 follow-up `swap-embedder-tar7` HIGH upstream.
+
+**Disparador.** Usuario solicito "hagamosle" sobre los items A
+(iteracion 2 ADR-005), B (W-3.4-PERF-H3 Vec0SimilarityFinder), y C
+(swap-embedder-tar7 wontfix). Sesion ejecuto los 3 en paralelo segun
+permisos de dependencia.
+
+**Estrategia ejecutada.**
+
+Tres fases concurrentes + secuenciales segun dependencias:
+
+| Fase | Items | Dependencia | Estado al cierre |
+|---|---|---|---|
+| Fase 1 | A1 (secureZero), A4 (audit_log), B (perf H3) | Paralelos (paths disjuntos) | **3 PRs MERGEADOS** |
+| Fase 1.5 | C-a (tar@7 override) | Independiente | **PR #76 CERRADO wontfix** |
+| Fase 2 | A2 (CLI prompts), A3 (PrintableMasterKey) | Dependen de A1 mergeado | **2 PRs MERGEADOS** |
+| Fase 3 | A5 → A6 → A7 (3 facades) | Serial (todos tocan composition/facades) | **EN CURSO** |
+
+**Resultado consolidado al cierre de Phase-23 (codigo Fase 1+2):**
+
+- **5 PRs mergeados a develop** (paths disjuntos, validados pre-merge):
+  - [#73](https://github.com/NetziTech/recall/pull/73) **A1** `feat(shared): add secureZero helper` (`d7706f6`) — helper publico `secureZero(buffer: Buffer): void` + 6 VALOR tests + barrel re-export. Validadores: clean-arch + solid APROBADO.
+  - [#74](https://github.com/NetziTech/recall/pull/74) **B** `perf(curator): batch lookup in Vec0SimilarityFinder (W-3.4-PERF-H3)` (`577ed3a`) — refactor 2N → N+1 queries via `WHERE id IN (?,?,...)`. 14 tests (10 originales + 4 nuevos). Validadores: clean-arch + solid APROBADO. **Cierra W-3.4-PERF-H3** (HIGH severity tracked en §8).
+  - [#75](https://github.com/NetziTech/recall/pull/75) **A4** `feat(encryption): add encryption.audit_log dedicated (ADR-005 Q4)` (`42cec4d`) — migracion `009__encryption-audit-log.sql` con append-only triggers + adapter SQLite + puerto out + 2 VOs (`EventId`, `MasterKeyFingerprint` con defensive `<redacted>` sentinel) + 31 tests (10 integration + 21 unit). Validadores: clean-arch + solid + security-auditor APROBADO.
+  - [#77](https://github.com/NetziTech/recall/pull/77) **A3** `feat(encryption): PrintableMasterKey VO + Bech32 BIP-173 (ADR-005 Q3)` (`74874e6`) — VO `PrintableMasterKey` + error `PrintableMasterKeyChecksumError` con clasificacion `single/transposition/unrecoverable` + `bech32@^2.0.0` lib auditada + 35 tests con vectores V1/V2/V3 congelados. Validadores: crypto-security-expert + ddd APROBADO.
+  - [#78](https://github.com/NetziTech/recall/pull/78) **A2** `feat(cli): extract passphrase + confirm + strength prompts (ADR-005 Q5)` (`4f2b7a8`) — `cli/infrastructure/prompts/` con `readPassphrase` + `confirmPassphrase` + `assertStrongPassphrase` (Shannon entropy, NO zxcvbn) + `Buffer.allocUnsafeSlow` + NFKC + SIGINT zeroize + 35 tests con EventEmitter stub. Validadores: clean-arch + solid APROBADO.
+
+- **1 PR cerrado wontfix re-confirmado**:
+  - [#76](https://github.com/NetziTech/recall/pull/76) **C-a** `chore(deps): override tar to 7.5.7+ (close 6 high upstream vulns)` — **NO VIABLE**. Causa raiz: `tar@7.5.15` ESM bundle exporta solo named exports, NO `default`. `fastembed` ESM hace `import tar from "tar"` (default import) → `SyntaxError` en CI Node 24 ESM resolution. Mi smoke local con CJS (`require("tar")`) habia confundido la diagnosis. Alternativas viables enumeradas (swap a `@huggingface/transformers`, esperar fastembed con tar@7-compat, patch-package + viola "no security custom"). Decision pragmatica: mantener `tar@6` wontfix (ADR-004 + Phase-7 §6.11). Reabrir cuando fastembed publique compatible o cuando justifique invertir en swap.
+
+**Counts globales post-Phase-23 codigo Fase 1+2 (pre-Fase 3):**
+
+- HEAD develop: **`74874e6`**.
+- Develop **65 commits ahead de main** (era 60 al cierre de Phase-22).
+- Tests totales: **2649 + 35 + 14 + 31 + 35 + 6 + 9 + 14 + 12 = ~2805 passing** (suite encryption alone: 326/326, suite cli/infrastructure/prompts: 35/35).
+- Coverage SonarQube: **OK** post-merges (~95% aggregate).
+- Migraciones: **9** (000-009; `009__encryption-audit-log.sql` nueva).
+- Lineas codigo netas: **+3,365 LOC en src + +1,800 LOC en tests** (no exacto; estimacion por diffs de los 5 PRs).
+- Deps nuevas: **`bech32@^2.0.0`** (PR #77).
+
+**Decisiones tecnicas tomadas durante implementacion:**
+
+1. **A1 sufijo `.test.ts`** (no `.spec.ts` como spec original) — alineado con `code/vitest.config.ts include`. Detectado por el agent al investigar el repo.
+2. **A4 puerto sin sufijo `.port.ts`** — convencion del repo para repositorios de dominio (ver `secret-audit-repository.ts`); `.port.ts` se reserva a application/ports/in y application/ports/out.
+3. **A4 `MasterKeyFingerprint.fromMasterKey(Uint8Array)`** — no `Buffer`, alineado con `MasterKey.withBytes` post-`@types/node@25`.
+4. **A4 `envelopeId: KeyId | null`** — no `EnvelopeId` (que no existe); la identidad del envelope ES `KeyId`.
+5. **A2 `-32109` jsonRpcCode rechazado por colision** con `KEY_REVOKED` preexistente. Decision: errors CLI-only sin `jsonRpcCode` (consistente con `parserInternalError`, `ttyIoError`); el entrypoint los mapea a exit code 2. Documentado en JSDoc del error.
+6. **A2 default Shannon entropy floor 60 bits + length floor 12 chars** matematicamente inalcanzable simultaneamente — fuerza diceware 5+ palabras o random >=16 chars. Documentado en JSDoc + test `default 60-bit floor is unreachable at 12 chars`.
+7. **A2 SIGINT (Ctrl-C) usa `process.exit(130)` directo** (no rejection de promesa) — el caller no tiene que cablear teardown identico en cada comando.
+8. **A2 buffer overhead cap `MAX_PASSPHRASE_BYTES = 1024`** — agregado al spec para no romper loop con paste masivo (justificacion NIST 64-char floor + diceware con NFKC acentos).
+9. **A3 case policy estricta** — rechaza upper-case puro ademas de mixed (BIP-173 acepta uppercase uniforme pero `docs/11 §3` declara lowercase obligatorio en wire para que `fromString` sea byte-for-byte reverso de `toString`).
+10. **A3 `toString` NO redacta**; `toJSON` SI redacta con sentinel `<PrintableMasterKey:redacted>` — el VO ES la representacion publica de recovery; secrecy enforced por stdout-only policy, no por type system.
+11. **A3 heuristica de clasificacion `errorKind`** como UX helper bounded (~1800 brute-force attempts para single + 58 para swap) que NO modifica el behavior accept/reject del BCH.
+12. **B Vec0SimilarityFinder real path** en `modules/curator/`, no `modules/retrieval/` como el prompt asumio. El agent lo encontro y siguio.
+
+**Iteraciones de CI debugging (3 ciclos en PR #75 A4 + 2 ciclos en PR #77 A3):**
+
+PR #75 corrio 3 veces antes de pasar:
+1. Falla smoke test `applied every shipped migration (000-008)` por array hardcoded → fix `+9`.
+2. Falla SonarQube quality gate por 3 violations new-code (`charCodeAt`, `replace()`, `Promise.resolve()`).
+3. Fix introdujo regresion en tests defence-in-depth (async semantics) → restored `async` + `eslint-disable-next-line require-await`.
+
+PR #77 corrio 2 veces:
+1. Falla SonarQube por 1 violation new-code (`String#replace()` → `replaceAll()`) en `printable-master-key.ts:330`.
+2. Update-branch + pass.
+
+PR #78 corrio 2 veces:
+1. Falla SonarQube por **S3776 (CRITICAL) Cognitive Complexity 18 > 15** en `passphrase-prompt.ts:124 onData()`.
+2. Refactor: extraidos handlers `finishEnter`/`finishCtrlC`/`applyBackspace` → complexity ~5; pass.
+
+**Leccion durable:** SonarQube reglas TypeScript-nuevas (S7758 `codePointAt`, S7781 `replaceAll`, S7746 `return value`, S3776 cognitive complexity) son **estrictas en new-code period**. Agregar a checklist pre-PR de futuros agentes:
+- Preferir `codePointAt` sobre `charCodeAt`.
+- Preferir `replaceAll(literal, ...)` sobre `replace(/regex/g, ...)` para string fijos.
+- Async sin await: usar `eslint-disable-next-line @typescript-eslint/require-await` con comment explicando.
+- Cognitive complexity: extraer handlers a sub-funciones cuando un loop tiene 3+ branches.
+
+**Follow-up nuevo tracked: FP-001 / W-Q4-CI-GATE.**
+
+Severity: MEDIUM. Origen: security-auditor en PR #75 audit.
+
+Item: anadir CI gate (eslint rule `no-restricted-syntax` o script grep)
+que rechace `.toHex()` fuera de
+`sqlite-encryption-audit-repository.ts`. Tambien rechazar
+`master_key_fp` / `MasterKeyFingerprint.toHex` en `src/composition/`,
+`src/shared/infrastructure/logger/`, o cualquier path de presentation/
+CLI/MCP.
+
+NO bloquea merge: barrier procedural (JSDoc + audit manual) es solido en
+codigo actual. Riesgo real es regresion cuando otro agente toque
+encryption sin leer el JSDoc.
+
+Forma sugerida (script):
+```bash
+# code/scripts/validate-audit-log-fingerprint.ts
+grep -rn "\.toHex()" src/ | grep -v "sqlite-encryption-audit-repository.ts"
+# Si retorna match → exit 1.
+```
+
+Forma sugerida (ESLint):
+```js
+{
+  files: ["src/**/*.ts"],
+  excludedFiles: ["src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts"],
+  rules: {
+    "no-restricted-syntax": [
+      "error",
+      { selector: "CallExpression[callee.property.name='toHex']",
+        message: "MasterKeyFingerprint.toHex() is restricted to the audit-log adapter (ADR-005 Q4)." }
+    ]
+  }
+}
+```
+
+Anotar en HANDOFF §8 como tracked LOW/MED.
+
+**Fase 3 EN CURSO al momento de escribir esta seccion.** Items pendientes:
+
+- **A5 AddKeyFacade** (paso 5 del plan) — primer facade del flow
+  multi-key. Agent lanzado, reemplaza `PendingAddKeyFacade` con use case
+  + composition wiring + integration tests. Dependencias: A1 + A2 + A3 +
+  A4 (todos en develop).
+- **A6 RekeyFacade** (paso 6 del plan) — rotacion atomica de envelopes
+  via `BEGIN IMMEDIATE` SQLite tx. Master estable; no toca SQLCipher.
+- **A7 ExportKeyFacade** (paso 7 del plan) — usa `PrintableMasterKey`
+  para renderizar la master con grouping cosmetico; loggea
+  `ExportKeyEmitted` al audit log.
+
+**Trigger de re-apertura.** Si A5 descubre invariantes adicionales que
+modifican Q1/Q2/Q4, abrir ADR-005a o ADR-007 segun corresponda; no
+mutar el ADR-005 actual.
+
+**HEAD develop al cierre Phase-23 codigo Fase 1+2:** `74874e6`.
+
+**Commit-flow.** 5 branches separadas + 5 PRs (#73, #74, #75, #77, #78)
++ 1 PR cerrado (#76). Stash dance para separar trabajo paralelo de
+agents. Each PR validated pre-merge.
+
+---
+
 ## 7. Como retomar el trabajo
 
 ### Si soy yo mismo (otra sesion de Claude Code)
@@ -3921,7 +4066,8 @@ del proyecto, vive aqui hasta cortar release.
 | ~~**W-3.4-PERF-H2 markPrunedBatch**~~ | ~~HIGH~~ | ~~Phase 5 performance-auditor~~ | ~~PruneLowConfidence sin batch transaction; N fsyncs por candidato~~ | **CERRADO Phase-21 PR #69** (`c0734b2`) — `markPrunedBatch(...): Promise<readonly boolean[]>` con mask paralelo. Mirror del `applyDecayBatch` cerrado en Phase 5. |
 | ~~**ADR-005 multi-key envelope flow**~~ | ~~MEDIUM~~ | ~~Phase-21 §6.26 / `docs/12 §1.5.5`~~ | ~~3 facades `Pending*` (`AddKey`, `Rekey`, `ExportKey`) requieren architect review de Q1-Q5~~ | **ACCEPTED Phase-22 doc-only (2026-05-12)** — review formal de architect + crypto-security-expert + security-auditor cerro Q1-Q5; spec Bech32 BIP-173 congelada en `docs/11 §3` + ADR-005 apendice con DEBE-HACERSE por Q + plan de iteracion 2 (codigo) ready. |
 | **ADR-006 OS keychain <500ms** | INFO | Phase-21 §6.26 / `docs/12 §1.5.6` | Encrypted cold start <500ms via OS keychain cache de derived key. Decision: NO implementar en v0.5, SLO <1500ms aceptable; Argon2id OWASP 2024 floors no negociables | PROPOSED — defer until user workflow justifies |
-| **W-3.4-PERF-H3** | HIGH | Phase 5 performance-auditor | `Vec0SimilarityFinder` 1+1 lookup pattern; ineficiente para workspaces grandes | OPEN tracked |
+| ~~**W-3.4-PERF-H3**~~ | ~~HIGH~~ | ~~Phase 5 performance-auditor~~ | ~~`Vec0SimilarityFinder` 1+1 lookup~~ | **CLOSED Phase-23 PR [#74](https://github.com/NetziTech/recall/pull/74)** (`577ed3a`) — refactor 2N → N+1 via `WHERE id IN (?,?,...)`. Firma del puerto intacta. |
+| **FP-001 / W-Q4-CI-GATE** | MEDIUM | Phase-23 §6.28 security-auditor en PR #75 audit | Anadir CI gate (eslint `no-restricted-syntax` o script grep) que rechace `.toHex()` fuera de `sqlite-encryption-audit-repository.ts` + `master_key_fp`/`MasterKeyFingerprint.toHex` en composition/, logger/, presentation/CLI/MCP. Barrier procedural (JSDoc + audit) es solido en codigo actual; riesgo es regresion futura cuando otro agente toque encryption sin leer JSDoc. NO bloquea merge. | OPEN tracked |
 | **W-3.3-PERF-M1/M2** | MEDIUM | Phase 5 | `db.prepare()` cache miss en hot path retrieval (recall, context, bumpUsage) | OPEN tracked |
 | **W-3.4-PERF-M1/M2** | MEDIUM | Phase 5 | `db.prepare()` cache miss en hot path curator | OPEN tracked |
 | **swap-embedder-tar7** | HIGH (downstream) | ADR-004 / Phase-7 §6.11 | 6 highs upstream `fastembed@2.x → tar@6.x`. Cuando `fastembed` publique con `tar@7.x`, bump; sino, swap a `@huggingface/transformers` antes de v0.5 GA | OPEN tracked |
