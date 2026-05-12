@@ -255,9 +255,9 @@ export class AddEnvelopeUseCase implements AddEnvelope {
     // adapter implementation runs the SQL synchronously inside the
     // closure, so by the time the closure exits both INSERTs are
     // already committed-or-aborted by SQLite.
-    const promises: Promise<void>[] = [];
+    let promises: Promise<void>[] = [];
     this.database.transaction((): void => {
-      promises.push(
+      promises = [
         this.auditLogRepository.append({
           eventId: input.unlockEventId,
           occurredAt: input.occurredAt,
@@ -268,8 +268,6 @@ export class AddEnvelopeUseCase implements AddEnvelope {
           outcome: "SUCCESS",
           detailJson: null,
         }),
-      );
-      promises.push(
         this.auditLogRepository.append({
           eventId: input.addedEventId,
           occurredAt: input.occurredAt,
@@ -280,7 +278,7 @@ export class AddEnvelopeUseCase implements AddEnvelope {
           outcome: "SUCCESS",
           detailJson: null,
         }),
-      );
+      ];
     });
     // Drain the (already-resolved-at-the-driver-level) promises so
     // any synthetic rejection added by a future fake/adapter is
