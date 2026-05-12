@@ -37,7 +37,36 @@ export default defineConfig({
     globals: false,
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**"],
-    pool: "forks",
+    // pool: "threads" en lugar de "forks" para evitar el bug
+    // hardcoded del birpc timeout (60s) en vitest 3.x bajo Node
+    // 24 LTS Krypton. Worker Threads usan MessagePort RPC sin
+    // ese timeout, así que tests CPU-heavy como argon2id (KDF
+    // que en CI 2vCPU runners toma ~75s wall-clock incluso
+    // paralelizado con Promise.all) no triggerean
+    // `[vitest-worker]: Timeout calling "onTaskUpdate"` que
+    // rompía CI con exit 1 a pesar de 2588/2588 tests passing.
+    //
+    // Compatibilidad verificada con nuestras deps native:
+    // - better-sqlite3-multiple-ciphers: soporta Worker Threads
+    //   (README: "Worker thread support for large/slow queries").
+    // - sqlite-vec: hereda la conexión, OK.
+    // - tiktoken (WASM): thread-safe.
+    // - fastembed (nativo + WASM): thread-safe en runtime async.
+    //
+    // Tests E2E que spawn `child_process.spawn(node, dist/cli.js)`
+    // siguen funcionando idénticos desde threads — spawn es
+    // libuv-level, no Worker-bound.
+    //
+    // Excepción: `tests/integration/G-mem-health.test.ts` usa
+    // `process.chdir()` para reproducir el wire adapter resolver
+    // (que lee `process.cwd()` en producción). Worker Threads
+    // NO permiten `process.chdir()` — limitación natural de Node.
+    // Por eso ese archivo se rutea a `pool: "forks"` via
+    // `poolMatchGlobs`, mientras el resto sigue en threads.
+    pool: "threads",
+    poolMatchGlobs: [
+      ["**/G-mem-health.test.ts", "forks"],
+    ],
     // E2E tests spawn the bundled binary (`dist/cli.js`,
     // `dist/server.js`) via `child_process.spawn` and exchange
     // NDJSON frames. The `init --mode shared` flow runs every
