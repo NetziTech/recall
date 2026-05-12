@@ -106,6 +106,13 @@ export class AddKeyCommandHandler implements CommandHandler<"add-key"> {
         { invariant: "cli.handler.passphrase-required" },
       );
     }
+    // ADR-005 Q1: the current passphrase is collected at the CLI
+    // boundary and forwarded to the facade. The facade runs
+    // unlock(current) before the multi-key add so a wrong value
+    // fails fast without mutating the envelope list.
+    const current = await this.prompt.readPassphrase(
+      "Passphrase actual (unlock): ",
+    );
     const first = await this.prompt.readPassphrase(
       "Pega la nueva passphrase a agregar: ",
     );
@@ -113,6 +120,7 @@ export class AddKeyCommandHandler implements CommandHandler<"add-key"> {
     if (first !== second) throw new PassphraseMismatchError();
     const result = await this.facade.add({
       rootPath,
+      currentPassphrase: current,
       newPassphrase: first,
       label: invocation.label,
     });

@@ -65,6 +65,13 @@ import type { UnlockWorkspace } from "../../modules/workspace/application/ports/
 import type { InstallPreCommitHook } from "../../modules/secrets/application/ports/in/install-pre-commit-hook.port.ts";
 import type { UninstallPreCommitHook } from "../../modules/secrets/application/ports/in/uninstall-pre-commit-hook.port.ts";
 import type { SanitizePath } from "../../modules/secrets/application/ports/in/sanitize-path.port.ts";
+import type { AddEnvelope } from "../../modules/encryption/application/ports/in/add-envelope.port.ts";
+// UnlockEncryption is invoked internally by AddEnvelopeUseCase since the
+// refactor that merged unlock + addEnvelope into a single use case (the
+// aggregate's in-memory unlocked state cannot survive `findByWorkspace`).
+// JSDoc references kept for documentation continuity.
+import { KeyLabel } from "../../modules/encryption/domain/value-objects/key-label.ts";
+import { Passphrase } from "../../modules/encryption/domain/value-objects/passphrase.ts";
 import { isErr } from "../../shared/domain/types/result.ts";
 
 import type {
@@ -318,16 +325,82 @@ export class PendingRekeyFacade implements RekeyFacade {
 }
 
 /**
- * Stub for `AddKeyFacade`. Same reason as rekey — multi-key v0.5.
+ * Cross-module facade adapter that fulfils the CLI's
+ * {@link AddKeyFacade} port using the encryption module's
+ * {@link UnlockEncryption} + {@link AddEnvelope} use cases.
+ *
+ * Multi-key v0.5+ flow (ADR-005, Phase-22 appendix in
+ * `docs/12-lineamientos-arquitectura.md` §1.5.5):
+ *
+ * 1. Detect the workspace at `rootPath` so the facade can resolve the
+ *    canonical `WorkspaceId` without forcing the wire shape to carry
+ *    one. Refuses with `CliFacadeNotImplementedError` if no workspace
+ *    is found at the supplied path — the CLI's outer error handler
+ *    maps the typed failure onto an exit code.
+ * 2. Run `UnlockEncryption.unlock(currentPassphrase)` so the in-memory
+ *    aggregate is unlocked. ADR-005 Q1 pins the "current passphrase"
+ *    check at this boundary; a wrong value surfaces as a
+ *    `KeyValidationFailedError` and the envelope list is not touched.
+ * 3. Run `AddEnvelope.addEnvelope(newPassphrase, label)`. The use
+ *    case persists the new envelope to `config.json` and appends the
+ *    audit-log pair (`UnlockSucceeded` + `KeyEnvelopeAdded`).
+ *
+ * Conversion responsibilities:
+ * - `currentPassphrase` / `newPassphrase` strings are wrapped into
+ *   the `Passphrase` value object via `Passphrase.from(...)`. The VO
+ *   trims whitespace and enforces the 12-char minimum; rejection
+ *   surfaces as an `InvalidInputError` the CLI handler maps to an
+ *   exit code.
+ * - `label` (nullable string) is wrapped into `KeyLabel.create(...)`
+ *   when non-null. The VO validates non-empty / single-line / length
+ *   cap; rejection surfaces as `InvalidInputError`.
+ *
+ * The `printableKey` field on the output is intentionally the new
+ * envelope id rather than a re-emission of the master key. See the
+ * port's {@link AddKeyFacadeOutput} JSDoc for the rationale; the CLI
+ * handler renders a Spanish-language "envelope agregado" line above
+ * the id, which is enough for the user to confirm the operation
+ * without leaking secret material.
  */
-export class PendingAddKeyFacade implements AddKeyFacade {
-  public add(_input: AddKeyFacadeInput): Promise<AddKeyFacadeOutput> {
-    return Promise.reject(
-      new CliFacadeNotImplementedError(
+export class CliAddKeyFacadeAdapter implements AddKeyFacade {
+  public constructor(
+    private readonly addEnvelopeUseCase: AddEnvelope,
+    private readonly detectWorkspace: DetectWorkspace,
+  ) {}
+
+  public async add(input: AddKeyFacadeInput): Promise<AddKeyFacadeOutput> {
+    const detection = await this.detectWorkspace.detect({
+      startPath: WorkspacePath.create(input.rootPath),
+    });
+    if (!detection.found) {
+      throw new CliFacadeNotImplementedError(
         "AddKeyFacade",
-        "add-key requires the multi-key (v0.5) flow",
-      ),
-    );
+        `no workspace at ${input.rootPath}`,
+      );
+    }
+    const workspaceId = detection.workspace.getId();
+    const currentPassphrase = Passphrase.from(input.currentPassphrase);
+    const newPassphrase = Passphrase.from(input.newPassphrase);
+    const label =
+      input.label === null ? null : KeyLabel.create(input.label);
+
+    // The use case orchestrates unlock + addEnvelope internally so the
+    // unlocked aggregate from UnlockEncryption is the same instance
+    // mutated by addEnvelope (aggregates rebuilt-from-JSON via
+    // findByWorkspace are always locked; the unlocked master key
+    // never persists to disk).
+    const addResult = await this.addEnvelopeUseCase.addEnvelope({
+      workspaceId,
+      currentPassphrase,
+      newPassphrase,
+      label,
+    });
+
+    return {
+      workspaceId: workspaceId.toString(),
+      keyId: addResult.envelopeId.toString(),
+      printableKey: addResult.envelopeId.toString(),
+    };
   }
 }
 

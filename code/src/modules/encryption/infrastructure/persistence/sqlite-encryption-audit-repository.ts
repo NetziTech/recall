@@ -113,11 +113,16 @@ INSERT INTO encryption_audit_log (
 export class SqliteEncryptionAuditRepository
   implements EncryptionAuditLogRepository
 {
-  private readonly insertStmt: PreparedStatement;
+  // Lazy-initialised prepared statement. Caching the lookup avoids
+  // touching the database during construction — critical because
+  // `recall init` wires the entire container with an
+  // `UnavailableDatabaseConnection` stub (per
+  // `bootstrap/composition-root.ts`), and an eager `db.prepare()` in
+  // the constructor would throw `DatabaseUnavailableError` and abort
+  // the bootstrap before `init` has a chance to bootstrap the DB.
+  private cachedInsertStmt: PreparedStatement | null = null;
 
-  public constructor(db: DatabaseConnection) {
-    this.insertStmt = db.prepare(SQL_INSERT);
-  }
+  public constructor(private readonly db: DatabaseConnection) {}
 
   /**
    * Appends one event to `encryption_audit_log`.
@@ -152,7 +157,7 @@ export class SqliteEncryptionAuditRepository
     const detailJsonSql: string | null =
       event.detailJson === null ? null : JSON.stringify(event.detailJson);
 
-    this.insertStmt.run(
+    this.getInsertStmt().run(
       eventIdBuffer,
       event.occurredAt.epochMs,
       event.eventType,
@@ -165,6 +170,17 @@ export class SqliteEncryptionAuditRepository
   }
 
   // -- internals --------------------------------------------------------
+
+  /**
+   * Returns the cached prepared INSERT, preparing it on first use.
+   * Lazy initialisation avoids touching the database during
+   * construction so the adapter survives being wired against an
+   * `UnavailableDatabaseConnection` stub (the `recall init` path).
+   */
+  private getInsertStmt(): PreparedStatement {
+    this.cachedInsertStmt ??= this.db.prepare(SQL_INSERT);
+    return this.cachedInsertStmt;
+  }
 
   /**
    * Parses a canonical UUID v7 string
