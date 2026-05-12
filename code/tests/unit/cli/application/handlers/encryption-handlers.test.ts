@@ -41,36 +41,48 @@ describe("RekeyCommandHandler", () => {
         command: "rekey",
         workspacePath: "/tmp",
         nonInteractive: true,
+        label: null,
       }),
     ).rejects.toBeInstanceOf(InvariantViolationError);
   });
 
   it("rejects mismatched passphrases", async () => {
     const facade = new StubRekeyFacade();
-    const prompt = new ScriptedPrompt({ passphrases: ["a", "b"] });
+    // First passphrase = current; the second/third (new + confirm)
+    // differ, triggering the mismatch error.
+    const prompt = new ScriptedPrompt({ passphrases: ["current", "a", "b"] });
     const h = new RekeyCommandHandler(facade, prompt, new SilentLogger());
     await expect(
       h.handle({
         command: "rekey",
         workspacePath: "/tmp",
         nonInteractive: false,
+        label: null,
       }),
     ).rejects.toBeInstanceOf(PassphraseMismatchError);
   });
 
-  it("happy path forwards the new passphrase + prints banner", async () => {
+  it("happy path forwards current+new passphrase + label, prints rotation summary", async () => {
     const facade = new StubRekeyFacade();
-    const prompt = new ScriptedPrompt({ passphrases: ["new-pp", "new-pp"] });
+    const prompt = new ScriptedPrompt({
+      passphrases: ["current-pp", "new-pp", "new-pp"],
+    });
     const h = new RekeyCommandHandler(facade, prompt, new SilentLogger());
     const out = await h.handle({
       command: "rekey",
       workspacePath: "/tmp",
       nonInteractive: false,
+      label: "rotated@2026",
     });
+    expect(facade.lastInput?.currentPassphrase).toBe("current-pp");
     expect(facade.lastInput?.newPassphrase).toBe("new-pp");
-    expect(out.stdout).toContain("M3-NEW-KEY");
-    // Banner constants are present.
-    expect(out.stdout).toEqual(renderEncryptionKeyBanner("M3-NEW-KEY"));
+    expect(facade.lastInput?.label).toBe("rotated@2026");
+    // Output summary: rotation completed line + removed count + banner.
+    expect(out.stdout).toContain("Rotacion completada");
+    expect(out.stdout).toContain(facade.output.newKeyId);
+    expect(out.stdout).toContain("Sobres eliminados: 1");
+    expect(out.stdout).toContain(renderEncryptionKeyBanner(facade.output.newKeyId));
+    expect(out.exitCode.isSuccess()).toBe(true);
   });
 });
 

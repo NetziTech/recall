@@ -66,6 +66,7 @@ import type { InstallPreCommitHook } from "../../modules/secrets/application/por
 import type { UninstallPreCommitHook } from "../../modules/secrets/application/ports/in/uninstall-pre-commit-hook.port.ts";
 import type { SanitizePath } from "../../modules/secrets/application/ports/in/sanitize-path.port.ts";
 import type { AddEnvelope } from "../../modules/encryption/application/ports/in/add-envelope.port.ts";
+import type { RekeyEncryption } from "../../modules/encryption/application/ports/in/rekey-encryption.port.ts";
 // UnlockEncryption is invoked internally by AddEnvelopeUseCase since the
 // refactor that merged unlock + addEnvelope into a single use case (the
 // aggregate's in-memory unlocked state cannot survive `findByWorkspace`).
@@ -310,17 +311,66 @@ export class PendingExportKeyFacade implements ExportKeyFacade {
 }
 
 /**
- * Stub for `RekeyFacade`. Requires the multi-envelope flow that is
- * part of v0.5 (`docs/11 §7 — Multi-key`).
+ * Cross-module facade adapter that fulfils the CLI's
+ * {@link RekeyFacade} port using the encryption module's
+ * {@link RekeyEncryption} use case.
+ *
+ * ADR-005 Q2 (Phase-22 appendix, `docs/12-lineamientos-arquitectura.md`
+ * §1.5.5 Q2): rekey rotates the passphrase-envelope list under the
+ * `addEnvelope(new) → verify → removeEnvelope(old)` pattern. The
+ * master key is NOT rotated; the SQLCipher `PRAGMA rekey` is NOT
+ * invoked. See the use case JSDoc for the documented limit ("rekey
+ * does NOT mitigate a master-key compromise").
+ *
+ * Flow:
+ * 1. Detect the workspace at `rootPath` so the facade can resolve
+ *    the canonical `WorkspaceId` without forcing the wire shape to
+ *    carry one.
+ * 2. Convert wire primitives into value objects:
+ *      - `currentPassphrase` / `newPassphrase` → `Passphrase.from(...)`
+ *      - `label` → `KeyLabel.create(...)` (or `null` when absent)
+ * 3. Invoke `RekeyEncryption.rekey(...)`. The use case orchestrates
+ *    unlock + add + verify + remove + persist + audit chain.
+ * 4. Project the typed output back onto the wire shape (strings,
+ *    ISO-8601 timestamp).
  */
-export class PendingRekeyFacade implements RekeyFacade {
-  public rekey(_input: RekeyFacadeInput): Promise<RekeyFacadeOutput> {
-    return Promise.reject(
-      new CliFacadeNotImplementedError(
+export class CliRekeyFacadeAdapter implements RekeyFacade {
+  public constructor(
+    private readonly rekeyUseCase: RekeyEncryption,
+    private readonly detectWorkspace: DetectWorkspace,
+  ) {}
+
+  public async rekey(input: RekeyFacadeInput): Promise<RekeyFacadeOutput> {
+    const detection = await this.detectWorkspace.detect({
+      startPath: WorkspacePath.create(input.rootPath),
+    });
+    if (!detection.found) {
+      throw new CliFacadeNotImplementedError(
         "RekeyFacade",
-        "rekey requires the multi-key (v0.5) flow",
+        `no workspace at ${input.rootPath}`,
+      );
+    }
+    const workspaceId = detection.workspace.getId();
+    const currentPassphrase = Passphrase.from(input.currentPassphrase);
+    const newPassphrase = Passphrase.from(input.newPassphrase);
+    const label =
+      input.label === null ? null : KeyLabel.create(input.label);
+
+    const result = await this.rekeyUseCase.rekey({
+      workspaceId,
+      currentPassphrase,
+      newPassphrase,
+      label,
+    });
+
+    return {
+      workspaceId: workspaceId.toString(),
+      newKeyId: result.newEnvelopeId.toString(),
+      removedKeyIds: Object.freeze(
+        result.removedEnvelopeIds.map((id) => id.toString()),
       ),
-    );
+      rotatedAt: new Date(result.rotatedAt.toEpochMs()).toISOString(),
+    };
   }
 }
 

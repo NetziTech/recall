@@ -128,9 +128,17 @@ export class CommanderCliParser {
 
     program
       .command("rekey")
-      .description("generate a fresh master key and re-cipher all envelopes (v0.5+)")
+      .description(
+        "rotate the passphrase-envelope list (ADR-005 Q2; master key stays stable)",
+      )
+      .option("--label <label>", "optional human-readable label for the new envelope")
       .action((_opts: unknown, cmd: Command) => {
-        captured.value = { command: "rekey", ...commonOpts(cmd) };
+        const opts = cmd.opts<{ label?: string }>();
+        captured.value = {
+          command: "rekey",
+          ...commonOpts(cmd),
+          label: typeof opts.label === "string" ? opts.label : null,
+        };
       });
 
     program
