@@ -14,12 +14,51 @@ import type {
   DetectWorkspaceInput,
   DetectWorkspaceOutput,
 } from "../../../../../src/modules/workspace/application/ports/in/detect-workspace.port.ts";
+import type { EncryptionAuditProbe } from "../../../../../src/shared/application/ports/encryption-audit-probe.port.ts";
 import {
   FakeFilesystem,
   SilentLogger,
   StubDatabaseBootstrap,
   StubEmbedderProbe,
 } from "../../../../fixtures/workspace-fixtures.ts";
+
+/**
+ * Minimal `EncryptionAuditProbe` stub used by FU-A7-2 tests below.
+ * Returns the configured `outcome`. When the constructor receives a
+ * `throws` value, every `lastExportAt()` call rejects with it so the
+ * use case's catch path is exercised.
+ */
+class StubEncryptionAuditProbe implements EncryptionAuditProbe {
+  public constructor(
+    private readonly outcome: Timestamp | null,
+    private readonly throws: unknown = null,
+  ) {}
+  public lastExportAt(): Promise<Timestamp | null> {
+    if (this.throws !== null) {
+      return Promise.reject(
+        this.throws instanceof Error ? this.throws : new Error(String(this.throws)),
+      );
+    }
+    return Promise.resolve(this.outcome);
+  }
+}
+
+/**
+ * Convenience factory: builds a workspace aggregate with the given mode
+ * label (the rest of the test below only needs the mode for the
+ * `encryption.last_export_at` branching).
+ */
+function buildWorkspaceWithMode(mode: WorkspaceMode): Workspace {
+  const cfg = WorkspaceConfig.create({
+    schemaVersion: "1.0.0",
+    workspaceId: WorkspaceId.from(FIXED_UUID),
+    displayName: DisplayName.create("T"),
+    mode,
+    embedder: EmbedderSpec.create({ provider: "fastembed", model: "BGESmallEN15" }),
+    createdAt: Timestamp.fromEpochMs(0),
+  });
+  return Workspace.rehydrate(cfg);
+}
 
 const ROOT = WorkspacePath.create("/tmp/host");
 const FIXED_UUID = "00000000-0000-7000-8000-000000000001";
@@ -331,5 +370,180 @@ describe("HealthCheckUseCase", () => {
     const e = out.checks[0];
     expect(e?.status).toBe("fail");
     expect(e?.message).toContain("string-not-error");
+  });
+});
+
+describe("HealthCheckUseCase — encryption.last_export_at (FU-A7-2)", () => {
+  it("encrypted mode + probe returns null → pass with 'no recall export-key' message", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.encryptedMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+    const auditProbe = new StubEncryptionAuditProbe(null);
+
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+      auditProbe,
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("pass");
+    expect(entry?.message).toContain("no recall export-key invocation");
+    expect(out.healthy).toBe(true);
+  });
+
+  it("encrypted mode + probe returns timestamp → pass with ISO 8601 message", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.encryptedMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+    const exportedAt = Timestamp.fromEpochMs(1_700_000_900_000);
+    const auditProbe = new StubEncryptionAuditProbe(exportedAt);
+
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+      auditProbe,
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("pass");
+    expect(entry?.message).toContain(
+      new Date(exportedAt.toEpochMs()).toISOString(),
+    );
+    expect(out.healthy).toBe(true);
+  });
+
+  it("encrypted mode + probe throws → fail (corrupted audit-log surfaces, healthy=false)", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.encryptedMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+    const auditProbe = new StubEncryptionAuditProbe(
+      null,
+      new Error("encryption_audit_log table corrupted"),
+    );
+
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+      auditProbe,
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("fail");
+    expect(entry?.message).toContain("encryption_audit_log table corrupted");
+    expect(out.healthy).toBe(false);
+  });
+
+  it("shared mode → skipped (probe wired but not applicable)", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.sharedMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+    const auditProbe = new StubEncryptionAuditProbe(
+      Timestamp.fromEpochMs(1_700_000_900_000),
+    );
+
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+      auditProbe,
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("skipped");
+    expect(entry?.message).toContain("not applicable to mode=shared");
+  });
+
+  it("private mode → skipped", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.privateMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+    const auditProbe = new StubEncryptionAuditProbe(null);
+
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+      auditProbe,
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("skipped");
+    expect(entry?.message).toContain("not applicable to mode=private");
+  });
+
+  it("encrypted mode + no probe wired → skipped with explanatory message", async () => {
+    const fs = new FakeFilesystem();
+    const detect = new StubDetect({
+      found: true,
+      workspace: buildWorkspaceWithMode(WorkspaceMode.encryptedMode()),
+      rootPath: ROOT,
+    });
+    const db = new StubDatabaseBootstrap();
+    db.probeResult = { openable: true, schemaVersion: 9 };
+    const embedder = new StubEmbedderProbe();
+    embedder.outcome = { ok: true, dimension: 384, message: "ok" };
+
+    // No 6th arg → probe defaults to null. Backwards-compat path
+    // for callers not yet migrated.
+    const uc = new HealthCheckUseCase(
+      detect,
+      fs,
+      db,
+      embedder,
+      new SilentLogger(),
+    );
+    const out = await uc.check({ rootPath: ROOT });
+    const entry = out.checks.find((c) => c.id === "encryption.last_export_at");
+    expect(entry?.status).toBe("skipped");
+    expect(entry?.message).toContain("probe not wired");
   });
 });

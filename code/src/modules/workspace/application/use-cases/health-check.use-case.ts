@@ -1,3 +1,4 @@
+import type { EncryptionAuditProbe } from "../../../../shared/application/ports/encryption-audit-probe.port.ts";
 import type { Logger } from "../../../../shared/application/ports/logger.port.ts";
 import { WorkspaceMode } from "../../domain/value-objects/workspace-mode.ts";
 import type {
@@ -47,6 +48,20 @@ export class HealthCheckUseCase implements HealthCheck {
     private readonly databaseBootstrap: DatabaseBootstrap,
     private readonly embedderProbe: EmbedderProbe,
     private readonly logger: Logger,
+    /**
+     * Optional probe for the `encryption_audit_log` table (migration
+     * 009). When wired by the composition root, the use case appends
+     * an `encryption.last_export_at` entry surfacing the timestamp of
+     * the most recent `ExportKeyEmitted` row. When `null`, the entry
+     * is `skipped` with an explanatory message.
+     *
+     * Closes follow-up tracked FU-A7-2 (HANDOFF §8): the CLI's
+     * `recall health` surfaces `last_export_at` so the user can
+     * detect an export that did not originate from them (defense in
+     * depth against an unauthorised terminal running `recall
+     * export-key`).
+     */
+    private readonly encryptionAuditProbe: EncryptionAuditProbe | null = null,
   ) {}
 
   public async check(input: HealthCheckInput): Promise<HealthCheckOutput> {
@@ -80,6 +95,7 @@ export class HealthCheckUseCase implements HealthCheck {
         skipped("migrations.current", "workspace not found"),
         skipped("embedder.loadable", "workspace not found"),
         skipped("gitignore.consistent", "workspace not found"),
+        skipped("encryption.last_export_at", "workspace not found"),
       );
       return finish(checks);
     }
@@ -118,6 +134,7 @@ export class HealthCheckUseCase implements HealthCheck {
         skipped("migrations.current", "config not parseable"),
         skipped("embedder.loadable", "config not parseable"),
         skipped("gitignore.consistent", "config not parseable"),
+        skipped("encryption.last_export_at", "config not parseable"),
       );
       return finish(checks);
     }
@@ -182,6 +199,47 @@ export class HealthCheckUseCase implements HealthCheck {
         "deferred to v0.5 (TODO-WS-1); call recall mode <current> to self-heal",
       ),
     );
+
+    // 7. encryption.last_export_at — surfaces the timestamp of the most
+    //    recent `recall export-key` invocation so the user can detect
+    //    an export that did not originate from them. Only meaningful in
+    //    `encrypted` mode; skipped otherwise (the encryption_audit_log
+    //    table exists in every mode but is naturally empty for shared /
+    //    private workspaces). Failures of the probe surface as `fail`
+    //    so a corrupted audit table is observable.
+    if (parsedMode !== "encrypted") {
+      checks.push(
+        skipped(
+          "encryption.last_export_at",
+          `not applicable to mode=${parsedMode}`,
+        ),
+      );
+    } else if (this.encryptionAuditProbe === null) {
+      checks.push(
+        skipped(
+          "encryption.last_export_at",
+          "encryption audit probe not wired (composition root)",
+        ),
+      );
+    } else {
+      try {
+        const lastExportAt = await this.encryptionAuditProbe.lastExportAt();
+        checks.push({
+          id: "encryption.last_export_at",
+          status: "pass",
+          message:
+            lastExportAt === null
+              ? "no recall export-key invocation recorded"
+              : `last export at ${new Date(lastExportAt.toEpochMs()).toISOString()}`,
+        });
+      } catch (err: unknown) {
+        checks.push({
+          id: "encryption.last_export_at",
+          status: "fail",
+          message: `encryption audit probe threw: ${HealthCheckUseCase.errorMessage(err)}`,
+        });
+      }
+    }
 
     this.logger.debug(
       { checkCount: checks.length },
