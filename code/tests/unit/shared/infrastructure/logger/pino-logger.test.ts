@@ -87,6 +87,7 @@ describe("DEFAULT_REDACT_PATHS", () => {
       "derivedKey",
       "encryptionKey",
       "salt",
+      "printableMasterKey",
     ]) {
       expect(DEFAULT_REDACT_PATHS).toContain(k);
     }
@@ -107,6 +108,7 @@ describe("DEFAULT_REDACT_PATHS", () => {
       "*.derivedKey",
       "*.encryptionKey",
       "*.salt",
+      "*.printableMasterKey",
       "*.headers.authorization",
       "*.headers.cookie",
     ]) {
@@ -226,6 +228,10 @@ describe("PinoLogger.create — redaction (security-critical)", () => {
       derivedKey: "p11",
       encryptionKey: "p12",
       salt: "p13",
+      // FU-A7-3: Bech32 encoding of the master key (`recall export-key`)
+      // — never logged by the CLI today, but the redact baseline guards
+      // against a future regression.
+      printableMasterKey: "p14-recall1qpzry9x8gf2tvdw0s3jn54khce6mua7lmqqqxw4",
     };
     log.info(sensitive, "with secrets");
     const text = joined(captured.stdout);
