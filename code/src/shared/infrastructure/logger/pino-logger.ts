@@ -62,6 +62,16 @@ export const DEFAULT_REDACT_PATHS: readonly string[] = Object.freeze([
   "*.salt",
   "*.printableMasterKey",
   // Two-level wildcards for request-style envelopes (e.g. headers).
+  //
+  // **Pino glob semantics (O-PR45-1, HANDOFF §8):** the `*` segment
+  // matches EXACTLY ONE intermediate key. So `*.passphrase` redacts
+  // `{req: {passphrase}}` but NOT `{req: {body: {passphrase}}}`.
+  // Two-level paths therefore need an explicit middle segment, as the
+  // `*.headers.authorization` glob shows; pino does not support `**`
+  // recursive matching. If a future caller buries a sensitive value
+  // deeper than two levels, add an explicit glob below or sanitise
+  // the payload at the call site. Today every caller stays within
+  // the two-level shape so no recursion is required.
   "*.headers.authorization",
   "*.headers.cookie",
   // Filesystem paths attached to structured error envelopes
