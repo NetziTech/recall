@@ -295,6 +295,134 @@ como Value Object DDD. Usa la libreria `bech32` (npm package, BIP-173
 auditada). Tests con los vectores congelados. El reverse path es invocado
 por `UnlockEncryptionUseCase` cuando el input parece tener el prefix `m3`.
 
+### Modelo de amenazas multi-key (`add-key` / `rekey` / `export-key`)
+
+Los tres facades de v0.5 (`recall add-key`, `recall rekey`, `recall
+export-key`) trabajan sobre el modelo **envelope-only** descrito en
+ADR-005 (`docs/12 §1.5.5`): la **master key** del workspace permanece
+estable durante toda la vida del workspace; lo que se rota son los
+**envelopes** (un envelope = una passphrase humana protegiendo una
+copia cifrada de la master). Esta seccion explica que protege y que
+NO protege ese modelo. Implementadores: leer antes de cambiar el flow.
+
+#### Lo que SI protege
+
+| Escenario | Mitigacion |
+|---|---|
+| **Passphrase comprometida (un dev se va del equipo, leak en gestor de contrasenas, etc.)** | `recall rekey` rota el envelope: la passphrase vieja deja de poder desbloquear el workspace. La master key sigue siendo la misma, pero el atacante necesitaba **passphrase** para llegar a ella; sin envelope-vivo asociado, el path queda cerrado. |
+| **Multi-tenant en el mismo workspace (varias personas con su propia passphrase)** | `recall add-key` agrega un envelope por persona. Cada envelope cifra la **misma** master con KDF distinto + passphrase distinta. Revocar a una persona = `recall rekey` solo sobre su envelope (o eliminarlo). |
+| **Re-impresion de la clave de recuperacion sin tener que rotar el master** | `recall export-key` re-imprime la `PrintableMasterKey` (Bech32 v3 con checksum) leyendo la master tras unlock con una passphrase valida. No re-cifra nada. |
+| **Auditoria de quien intento abrir el workspace** | Tabla `encryption_audit_log` append-only (migracion 009) con eventos `UnlockSucceeded`, `KeyEnvelopeAdded`, `KeyEnvelopeRotated`, `KeyExported`, `*Failed`. El `master_key_fp` (16 chars hex) es el unico tie-breaker; vive solo en la DB local, jamas viaja por wire. |
+
+#### Lo que **NO** protege
+
+Esta es la parte critica. El modelo envelope-only tiene **limites
+explicitos** que deben entenderse antes de comunicar el flujo al
+usuario o al equipo:
+
+1. **Atacante que YA tiene la master key.** Si en algun punto la
+   master se filtro (alguien hizo screenshot del bloque que imprime
+   el init, alguien rescato el contenido de `~/.config/recall/keys/`
+   con shell remoto, alguien intercepto el output de `recall
+   export-key`), `recall rekey` **NO** purga al atacante:
+   - La master sigue siendo la misma post-rekey.
+   - El atacante puede desbloquear cualquier copia futura del repo
+     sin tocar la passphrase.
+   - Los envelopes nuevos solo controlan el **path passphrase →
+     master**, no el path master → DB.
+
+   **Mitigacion correcta cuando se sospecha leak de master:**
+   - **No basta** con `recall rekey`.
+   - El usuario debe **(a)** rotar la master key real (operacion
+     hoy NO automatizada — implica desencriptar la DB con la master
+     comprometida + re-encriptar con master nueva + re-imprimir
+     printable master key + invalidar todos los envelopes
+     anteriores), **(b)** considerar `git filter-repo` sobre la
+     historia de `.recall/` si el atacante tuvo acceso a snapshots
+     anteriores del repo, y **(c)** revisar el `encryption_audit_log`
+     local para detectar `UnlockSucceeded` desde hosts ajenos.
+   - Roadmap v0.5+: `recall rotate-master` que orquesta (a) en un
+     comando con confirmacion explicita. Hoy NO existe; rekey
+     solo cubre el path de passphrase comprometida.
+
+2. **Atacante que tiene una passphrase historica y un snapshot del
+   repo anterior al rekey.** El envelope viejo sigue siendo capaz de
+   desbloquear el snapshot viejo (`.recall/recall.db` en commit
+   anterior al merge del rekey). Mitigacion: si la passphrase
+   comprometida puede haber expuesto datos historicos sensibles, el
+   `git filter-repo` sobre `.recall/` es parte de la respuesta.
+
+3. **Brute-force de passphrase.** Argon2id con los floors OWASP 2024
+   (`m=64 MiB`, `t=3`, `p=4`) hace el brute-force costoso, pero no
+   imposible si la passphrase tiene baja entropia. **Mitigacion:**
+   - El audit log captura cada `UnlockFailed` con timestamp y
+     `master_key_fp` (donde aplica). Anomalias de frecuencia son
+     visibles via `recall health` (roadmap FU-A7-2: surface
+     `last_export_at` + intentos de unlock fallidos recientes).
+   - El proyecto **NO** implementa rate-limit en unlock — el costo
+     KDF ya impone ~1s por intento; un atacante que pueda iterar
+     millones de pruebas tambien tiene acceso fisico a la DB y la
+     defensa correcta es la entropia de la passphrase elegida por
+     el usuario, no rate-limit en proceso local.
+
+4. **Forward secrecy del trafico MCP.** El protocolo MCP corre sobre
+   stdio del cliente; el cifrado afecta **almacenamiento en disco**,
+   no transporte. Mensajes leidos por Claude (LLM) en la sesion del
+   cliente pueden quedar en transcripts. La clave de recuperacion
+   se imprime por stdout del CLI **precisamente para evitar** que
+   atraviese el canal MCP (ver §3 "Por que solo por stdout y no por
+   canal MCP").
+
+5. **ExportKey reveala master incluso con audit log.** `recall
+   export-key` requiere passphrase valida, pero el output de
+   stdout queda en buffer del terminal del usuario. Si el terminal
+   esta compartido (screen, tmux sin lock, sesion SSH no
+   encriptada, screenshare en una llamada), la master se filtra.
+   Mitigacion: el comando muestra un warning antes de imprimir y
+   el `encryption_audit_log` registra `ExportKeyAttempted` /
+   `KeyExported`; el operador puede revisar accesos sospechosos.
+
+#### Diagrama de superficie de ataque
+
+```
+Path 1 (cerrado por envelope-only):
+   passphrase → KDF(argon2id) → key-encrypting-key → cifra master → master → SQLCipher → DB
+                ↑
+                rekey rota AQUI: cierra el path desde una passphrase
+                comprometida. Master sigue intacta.
+
+Path 2 (NO cerrado por envelope-only):
+   master → SQLCipher → DB
+   ↑
+   Si la master se filtra fuera del flujo passphrase (screenshot del
+   init, leak de ~/.config/recall/keys/, intercept de export-key),
+   rekey NO ayuda. Necesitas rotate-master (no existe en v0.5).
+```
+
+#### Resumen operativo (cuando usar que)
+
+| Sospecha / objetivo | Comando | Cierra el path? |
+|---|---|---|
+| Una passphrase historica esta comprometida | `recall rekey` | SI (envelope viejo deja de funcionar) |
+| Un colaborador deja el equipo | `recall rekey` sobre su envelope | SI |
+| Quiero agregar un nuevo dev sin compartir mi passphrase | `recall add-key` | NO aplica (es addition, no revocacion) |
+| Perdi mi copia local de la clave de recuperacion | `recall export-key` (con passphrase valida) | NO aplica (recuperacion personal) |
+| **La master key se filtro** | `recall rekey` (**INSUFICIENTE**) → ver §3 "Lo que NO protege" #1 | **NO** (requiere rotate-master no automatizado + posiblemente `git filter-repo`) |
+| Quiero auditar accesos sospechosos | `recall health` + revisar `encryption_audit_log` local | NO previene (es deteccion) |
+
+#### Implementacion (referencia)
+
+- `recall add-key` → `AddKeyFacade` (`docs/12 §1.5.5` paso 5; PR #80).
+- `recall rekey` → `RekeyFacade` con `smoke-verify` defence-in-depth
+  (`docs/12 §1.5.5` paso 6; PR #81). El smoke-verify desbloquea la DB
+  con el envelope nuevo INMEDIATAMENTE despues de escribir, antes de
+  comitear, para detectar bugs en el flow de wrap/unwrap.
+- `recall export-key` → `ExportKeyFacade` con audit log
+  `ExportKeyAttempted` / `KeyExported` (`docs/12 §1.5.5` paso 7; PR
+  #82).
+- Auditoria: `encryption_audit_log` (migracion 009) con triggers
+  append-only `eal_no_update` / `eal_no_delete`.
+
 ### Cuando usarlo
 
 - Equipo cerrado con repo publico donde no quieren exponer decisiones internas.
