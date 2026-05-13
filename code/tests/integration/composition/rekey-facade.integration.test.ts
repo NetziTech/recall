@@ -258,5 +258,43 @@ describe("integration / composition / CliRekeyFacadeAdapter — multi-key rotati
     const configPath = path.join(ctx.workspaceRoot, ".recall", "config.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as ConfigJson;
     expect(config.key_envelopes?.length).toBe(1);
+
+    // F-A6-2 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row attributed to `cli:rekey`. The pre-
+    // unlock `RekeyStarted` is NOT emitted (the rekey flow appends
+    // its audit chain only on success); the `appendRekeyFailed`
+    // helper fires on POST-unlock errors, which is a distinct path.
+    interface FailedAuditRow extends AuditRow {
+      readonly detail_json: string | null;
+      readonly actor_hint: string;
+    }
+    const failedRows = ctx.database
+      .prepare(
+        `SELECT event_id, occurred_at_ms, event_type, envelope_id,
+                master_key_fp, outcome, detail_json, actor_hint
+         FROM encryption_audit_log
+         WHERE event_type = 'UnlockFailed'`,
+      )
+      .all() as readonly FailedAuditRow[];
+    expect(failedRows.length).toBe(1);
+    expect(failedRows[0]?.outcome).toBe("FAILURE");
+    expect(failedRows[0]?.envelope_id).toBeNull();
+    expect(failedRows[0]?.master_key_fp).toBeNull();
+    expect(failedRows[0]?.actor_hint).toBe("cli:rekey");
+    expect(
+      JSON.parse(failedRows[0]?.detail_json ?? "{}") as Record<string, unknown>,
+    ).toEqual({ reason: "invalid-passphrase" });
+
+    // RekeyStarted / RekeyCompleted / RekeyFailed must NOT have been
+    // emitted on the unlock-failure path (the audit chain runs only
+    // after a successful unlock; appendRekeyFailed is a distinct
+    // post-unlock helper).
+    const rekeyStartedRows = ctx.database
+      .prepare(
+        `SELECT event_id FROM encryption_audit_log
+         WHERE event_type = 'RekeyStarted'`,
+      )
+      .all() as readonly { event_id: Buffer }[];
+    expect(rekeyStartedRows.length).toBe(0);
   });
 });

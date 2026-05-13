@@ -197,5 +197,30 @@ describe("integration / composition / CliAddKeyFacadeAdapter — multi-key add",
     const configPath = path.join(ctx.workspaceRoot, ".recall", "config.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8")) as ConfigJson;
     expect(config.key_envelopes?.length).toBe(1);
+
+    // FP-A5-1 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row so brute-force passphrase attempts
+    // against the add-key flow are forensically observable.
+    interface FailedAuditRow extends AuditRow {
+      readonly detail_json: string | null;
+      readonly actor_hint: string;
+    }
+    const failedRows = ctx.database
+      .prepare(
+        `SELECT event_id, occurred_at_ms, event_type, envelope_id,
+                master_key_fp, outcome, detail_json, actor_hint
+         FROM encryption_audit_log
+         WHERE event_type = 'UnlockFailed'`,
+      )
+      .all() as readonly FailedAuditRow[];
+    expect(failedRows.length).toBe(1);
+    expect(failedRows[0]?.outcome).toBe("FAILURE");
+    expect(failedRows[0]?.envelope_id).toBeNull();
+    expect(failedRows[0]?.master_key_fp).toBeNull();
+    expect(failedRows[0]?.actor_hint).toBe("cli:add-key");
+    expect(failedRows[0]?.detail_json).not.toBeNull();
+    expect(
+      JSON.parse(failedRows[0]?.detail_json ?? "{}") as Record<string, unknown>,
+    ).toEqual({ reason: "invalid-passphrase" });
   });
 });

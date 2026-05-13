@@ -7,6 +7,7 @@ import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empt
 import type { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts";
 import type { EncryptionConfig } from "../../domain/aggregates/encryption-config.ts";
 import { EncryptionLockedError } from "../../domain/errors/encryption-locked-error.ts";
+import { KeyValidationFailedError } from "../../domain/errors/key-validation-failed-error.ts";
 import type { EncryptionAuditLogRepository } from "../../domain/repositories/encryption-audit-log-repository.ts";
 import { EventId } from "../../domain/value-objects/event-id.ts";
 import { MasterKeyFingerprint } from "../../domain/value-objects/master-key-fingerprint.ts";
@@ -90,6 +91,18 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
       passphrase: input.currentPassphrase,
     });
     if (isErr(unlockResult)) {
+      // FU-A7-1 (HANDOFF §8): emit a best-effort `UnlockFailed` audit
+      // row BEFORE re-throwing when the failure is a wrong passphrase
+      // (the brute-force signal we want to capture). The audit row is
+      // NOT emitted for `EncryptionNotInitializedError`. The actor-hint
+      // (`cli:export-key`) distinguishes export-failures from add-key
+      // / rekey failures in the audit log.
+      if (unlockResult.error instanceof KeyValidationFailedError) {
+        await this.appendUnlockFailed({
+          occurredAt: this.clock.now(),
+          reason: "invalid-passphrase",
+        });
+      }
       throw unlockResult.error;
     }
     const config = unlockResult.value;
@@ -180,5 +193,58 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
       ];
     });
     await Promise.all(promises);
+  }
+
+  /**
+   * Appends a single `UnlockFailed` audit row when
+   * `UnlockEncryption.unlock(...)` returns Err during the
+   * export-key flow. Best-effort: a broken audit infrastructure
+   * does not mask the original unlock error.
+   *
+   * Row shape:
+   * - `eventType` = `UnlockFailed`
+   * - `envelopeId` = null (no envelope matched the supplied passphrase)
+   * - `masterKeyFingerprint` = null (no master key reached scope)
+   * - `actorHint` = `"cli:export-key"`
+   * - `outcome` = `FAILURE`
+   * - `detailJson` = `{ reason: "invalid-passphrase" }`
+   *
+   * Closes follow-up FU-A7-1 (HANDOFF §8) — brute-force passphrase
+   * attempts against the export-key flow now leave a forensic
+   * trail. `ExportKeyAttempted` is NOT added to the event-type
+   * enum (which is frozen per ADR-005 Q4); the `UnlockFailed` event
+   * with `actorHint=cli:export-key` captures the same signal.
+   */
+  private async appendUnlockFailed(input: {
+    readonly occurredAt: Timestamp;
+    readonly reason: string;
+  }): Promise<void> {
+    const actorHint = NonEmptyString.create(ACTOR_HINT, "actor_hint");
+    try {
+      let promises: Promise<void>[] = [];
+      this.database.transaction((): void => {
+        promises = [
+          this.auditLogRepository.append({
+            eventId: EventId.from(this.idGenerator.generateString()),
+            occurredAt: input.occurredAt,
+            eventType: "UnlockFailed",
+            envelopeId: null,
+            masterKeyFingerprint: null,
+            actorHint,
+            outcome: "FAILURE",
+            detailJson: { reason: input.reason },
+          }),
+        ];
+      });
+      await Promise.all(promises);
+    } catch (auditErr: unknown) {
+      this.logger.warn(
+        {
+          auditError:
+            auditErr instanceof Error ? auditErr.message : String(auditErr),
+        },
+        "best-effort UnlockFailed audit append failed for cli:export-key",
+      );
+    }
   }
 }
