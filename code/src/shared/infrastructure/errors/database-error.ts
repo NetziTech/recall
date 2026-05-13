@@ -32,6 +32,17 @@ import { InfrastructureError } from "./infrastructure-error.ts";
  * - Callers that need the path read it from `details.path` /
  *   `details.dir`. Tests that previously asserted on `error.message`
  *   substring should pivot to `error.details.path`.
+ *
+ * **WARNING — wire boundary (O-PR45-2, HANDOFF §8):** `details` MUST
+ * NOT be serialised into the JSON-RPC `data` envelope of an MCP
+ * response. Pino's redact globs (`details.path` / `details.dir`)
+ * fire inside the logger; the wire serialiser is a different code
+ * path. The MCP facade that converts a `DatabaseError` into a
+ * `JsonRpcError` is responsible for picking the wire-safe fields
+ * (e.g. `code`, redacted `message`) and explicitly dropping
+ * `details`. Surfacing `details.path` over the wire would leak the
+ * workspace absolute path to the LLM transcript — the exact threat
+ * §3 of `docs/11-seguridad-modos.md` warns against.
  */
 export type DatabaseErrorCode =
   | "database.open-failed"

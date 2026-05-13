@@ -175,6 +175,20 @@ type RawConfig = Record<string, unknown>;
  *   product (single-user CLI / interactive MCP server) does not
  *   exercise the contention vector. Documented as a known
  *   limitation; flock would be a Fase 5 hardening if needed.
+ * - **Lost-update characteristic (O-PR44-3, HANDOFF §8).** Two
+ *   concurrent `save(...)` calls on the same `config.json` will
+ *   race read-merge-rename without any cross-process barrier. The
+ *   second writer reads the file BEFORE the first writer's rename
+ *   commits, merges its slice on top of stale state, and then its
+ *   own rename overwrites the first writer's payload — silently
+ *   dropping the first writer's changes. Same shape as the lost-
+ *   update anomaly in any read-modify-write flow without
+ *   `compare-and-swap`. Mitigations available if the contention
+ *   vector materialises: (a) `flock(2)` on the parent directory
+ *   handle before each read-modify-write, (b) optimistic concurrency
+ *   via a monotonically increasing `revision` field in `config.json`
+ *   that the adapter validates on save. Neither is in scope while
+ *   recall stays single-user-per-workspace.
  *
  * Path safety:
  * - The constructor receives an absolute, canonicalised
