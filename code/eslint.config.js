@@ -10,10 +10,52 @@
  * - Light-weight rules (non type-aware) for `tests/**` and `scripts/**`
  *   so that test fixtures and helper scripts don't fight the strictness
  *   intended for the production code.
+ * - FP-001 / W-Q4-CI-GATE — keep the `MasterKeyFingerprint` hex prefix
+ *   contained: `.toHex()` may only be called from the encryption audit
+ *   log adapter, and the `master_key_fp` snake_case column identifier
+ *   must not leak into the composition root, the logger, or the
+ *   presentation layers (CLI / MCP). The procedural barrier (JSDoc +
+ *   audit) is solid in the current tree; this rule prevents a future
+ *   regression by another agent that hasn't read the contract.
  */
 
 import tseslint from "typescript-eslint";
 import eslint from "@eslint/js";
+
+/**
+ * Base no-restricted-syntax entries shared by every production source
+ * config block. New file-specific configs append more entries to this
+ * list (ESLint flat config replaces the rule wholesale, so a sub-config
+ * that wants the tighter rule must include the baseline too).
+ */
+const BASE_RESTRICTED_SYNTAX = [
+  {
+    selector: "TSAsExpression > TSAnyKeyword",
+    message: "`as any` is forbidden — use Zod/runtime parsing instead.",
+  },
+  {
+    selector: "TSTypeAssertion > TSAnyKeyword",
+    message: "`<any>` cast is forbidden.",
+  },
+];
+
+const TOHEX_RESTRICTION = {
+  selector: "CallExpression[callee.property.name='toHex']",
+  message:
+    "FP-001 / W-Q4-CI-GATE: `.toHex()` on MasterKeyFingerprint may only be " +
+    "called from `sqlite-encryption-audit-repository.ts`. Surfacing the hex " +
+    "prefix anywhere else creates correlation risk against the master key. " +
+    "Use `MasterKeyFingerprint.toString()` (returns the redacted constant) " +
+    "for logging or wiring.",
+};
+
+const MASTER_KEY_FP_RESTRICTION = {
+  selector: "Identifier[name='master_key_fp']",
+  message:
+    "FP-001 / W-Q4-CI-GATE: `master_key_fp` (the snake_case audit-log column) " +
+    "must not surface in composition/, the logger, or the presentation " +
+    "layers (CLI / MCP). It is internal to the encryption audit adapter.",
+};
 
 export default tseslint.config(
   {
@@ -93,17 +135,11 @@ export default tseslint.config(
         },
       ],
 
-      // ── Block `as any` and friends via syntax restriction ─────────────
+      // ── Block `as any` and friends + .toHex() leak (FP-001) ──────────
       "no-restricted-syntax": [
         "error",
-        {
-          selector: "TSAsExpression > TSAnyKeyword",
-          message: "`as any` is forbidden — use Zod/runtime parsing instead.",
-        },
-        {
-          selector: "TSTypeAssertion > TSAnyKeyword",
-          message: "`<any>` cast is forbidden.",
-        },
+        ...BASE_RESTRICTED_SYNTAX,
+        TOHEX_RESTRICTION,
       ],
 
       // ── House style ──────────────────────────────────────────────────
@@ -113,6 +149,49 @@ export default tseslint.config(
       ],
       eqeqeq: ["error", "always"],
       "no-console": ["error", { allow: ["warn", "error"] }],
+    },
+  },
+
+  // ───── Encryption audit log adapter: ONLY site allowed to call .toHex()
+  //
+  // Per ADR-005 Q4 + JSDoc invariant in
+  // `code/src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts`,
+  // the audit adapter is the only legitimate caller of
+  // `MasterKeyFingerprint.toHex()`. This override drops the TOHEX
+  // restriction for that one file while keeping the rest of
+  // `BASE_RESTRICTED_SYNTAX` (and every other rule from the production
+  // block above) intact. ESLint flat config replaces the rule wholesale
+  // for matching files, so the baseline entries are repeated here.
+  {
+    files: [
+      "src/modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error", ...BASE_RESTRICTED_SYNTAX],
+    },
+  },
+
+  // ───── Composition root + logger + presentation: tighter rule ────────
+  //
+  // FP-001 / W-Q4-CI-GATE: these layers MUST NOT reference
+  // `master_key_fp` in identifier position (object property access,
+  // destructuring, declaration). The snake_case column name is internal
+  // to the encryption audit adapter; any reference here would indicate
+  // the hex prefix has leaked out of its containment.
+  {
+    files: [
+      "src/composition/**/*.ts",
+      "src/shared/infrastructure/logger/**/*.ts",
+      "src/modules/cli/**/*.ts",
+      "src/modules/mcp-server/**/*.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...BASE_RESTRICTED_SYNTAX,
+        TOHEX_RESTRICTION,
+        MASTER_KEY_FP_RESTRICTION,
+      ],
     },
   },
 
