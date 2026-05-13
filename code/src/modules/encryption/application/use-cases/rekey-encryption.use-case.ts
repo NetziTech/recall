@@ -25,6 +25,7 @@ import type {
 import type { UnlockEncryption } from "../ports/in/unlock-encryption.port.ts";
 import type { Kdf } from "../ports/out/kdf.port.ts";
 import type { RandomBytes } from "../ports/out/random-bytes.port.ts";
+import { appendUnlockFailedAudit } from "./_helpers/append-unlock-failed-audit.ts";
 
 /**
  * Length, in bytes, of the freshly generated salt for the new
@@ -129,8 +130,13 @@ export class RekeyEncryptionUseCase implements RekeyEncryption {
       // NOT emitted for `EncryptionNotInitializedError`. Distinct from
       // `appendRekeyFailed`, which fires on POST-unlock errors.
       if (unlockResult.error instanceof KeyValidationFailedError) {
-        await this.appendUnlockFailed({
+        await appendUnlockFailedAudit({
+          auditLogRepository: this.auditLogRepository,
+          database: this.database,
+          idGenerator: this.idGenerator,
+          logger: this.logger,
           occurredAt: this.clock.now(),
+          actorHint: ACTOR_HINT,
           reason: "invalid-passphrase",
         });
       }
@@ -441,59 +447,6 @@ export class RekeyEncryptionUseCase implements RekeyEncryption {
             auditError instanceof Error ? auditError.message : "unknown",
         },
         "rekey failed and the RekeyFailed audit row could not be appended",
-      );
-    }
-  }
-
-  /**
-   * Appends a single `UnlockFailed` audit row when
-   * `UnlockEncryption.unlock(...)` returns Err during the rekey
-   * flow. Distinct from `appendRekeyFailed`, which fires on errors
-   * AFTER unlock has succeeded — the two rows describe orthogonal
-   * failure modes that a forensic reader needs to tell apart.
-   *
-   * Row shape:
-   * - `eventType` = `UnlockFailed`
-   * - `envelopeId` = null (no envelope matched the supplied passphrase)
-   * - `masterKeyFingerprint` = null (no master key reached scope)
-   * - `actorHint` = `"cli:rekey"`
-   * - `outcome` = `FAILURE`
-   * - `detailJson` = `{ reason: "invalid-passphrase" }`
-   *
-   * Closes follow-up F-A6-2 (HANDOFF §8) — brute-force passphrase
-   * attempts against the rekey flow now leave a forensic trail.
-   * Best-effort: a broken audit infrastructure does not mask the
-   * original unlock error.
-   */
-  private async appendUnlockFailed(input: {
-    readonly occurredAt: Timestamp;
-    readonly reason: string;
-  }): Promise<void> {
-    const actorHint = NonEmptyString.create(ACTOR_HINT, "actor_hint");
-    try {
-      let promises: Promise<void>[] = [];
-      this.database.transaction((): void => {
-        promises = [
-          this.auditLogRepository.append({
-            eventId: this.nextEventId(),
-            occurredAt: input.occurredAt,
-            eventType: "UnlockFailed",
-            envelopeId: null,
-            masterKeyFingerprint: null,
-            actorHint,
-            outcome: "FAILURE",
-            detailJson: { reason: input.reason },
-          }),
-        ];
-      });
-      await Promise.all(promises);
-    } catch (auditError) {
-      this.logger.warn(
-        {
-          auditError:
-            auditError instanceof Error ? auditError.message : "unknown",
-        },
-        "best-effort UnlockFailed audit append failed for cli:rekey",
       );
     }
   }
