@@ -5,7 +5,6 @@ import type { Logger } from "../../../../shared/application/ports/logger.port.ts
 import { isErr } from "../../../../shared/domain/types/result.ts";
 import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empty-string.ts";
 import type { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts";
-import type { EncryptionConfig } from "../../domain/aggregates/encryption-config.ts";
 import { EncryptionLockedError } from "../../domain/errors/encryption-locked-error.ts";
 import { KeyValidationFailedError } from "../../domain/errors/key-validation-failed-error.ts";
 import type { EncryptionAuditLogRepository } from "../../domain/repositories/encryption-audit-log-repository.ts";
@@ -121,16 +120,23 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
 
     const occurredAt = this.clock.now();
 
-    // 2. Render the master key (read-only over the aggregate). The
-    //    VO defensively copies the bytes; the in-aggregate buffer is
-    //    never aliased outside the closure.
-    const printableMasterKey = this.renderPrintable(config);
-
-    // 3. Compute the master-key fingerprint for the audit row. The
-    //    VO is passed verbatim to the audit port — the SQL adapter
-    //    is the only site allowed to call `.toHex()` (per the VO's
-    //    security invariants).
-    const fingerprint = this.computeFingerprint(config);
+    // 2 + 3. Single `withUnlockedKey` callback that derives BOTH the
+    //         `PrintableMasterKey` and the `MasterKeyFingerprint` from
+    //         the in-aggregate master bytes inside one `withBytes`
+    //         disclosure window. Closes follow-up FP-A5-5 (HANDOFF §8):
+    //         batching the two reads into one callback reduces the
+    //         number of master-key-access sites the audit-reviewer
+    //         has to inspect from 2 to 1, and guarantees both
+    //         derivations observe the SAME byte buffer (defensive
+    //         clone returned by `withBytes`) without round-tripping
+    //         through the aggregate boundary twice.
+    const { printableMasterKey, fingerprint } = config.withUnlockedKey(
+      (masterKey) =>
+        masterKey.withBytes((bytes) => ({
+          printableMasterKey: PrintableMasterKey.fromMasterKey(bytes),
+          fingerprint: MasterKeyFingerprint.fromMasterKey(bytes),
+        })),
+    );
 
     // 4. Emit the single `ExportKeyEmitted` audit row atomically.
     await this.appendAuditRow({ fingerprint, occurredAt });
@@ -144,31 +150,6 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
   }
 
   // -- private helpers -----------------------------------------------------
-
-  /**
-   * Builds a `PrintableMasterKey` VO from the currently-unlocked
-   * master key. The double `withUnlockedKey` / `withBytes` nesting
-   * keeps the secret bytes inside the audited disclosure surface
-   * (the VO never observes them as an externally-held alias).
-   */
-  private renderPrintable(config: EncryptionConfig): PrintableMasterKey {
-    return config.withUnlockedKey((masterKey) =>
-      masterKey.withBytes((bytes) => PrintableMasterKey.fromMasterKey(bytes)),
-    );
-  }
-
-  /**
-   * Computes the truncated master-key fingerprint of the
-   * currently-unlocked key. Stored on the single audit row so a
-   * forensic reader can correlate `ExportKeyEmitted` with earlier
-   * `UnlockSucceeded` / `KeyEnvelopeAdded` rows on the same key
-   * material.
-   */
-  private computeFingerprint(config: EncryptionConfig): MasterKeyFingerprint {
-    return config.withUnlockedKey((masterKey) =>
-      masterKey.withBytes((bytes) => MasterKeyFingerprint.fromMasterKey(bytes)),
-    );
-  }
 
   /**
    * Appends the single `ExportKeyEmitted` audit row inside one

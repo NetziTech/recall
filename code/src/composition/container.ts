@@ -88,6 +88,7 @@ import {
 import { AddEnvelopeUseCase } from "../modules/encryption/application/use-cases/add-envelope.use-case.ts";
 import { ExportMasterKeyUseCase } from "../modules/encryption/application/use-cases/export-master-key.use-case.ts";
 import { RekeyEncryptionUseCase } from "../modules/encryption/application/use-cases/rekey-encryption.use-case.ts";
+import { SqliteEncryptionAuditProbe } from "../modules/encryption/infrastructure/persistence/sqlite-encryption-audit-probe.ts";
 import { SqliteEncryptionAuditRepository } from "../modules/encryption/infrastructure/persistence/sqlite-encryption-audit-repository.ts";
 import {
   DestroyEncryptionFacadeAdapter,
@@ -254,7 +255,12 @@ export function buildContainer(options: ContainerOptions): Container {
     encryption.destroyEncryption,
   );
 
-  // Step 5 — workspace.
+  // Step 5 — workspace. The encryption audit probe (FU-A7-2) reads
+  // `last_export_at` from `encryption_audit_log` and surfaces it via
+  // `recall health`. Wired here because the container is the first
+  // composition layer with a live `DatabaseConnection` AND the
+  // workspace `HealthCheckUseCase` needs the probe at construction.
+  const encryptionAuditProbe = new SqliteEncryptionAuditProbe(options.database);
   const workspace = buildWorkspaceWiring({
     logger,
     clock: shared.clock,
@@ -266,6 +272,7 @@ export function buildContainer(options: ContainerOptions): Container {
     unlockEncryptionFacade,
     lockEncryptionFacade,
     destroyEncryptionFacade,
+    encryptionAuditProbe,
   });
 
   // Step 6 — workspace id resolution. The memory + curator wirings
