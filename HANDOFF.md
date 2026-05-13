@@ -16,15 +16,15 @@
 |---|---|
 | **Fecha del handoff** | 2026-05-12 (Phase-21 roadmap v0.5+ autonomic batch CERRADA — 5 PRs #66-#70: (a) **W-3.5-SEC-L2** path-leak fix en 12 Error factories (workspace/secrets/curator), patron `details: { path }` replicando PR #45 → CERRADO; (b) **`@types/node@25`** bump habilitado via signature tightening `Uint8Array<ArrayBuffer>` sin `as` casts (3 VOs encryption domain + 3 AES-GCM adapters); (c) **Coverage restore 90→95** docu en `sonar-project.properties` + tests reales +21 VALOR en 4 archivos (json-memory-importer/exporter, json-encryption-config-repo, node-workspace-filesystem) — aggregate 95.17% → ~95.69%; (d) **W-3.4-PERF-H2** `markPrunedBatch` (1 transaction vs N fsyncs) con mask paralelo para per-row idempotency events → CERRADO; (e) **ADR-005** multi-key envelope flow (Q1-Q5 architect review pendiente) + **ADR-006** OS keychain <500ms (decision: defer, SLO <1500ms aceptable) PROPOSED; (f) doc drift PR #70 fix JSDoc port. **4 validadores arquitectonicos post-merge** (clean-arch, ddd, solid, security) reportaron APROBADO. 2649 tests passing en 215 archivos (+41 vs Phase-20 baseline 2608). Coverage Istanbul: stmt 96.77% / br 90.7% / fn 98.51% / lines 98.04%; agregado SonarQube ~95.69%. **0 issues + 0 PRs abiertos**. **Verificacion 2026-05-12 via API SonarQube** (`api/qualitygates/show` + `api/qualitygates/project_status`): gate `MCP Memoria Strict` ya tiene `coverage LT 95` y `new_coverage LT 95` server-side (>=95 exigido), proyecto `recall` en status `OK` con coverage actual 95.7% / new_coverage 99.4%. El "flip 90→95" estaba CERRADO desde antes de la sesion de auditoria del HANDOFF Phase-21 (probablemente nunca llego al 90 server-side; el doc drift venia de Phase-20). **Phase-22 ACCEPTED + Phase-23 Fase 1+2 + Phase-24 Fase 3 — ITERACION 2 ADR-005 COMPLETA (10 PRs mergeados + 1 wontfix)**: plan de 7 pasos del apendice ADR-005 100% cerrado. PRs Phase-23: [#73](https://github.com/NetziTech/recall/pull/73) A1 secureZero, [#74](https://github.com/NetziTech/recall/pull/74) B Vec0SimilarityFinder batch (CIERRA W-3.4-PERF-H3 HIGH), [#75](https://github.com/NetziTech/recall/pull/75) A4 encryption.audit_log, [#77](https://github.com/NetziTech/recall/pull/77) A3 PrintableMasterKey Bech32, [#78](https://github.com/NetziTech/recall/pull/78) A2 CLI prompts library, [#79](https://github.com/NetziTech/recall/pull/79) HANDOFF Phase-23 docs. PRs Phase-24 (Fase 3): [#80](https://github.com/NetziTech/recall/pull/80) A5 AddKeyFacade, [#81](https://github.com/NetziTech/recall/pull/81) A6 RekeyFacade (con smoke-verify defence-in-depth), [#82](https://github.com/NetziTech/recall/pull/82) A7 ExportKeyFacade. PR [#76](https://github.com/NetziTech/recall/pull/76) tar@7 override CERRADO wontfix. 4 validadores pre-merge por cada PR. **11 follow-ups no-bloqueantes** acumulados (5 A5 + 3 A6 + 3 A7) tracked en §8. HEAD develop: `147a4b5`, **69 commits ahead de main**. Ver §6.27 + §6.28 + §6.29) |
 | **Producto** | Servidor MCP de memoria persistente por proyecto, viviendo dentro del proyecto (`<repo>/.recall/`), con 3 modos: compartido / encriptado / privado |
-| **Fase actual** | **Phase-21 roadmap v0.5+ autonomic batch CERRADO en develop** — 5 PRs mergeados (#66-#70) cierran 3 items substantivos (W-3.5-SEC-L2 path-leak, `@types/node@25` bump, coverage restore 90→95, W-3.4-PERF-H2 markPrunedBatch) + diferen 2 items via ADR (ADR-005 multi-key + ADR-006 OS keychain). Auditoria arquitectonica formal post-merge (clean-architecture-validator + ddd-validator + solid-validator + security-auditor) reporta **APROBADO** sobre `c3b78c1..c0734b2`. Coverage Istanbul: stmt 96.77 / br 90.7 / fn 98.51 / lines 98.04; agregado SonarQube ~95.69%. 2649 tests passing en 215 archivos. **HEAD develop (post #70)**: `6f9ce32`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop **23 commits ahead de main** post-Phase-21 (era 18 al cierre Phase-20). **Accion humana pendiente**: flip SonarQube gate UI 90→95 + architect review ADR-005 Q1-Q5. Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + vitest 4 + Istanbul + `@types/node@25` + W-3.5-SEC-L2 + markPrunedBatch + 2 ADRs proposed + coverage 95% restored. Ver §6.26. Anterior: **Phase-20 vitest 4 + Istanbul + dead-cause refactor + gate 95→90 CERRADO** — PR #64 mergea (a) migración `vitest` 3.2.4→4.1.6 + `@vitest/coverage-v8`→`@vitest/coverage-istanbul` 4.1.6 (provider más maduro, evita re-litigar el cambio de counting model cuando vitest 5 salga), (b) `patches/vitest+4.1.6.patch` regenerado para el bug birpc 60s `onTaskUpdate` (vitest#8164) que sigue presente en 4.x, (c) **Refactor A**: eliminado patrón `options?: { cause?: unknown }` dead en 30+ error classes (2 root abstracts + 13 intermediates + 31 concrete simples + 7 mixed-options + 4 input-bag/required-options), signatures uniforme `(args..., cause?: unknown)` con cause directo al super, −150 LOC dead code; 7 callers SRC actualizados (raw-embedder-adapter, json-rpc-handler ×2, tool-dispatcher, secret-pattern, commander-cli-parser, path-sanitizer-rule, 3 mcp-server infra errors); 10 test files migrados al nuevo positional signature, (d) **Fase B** tests reales: `process-tty.ts` 25.9%→85.2% branches (stubbed stdin con EventEmitter + isTTY/setRawMode shim drive ENTER/CR/Ctrl-C/backspace/multi-event), `argon2id-kdf.ts` `classifyKdfError` 50%→100% branches (vi.mock @noble/hashes/argon2.js para drive OOM-like / generic / non-Error / pre-classified throws), equals(self) fast-path para EntityRef/TaskRef/TurnRef/ToolArgs, (e) `src/bootstrap/**` excluido del coverage (composition root analogue, ~840 LOC wiring), (f) SonarQube quality gate strict 95%→**90%** documentado en sonar-project.properties con roadmap de restauración al 95%. Coverage honesto Istanbul: stmt 96.5%, br 89.6%, fn 98.3%, lines 97.8%; **agregado SonarQube 95.17%** (vs baseline v3 inflado 96.4%). 2608 tests passing en 213 files. Roadmap v0.5+ #8 (vitest 4 re-evaluation) CLOSED; los 2 `@dependabot ignore this major version` en PRs #50/#59 siguen activos pero ahora son protectores forward (cuando salga vitest 5). Phase-16 `@netzi/recall@0.1.2` STABLE sigue intacto en `latest`. **HEAD develop (post #64)**: `8fce37e`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop diverge de main por **18 commits** (4 hardening Phase-17 + 1 refactor preparatorio + 7 dep bumps Phase-18 + 4 docs HANDOFF + 1 Node 24 LTS Phase-19 + 1 vitest 4 / refactor A / Fase B / gate down Phase-20). Cuando se corte `release/0.1.3-beta.0`, material acumulado: hardening defensivo completo + TS 6 + Node 24 LTS + @types/node 24 + vitest 4 + Istanbul + −150 LOC dead error code + bumps de stack (zod 4.4, hono, eslint, typescript-eslint, fast-uri, ip-address, express-rate-limit). |
-| **Lineas de codigo** | ~62,000 en `code/src/` + ~38,000 LOC de tests en **215 archivos test**. 8 modulos + shared + composition + bootstrap. **Phase-21 deltas**: +355 LOC neto en `code/src/` (W-3.5-SEC-L2 errors +191/-46, `@types/node@25` signature tightening +29/-11, markPrunedBatch port +40 + adapter +110 + use case +30/-7, doc drift fix +10/-3), +810 LOC de tests (+21 nuevos tests + 4 SQLite integration tests para markPrunedBatch + 2 nuevos test files para foreign-hook-exists-error + curator-infrastructure-error). 0 migraciones nuevas. ADR-005 + ADR-006 agregan ~135 lineas a `docs/12-lineamientos-arquitectura.md`. |
-| **Migraciones** | **9** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope, **008__decisions-content** — backfill rationale → content + rebuild FTS5 con la columna nueva). |
-| **Lineas de documentacion** | ~9,100 en `docs/` (incluye ADR-001..006 — **ADR-005 multi-key envelope flow + ADR-006 OS keychain ambos PROPOSED Phase-21**; convencion `.port.ts` §3.1). **8 release notes** (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`, `v0.1.2-beta.4.md`, `v0.1.2-beta.5.md`, `v0.1.2-beta.6.md`, **`v0.1.2.md`** — STABLE, consolida todo el cycle beta + migration guide). docs/02 §4.3 documenta `min_score`. |
+| **Fase actual** | **Phase-22 + Phase-23 + Phase-24 CERRADAS — Iteracion 2 ADR-005 COMPLETA (10 PRs de codigo + 2 PRs docs HANDOFF mergeados, 1 PR wontfix cerrado).** Plan de 7 pasos del apendice ADR-005 (Q1-Q5) ejecutado al 100%: A1 secureZero (#73), A2 CLI prompts library (#78), A3 PrintableMasterKey Bech32 (#77), A4 encryption.audit_log (#75), A5 AddKeyFacade (#80), A6 RekeyFacade (#81), A7 ExportKeyFacade (#82). Plus B Vec0SimilarityFinder batch (#74, **CIERRA W-3.4-PERF-H3 HIGH**). 4 validadores pre-merge por cada PR; 1 NEEDS-CHANGES de security-auditor (A6 smoke-verify) corregido con fix + test de regresion. **HEAD develop**: `deea7a1`. **HEAD main**: `29371f8` (sin cambios desde Phase-16). Develop **70 commits ahead de main**. Coverage SonarQube **OK**: stmt 96.77 / br 90.7 / fn 98.51 / lines 98.04; agregado 95.7% / new_coverage 96.2%. **Phase-25 (esta sesion-audit, NO release)**: usuario fijo regla durable "releases solo cuando NO hay pendientes" (memoria `feedback_release_only_when_clean.md`). Status follow-ups OPEN tracked (§8): **2 HIGH** (`swap-embedder-tar7` upstream wontfix re-confirmado + `W-3.4-PERF-H3` ya CLOSED; queda solo el upstream tar — bloquea v0.5 GA), **2 MEDIUM** (`FP-001 W-Q4-CI-GATE` + `FP-A5-1 UnlockFailed audit AddKey` + `W-3.3-PERF-M1/M2` + `W-3.4-PERF-M1/M2`), **8 LOW + multiples INFO** (FP-A5-2..5 + F-A6-1..3 + FU-A7-1..3 + 11 obs Phase-17 + 2 obs Phase-21 + benchmark markPrunedBatch + wire-schema cleanup). **Total ~24 items OPEN tracked**. NO se corta release hasta cerrar pendientes (al menos HIGH + MEDIUM). Ver §6.27 + §6.28 + §6.29 + §6.30. |
+| **Lineas de codigo** | **ncloc 36,031** segun SonarQube (excluye blank lines + comments + tests). Tests en **228 archivos** (~+13 vs Phase-21 baseline 215; +6 nuevos archivos Phase-22+23+24: A1 secure-zero.test, A3 printable-master-key.test + fixture JSON, A4 master-key-fingerprint.test + sqlite-encryption-audit integration, A2 3 prompts tests + 4 nuevos tests files Phase-23/24, A5/A6/A7 4 unit + 3 integration). 8 modulos + shared + composition + bootstrap. |
+| **Migraciones** | **10** en `code/migrations/` (000__bootstrap, 001__secret-audit-log, 002__retrieval-schema, 003__pruned-and-curator-runs, 004__core-memory-schema, 005__perf-indexes, 006__workspace-config-table, 007__fts-trigger-column-scope, 008__decisions-content, **009__encryption-audit-log** — Phase-23 PR #75 ADR-005 Q4: tabla `encryption_audit_log` con BLOB event_id + 12 event types enum + master_key_fp local-only + append-only triggers `eal_no_update`/`eal_no_delete`). |
+| **Lineas de documentacion** | ~9,500 en `docs/` (incluye ADR-001..006 — **ADR-005 multi-key envelope flow ACCEPTED Phase-22**; convencion `.port.ts` §3.1; Phase-22 anadio `docs/11 §3` subseccion "Formato de la clave de recuperacion" con spec Bech32 BIP-173 + vectores V1/V2/V3 + parser pseudo-code + path migracion legacy keys; ADR-006 OS keychain sigue PROPOSED). **8 release notes** (`RELEASE-NOTES-v0.1.0.md`, `v0.1.1.md`, `v0.1.2-beta.0.md`, `v0.1.2-beta.3.md`, `v0.1.2-beta.4.md`, `v0.1.2-beta.5.md`, `v0.1.2-beta.6.md`, **`v0.1.2.md`** — STABLE). |
 | **Agentes definidos** | 13 en `.claude/agents/` (1 orquestador + 6 implementadores + 6 validadores). |
 | **Reportes de validacion** | 71 historicos del MVP (Fases 1-6) + Phase-7/8/9 validadas con los 5 checks objetivos (typecheck/lint/validate:modules/build/test) por sub-fase, sin reportes formales nuevos. |
 | **Tooling materializado** | `code/package.json` (**TypeScript 6.0.3** + **`@types/node` ^25.7.0** post-Phase-21 (era ^24.x en Phase-19/20), eslint 10.3.0, typescript-eslint 8.59.3, zod 4.4.3, hono 4.12.18, commander 14.0.3, **`patch-package` 8.0.1**, **`vitest` 4.1.6 + `@vitest/coverage-istanbul` 4.1.6** post-Phase-20, actions/checkout@v6, actions/setup-node@v6), `code/tsconfig.json` (17 flags estrictos — verificados compatibles con TS 6 en Phase-18 + Node 24 en Phase-19 + vitest 4 en Phase-20 + `@types/node@25` en Phase-21), `code/eslint.config.js` (ESLint 10.3 strict; tests/scripts override con `argsIgnorePattern: "^_"`), `code/vitest.config.ts` (provider Istanbul, thresholds locales **tightened en Phase-21 al baseline honest post-coverage-restore**: 96% lines / 89% branches / 96% functions / 95% statements globally; infrastructure 90/83/90/90 per-layer; deferidos a SonarQube en CI via `process.env.CI` switch; sin `!` negation patterns; `pool: "forks"` obligatorio onnxruntime-node; `src/bootstrap/**` excluido del coverage Phase-20), `code/scripts/validate-modules.ts`, `code/sonar-project.properties` (key `recall`, gate thresholds documentados como **`>= 95.0`** post-Phase-21 con "Going forward" maintenance instructions; **flip server-side pendiente**), `code/tsup.config.ts`. **Phase-21 NEW** (sobre tests + infra): tests con foreign-hook + curator-infrastructure-error dedicated test files; markPrunedBatch SQLite integration tests con table-drop + connection-wrap patterns. **Phase-20 sigue activo**: `code/patches/vitest+4.1.6.patch` (5-line patch regenerado para birpc 60s timeout que sigue en 4.x), `tests/unit/encryption/infrastructure/argon2id-kdf-error-paths.test.ts` (vi.mock @noble/hashes para classifyKdfError branches). `.github/workflows/ci.yml` con `setup-node@v6 node-version: '24'` (LTS Krypton). **Phase-10 (sigue activo)**: `.github/dependabot.yml`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*`, `CONTRIBUTING.md`, `SECURITY.md`. **Phase-18**: SonarQube Dependabot scope secret `SONAR_TOKEN` rotado al token PROJECT_ANALYSIS scoped exclusivamente a `recall` (`dependabot-recall-2026-05-11`, expira 2026-08-02). |
 | **SonarQube** | https://sonar.netzi.dev/dashboard?id=recall — proyecto `recall`. Quality gate `MCP Memoria Strict`. **Estado actual (verificado via API 2026-05-12)**: ambas condiciones de coverage en **`>= 95.0`** server-side (`coverage LT 95` + `new_coverage LT 95`); project_status `OK` con `coverage=95.7%` / `new_coverage=99.4%`. El doc drift Phase-20→Phase-21 que decia "gate en 90, pendiente flip" era incorrecto: la API mostraba 95 en ambas condiciones. **No hay accion humana pendiente sobre el gate**. `sonar-project.properties` Phase-21 documenta el threshold canonico 95% con "Going forward" maintenance instructions y coincide con la realidad server-side. Demás condiciones intactas: ratings A reliability/security/maintainability/security-review, 0 bugs / 0 vulns / 0 blockers / 0 critical / 0 violations en new code, debt ratio ≤ 5%, duplications ≤ 3%. Coverage post-Phase-21: **agregado ~95.69%** (stmt 96.77%, br 90.7%, fn 98.51%, lines 98.04%) — margen 0.7 pts sobre el threshold restaurado 95.0. Roadmap restore EJECUTADO en PR #68: tests reales en json-memory-importer (+3), json-memory-exporter (+2), json-encryption-config-repository (+9), node-workspace-filesystem (+7) = +21 nuevos VALOR-tests. **Token rotation Phase-13**: `ci-github-actions-recall` (Project Analysis Token, scoped a recall, expira 2026-08-02) en GitHub Secret `SONAR_TOKEN`. Token User `claude-debug` en `~/.netzi-secrets/sonar.env` (0600) para queries API directas (memoria reference). |
-| **Tests** | **2649 passing** en 215 archivos test (+41 vs Phase-20 baseline 2608). Phase-21 deltas: +27 tests W-3.5-SEC-L2 path-leak (per-factory + wire-mapper end-to-end), +3 tests json-memory-importer non-null branches, +2 tests json-memory-exporter populated nullables, +9 tests json-encryption-config-repository parse error arms + label non-null + delete idempotency, +7 tests node-workspace-filesystem defensive guards + gitignore normalisation, +4 tests SQLite integration para markPrunedBatch (empty / multi-kind+mask / per-row throw / prepare-phase rollback / decision-entity-task dispatch). Coverage SonarQube **agregado ~95.69%** post-coverage-restore. **Cycle stats acumulado**: 2649 vs 2421 al cierre del MVP — +228 tests netos en 7 betas + 2 stable + 4 hardening phases. La regla "VALORES no SHAPE" se aplica en Phase-21 (cada test asserta `error.message NOT contains path` + `error.details.path === path`, `mask[i]===false`, `parsed.decisions[0].getSupersededBy()?.decisionId.toString()`, etc.). |
+| **Tests** | **~2,790 passing** en **228 archivos test** (estimacion: 2,649 Phase-21 baseline + ~111 Phase-23 [A1 6 + B 4 + A4 31 + A3 35 + A2 35] + ~30 Phase-24 [A5 4+3 + A6 7+3 + A7 6+3]). Coverage SonarQube `OK` con `coverage: 95.7%` y `new_coverage: 96.2%` (verificado via API 2026-05-12 post-merge PR #83). La regla "VALORES no SHAPE" sigue aplicandose: Phase-22+23+24 anadio tests vector-frozen (3 vectores Bech32 V1/V2/V3 byte-by-byte), tests con audit log event-type roundtrip por enum, smoke-verify regression (cipher.unwrap defence-in-depth), defensive-copy tests en VOs (mutar buffer externo NO afecta VO interno). |
 | **Benchmarks** | 4/6 PASS (mem.remember 0.18ms p95, mem.recall 1.51ms p95, mem.context 7.94ms p95, cold start unencrypted 155.88ms p95). 1 PASS post-fix F (curator 50K decay 206ms p95 vs 30s target). 1 ajuste SLO encrypted (1412ms vs nuevo target 1500ms). **Caveat Phase-9**: los benchmarks miden los caminos felices con embedder mockeado; no detectan que en produccion el embedder NO se carga (B-MCP-3). |
 | **SLO encrypted** | Cold start `<1500ms` (revisado desde `<400ms` previo, mantiene Argon2id OWASP 2024 — 64 MiB / 3 iter / 4 parallel). Decision E del architect-final-review. |
 | **Vulns npm audit** | 1 cerrada (`uuid` bumpeado a 14.x). **2 highs upstream** heredadas de `fastembed@^2.0.0` → `tar@6.x` (path-traversal/symlink poisoning en extraccion de tarball). Phase-7 sub-fase 5 (2026-04-28) **investigo y documento como wontfix** tras descartar 4 alternativas: bump (fastembed@2.1 sigue con tar@6), override (tar@7 sin default ESM rompe import), swap embedder (v0.5-class), shim custom (regla "no security custom"). Ver ADR-004 en `docs/12-lineamientos-arquitectura.md §1.5.4` + §6.11. Vector real corregido: download desde GCS de Qdrant (no HuggingFace). SonarQube **sigue en 0 vulnerabilities** sobre nuestro codigo. **Phase-14 confirmacion**: con B-MCP-7 cerrado el worker SI ejerce el path tar en produccion (el smoke poblo 64 vectores via `FlagEmbedding.init()` + `model.embed()`); el wontfix sigue siendo correcto (path tar no accesible al input del usuario, solo a tarballs descargados de GCS owned por Qdrant). |
@@ -32,10 +32,10 @@
 | **Licencia** | MIT (`code/LICENSE`). |
 | **Estado del release** | **PUBLICADO + smoke fresh validado completo.** `@netzi/recall@0.1.2` en npm canal `latest`. Tag `v0.1.2` → commit `29371f8` (= main HEAD post squash-merge PR #40). GitHub release **stable**: https://github.com/NetziTech/recall/releases/tag/v0.1.2 (NO prerelease). `npm publish --auth-type=web` ejecutado por usuario via WebAuthn passkey (PUT 200 + tarball 1.4 MB packed / 6.7 MB unpacked, 16 files, sha512 ea89bd249aa3...). Smoke fresh end-to-end con workspace 100% nuevo (`/tmp/recall-stable-smoke`, `npx --yes @netzi/recall@latest init`): **10/10 PASS** — `serverInfo.version === "0.1.2"`, tools/list 6 MVP, mem.health pre/post 3 writes, mem.recall hits=3 con candidates=3, mem.context 7 layers, mem.task UUID v7. `0.1.0` + `0.1.1` hard-deprecated. **Merge-back develop ← main via PR #41 cerrado limpiamente** (`181217f`). |
 | **Issues GitHub abiertos** | **0** — todos los issues del cycle `0.1.2-beta.*` cerrados antes de promover a stable. Phase-17 v0.5 hardening NO abrió issues (los 4 warnings ya estaban catalogados en HANDOFF §6.7 D-310 y §6.21 fila 4 desde Fase 3). **12 observaciones no bloqueantes** del security-auditor consolidadas para futuros ciclos (ver §6.22 sección "Observaciones consolidadas"). **Politica Phase-16+**: cualquier bug surfaced post-stable abre nuevo issue + se evalua si requiere `0.1.3-beta.X` (cooling) o va directo a `0.1.3` (trivial fix). |
-| **PRs GitHub abiertos** | **0** — todos consumidos. Phase-21: 5 PRs mergeados ([#66](https://github.com/NetziTech/recall/pull/66) W-3.5-SEC-L2 `4d2584d`, [#67](https://github.com/NetziTech/recall/pull/67) `@types/node@25` `0ec625b`, [#68](https://github.com/NetziTech/recall/pull/68) coverage restore `5c8f62d`, [#69](https://github.com/NetziTech/recall/pull/69) markPrunedBatch + ADR-005/006 `c0734b2`, [#70](https://github.com/NetziTech/recall/pull/70) doc drift `6f9ce32`). Phase-20: PR #64 vitest 4 + Istanbul + Refactor A. Phase-19: PR #62 Node 24 LTS. Phase-18: 8 Dependabot PRs procesados. **`@dependabot ignore` activos**: 2 (vitest 4 + `@types/node@26` mayor en PRs #50/#59/#60 — el ignore del 25 ya no aplica porque #67 habilito el bump). |
+| **PRs GitHub abiertos** | **0** — todos consumidos. **Phase-22 (1 PR docs)**: [#72](https://github.com/NetziTech/recall/pull/72) ADR-005 ACCEPTED + spec Bech32 BIP-173. **Phase-23 (5 PRs codigo + 1 docs HANDOFF)**: [#73](https://github.com/NetziTech/recall/pull/73) A1 secureZero, [#74](https://github.com/NetziTech/recall/pull/74) B perf H3, [#75](https://github.com/NetziTech/recall/pull/75) A4 encryption.audit_log, [#77](https://github.com/NetziTech/recall/pull/77) A3 PrintableMasterKey, [#78](https://github.com/NetziTech/recall/pull/78) A2 CLI prompts, [#79](https://github.com/NetziTech/recall/pull/79) HANDOFF Phase-23 docs. **Phase-24 (3 PRs codigo + 1 docs HANDOFF)**: [#80](https://github.com/NetziTech/recall/pull/80) A5 AddKey, [#81](https://github.com/NetziTech/recall/pull/81) A6 Rekey, [#82](https://github.com/NetziTech/recall/pull/82) A7 ExportKey, [#83](https://github.com/NetziTech/recall/pull/83) HANDOFF Phase-24 final. **1 PR CERRADO wontfix**: [#76](https://github.com/NetziTech/recall/pull/76) tar@7 override (tar@7.5.15 ESM sin default export). **`@dependabot ignore` activos**: 2 (vitest 4 + `@types/node@26` mayor en PRs #50/#59). |
 | **Memoria propia** | **POBLADA por dogfood, queue DRENADA, vectores listos, B-MCP-8 + serverInfo.version fixes ambos confirmados end-to-end via stable** — `<repo>/.recall/recall.db` tiene 64 entries (27 decisions + 23 learnings + 11 entities + 0 tasks + 3 turns), `schema_version=8`, modo `private`. **embedding_queue: 0 pendientes**. **embedding_metadata: 64 vectores poblados**. Smoke fresh stable confirmo (segundo workspace `/tmp/recall-stable-smoke`, no este): `serverInfo.version === "0.1.2"`, mem.health en stale + post-writes, mem.recall hits no-vacios para queries con literal match, mem.context bundle de 7 layers — todo end-to-end con `@netzi/recall@latest` (= 0.1.2). **Hooks PR #26** siguen activos en este repo. |
 | **Repositorio GitHub** | https://github.com/NetziTech/recall — PUBLICO. `main` PR-only desde develop, CI required, enforce_admins. `develop` default branch (CI required, enforce_admins, push directo bloqueado por strict status check). Forks habilitados. Squash-only merges. **Pre-commit hooks per-repo en `.claude/settings.json`** (Phase-13 PR #26) — bloquean `git commit` en main/develop antes de que branch protection rechace el push. **Phase-14 confirmacion**: el hook `block-protected-push.sh` ataja correctamente push de tags desde main; workaround estandar `git switch --detach <tag>` antes del push de tag. |
-| **Proximo paso** | **DECISIÓN HUMANA TOMADA**: SEGUIR ACUMULANDO en develop hasta tener un feature v0.5 substantial. Material acumulado **23 commits ahead de main** post-Phase-21. **Items v0.5 status post-Phase-21**: (1) ~~multi-key envelope flow (3 stubs `Pending*`)~~ **DEFERRED via ADR-005** PROPOSED — Q1-Q5 architect review pendiente; (2) ~~encrypted cold start `<500ms` via OS keychain~~ **DEFERRED via ADR-006** PROPOSED — decision: no implementar en v0.5, SLO <1500ms aceptable; (3) **perf hardening >10K entries** — W-3.4-PERF-H1 CLOSED Phase 5 + **W-3.4-PERF-H2 CLOSED Phase-21 PR #69** + W-3.4-PERF-H3 (Vec0SimilarityFinder 1+1 lookup) PENDIENTE + W-3.3-PERF-M1/M2 + W-3.4-PERF-M1/M2 (db.prepare cache hot path) PENDIENTES; ~~(4) hardening defensivo~~ CLOSED Phase-17; (5) swap embedder o tar@7 para cerrar 6 highs upstream tar PENDIENTE; (6) wire-schema cleanup `memoria_db` → `recall_db` (next major) PENDIENTE; ~~(7) W-3.5-SEC-L2 follow-up~~ **CLOSED Phase-21 PR #66**; ~~(8) vitest 4 re-evaluación~~ CLOSED Phase-20; ~~(9) `@types/node@25` requiere type assertions~~ **CLOSED Phase-21 PR #67** (via signature tightening, sin `as` casts); ~~(10) limpieza ramas remotas huérfanas~~ resuelto fuera de Claude; ~~(11) restore SonarQube gate 90→95~~ **CLOSED Phase-21 PR #68** — code ready + verificacion via API 2026-05-12 confirma gate server-side ya en >=95 (doc drift de Phase-20 reconciliado); (12) **NUEVO Phase-21**: HANDOFF docs section §6.26 esta-sesion; (13) **NUEVO Phase-21**: 11 observaciones LOW/INFO del cycle hardening Phase-17 (§6.22) pendientes para futuros ciclos. **Para futuras sesiones**: revisa `gh issue list` y `git log origin/main..origin/develop --oneline` antes de actuar. **NUEVO compromiso Phase-21**: ejecutar validador arquitectonico pre-merge (no post-) cada vez que se toque `code/src/` — clean-arch + ddd + solid + security + perf segun aplicable. |
+| **Proximo paso** | **REGLA NUEVA Phase-25 (memoria durable del usuario `feedback_release_only_when_clean.md`): NO cortar release mientras `§8 Follow-ups tracked` tenga items OPEN. Trabajar pendientes en orden de severidad (HIGH → MEDIUM → LOW → INFO) ANTES de tag/publish.** Material acumulado en develop: 70 commits ahead de main. **Items que BLOQUEAN release (HIGH + MEDIUM, ~5 items):** (1) **swap-embedder-tar7** HIGH upstream — 6 vulns `fastembed@2.x → tar@6.x` (PR #76 wontfix re-confirmado: tar@7 ESM sin default break; opciones: esperar fastembed con tar@7 OR swap a `@huggingface/transformers`); (2) **FP-001 / W-Q4-CI-GATE** MEDIUM — anadir CI gate (eslint `no-restricted-syntax` o grep script) que rechace `.toHex()` fuera de `sqlite-encryption-audit-repository.ts`; (3) **FP-A5-1 / UnlockFailed audit AddKey** MEDIUM — emitir audit row cuando AddKey unlock falla (cierra gap forense brute-force); (4) **W-3.3-PERF-M1/M2** MEDIUM — `db.prepare()` cache miss en hot path retrieval; (5) **W-3.4-PERF-M1/M2** MEDIUM — `db.prepare()` cache miss en hot path curator. **Items LOW/INFO tracked (~19 items)**: FP-A5-2..5 + F-A6-1..3 + FU-A7-1..3 + 11 obs Phase-17 + 2 obs Phase-21 + performance-auditor benchmark markPrunedBatch + wire-schema cleanup (next major). **Plan de proxima sesion**: empezar por #2 (`FP-001 W-Q4-CI-GATE` — fix trivial 1 archivo ESLint config) + #3 (`FP-A5-1` similar al patron A6 RekeyFailed) en paralelo. Despues #4+#5 (db.prepare cache hot path, perf-auditor previo benchmark). #1 swap-embedder es decision estrategica — postergar hasta que los demas esten cerrados o hasta que `fastembed` publique bump. **Cuando §8 quede en 0 OPEN HIGH+MEDIUM, evaluar release `release/0.1.3-beta.0`** (material acumulado: iteracion 2 ADR-005 completa + hardening defensivo + TS 6 + Node 24 LTS + vitest 4 Istanbul + @types/node 25 + perf H2+H3 cerrados + 2 ADRs accepted/deferred + bumps stack). **Para futuras sesiones**: revisa `gh issue list`, `git log origin/main..origin/develop --oneline`, y §8 OPEN tracked antes de actuar. |
 | **Workflow Claude (settings.json hooks)** | **CONFIGURADO** via PR [#26](https://github.com/NetziTech/recall/pull/26) (mergeado `94f0fcf`). 3 hooks `PreToolUse > Bash` per-repo en `.claude/settings.json` + scripts en `.claude/hooks/`: (1) `block-protected-commit.sh` aborta `git commit` en main/develop con exit 2; (2) `block-protected-push.sh` aborta push desde main/develop o cuyo destino sea main/develop (cubre `origin main`, `HEAD:main`, `:main`, push implicito); (3) `typecheck-on-commit.sh` corre `npm run typecheck` en `code/` cuando hay cambios staged en `code/src/` (cero overhead en commits docs-only). Filtros `if: "Bash(git commit*)"`/`Bash(git push*)` evitan spawn para Bash que no sea git. UserPromptSubmit hook anti-worktree de CLAUDE.md regla #1 preservado intacto. **Phase-14 lecciona**: el hook `block-protected-push.sh` correctamente bloquea `git push origin v0.1.2-beta.4` cuando current branch es main; workaround estandar `git switch --detach <tag>` cambia el branch a empty (no main/develop) y deja pasar el push del tag. Documentar en CONTRIBUTING.md release flow seria util. |
 
 ---
@@ -3744,8 +3744,161 @@ PR #82 corrio 2 veces:
 - ~10 ciclos CI debugging totales.
 - 4 validadores pre-merge por cada PR.
 
-**HEAD develop al cierre Phase-24:** `147a4b5`.
-**Develop vs main:** 69 commits ahead (era 18 al cierre de Phase-20).
+**HEAD develop al cierre Phase-24 (pre-PR docs final):** `147a4b5`.
+**Develop vs main:** 69 commits ahead (post-#82 merge). Tras mergear el propio
+PR docs #83 esta seccion pasa a 70 commits ahead (`deea7a1`).
+
+---
+
+## 6.30 Phase-25 — Auditoria post-Phase-24 + release-discipline rule — CERRADA (HANDOFF reconciliado, NO release)
+
+**Fecha:** 2026-05-12 (cierre de la sesion completa Phase-22+23+24).
+
+**Disparador.** Tras anunciar al usuario "iteracion 2 ADR-005 completa, listo
+para corte de release", el usuario respondio: "pero si aun hay cosas
+pendientes, como vamos a lanzar release, guarda siempre, que los releases
+se lanzan cuando no hay nada pendiente, el resto, se tiene que estar
+realizando lo que falta. Valida todo el handoff, actualizalo a lo real
+que estamos actualmente para la siguiente sesion."
+
+**Acciones de esta seccion (todas doc-only):**
+
+1. **Guardada memoria durable** del usuario en
+   `~/.claude/projects/-Users-h2devx-proyects-netzi-tech-mcp-memoria/memory/feedback_release_only_when_clean.md`:
+   regla "no cortar release mientras §8 tenga OPEN tracked; trabajar
+   pendientes en orden de severidad antes del tag/publish".
+
+2. **Reconciliacion §0** contra estado real verificado via git + GitHub
+   + SonarQube API:
+   - HEAD develop: `deea7a1` (no `147a4b5` como decia §6.29).
+   - 70 commits ahead de main (era 69 pre-#83).
+   - 228 test files (no 215; +13 archivos nuevos Phase-22+23+24).
+   - 10 migraciones (no 9; nueva `009__encryption-audit-log.sql`).
+   - ncloc SonarQube 36,031 (clarificacion vs antiguo "~62,000 LOC bruto").
+   - Coverage 95.7% / new_coverage 96.2% (verificado API).
+   - 13 PRs mergeados desde Phase-21 (#66-#70 Phase-21, #72 Phase-22,
+     #73-#75, #77-#79 Phase-23, #80-#83 Phase-24) + 1 cerrado wontfix
+     (#76).
+
+3. **Reescritura "Proximo paso" §0** con release-discipline explicita:
+   - Lista canonica de items que BLOQUEAN release (HIGH + MEDIUM).
+   - Plan ordenado para proxima sesion (orden de severidad).
+   - Trigger explicito para evaluar release: "cuando §8 quede en 0 OPEN
+     HIGH+MEDIUM".
+
+**Lista canonica de items OPEN tracked al cierre Phase-25 (~24 items
+en §8):**
+
+**HIGH (1 item bloqueante):**
+- `swap-embedder-tar7` — 6 vulns upstream `fastembed → tar@6`. PR #76
+  wontfix re-confirmado (tar@7 ESM rompe import default de fastembed).
+  Opciones: esperar fastembed con tar@7 OR swap a
+  `@huggingface/transformers`. **Decision estrategica pendiente.**
+
+**MEDIUM (4 items bloqueantes pre-release):**
+- `FP-001 / W-Q4-CI-GATE` — CI gate `.toHex()` fuera adapter audit log.
+- `FP-A5-1 / UnlockFailed audit AddKey` — emitir audit row gap forense.
+- `W-3.3-PERF-M1/M2` — `db.prepare()` cache miss retrieval hot path.
+- `W-3.4-PERF-M1/M2` — `db.prepare()` cache miss curator hot path.
+
+**LOW/INFO (~19 items, no bloqueantes individualmente pero parte del
+debt-budget pre-release):**
+- FP-A5-2 (Passphrase Buffer end-to-end secureZero)
+- FP-A5-3 (Integration assert tightening)
+- FP-A5-4 (Envelope-pending state — FUTURE v0.6+)
+- FP-A5-5 (Single withUnlockedKey batch)
+- F-A6-1 (UnlockSucceeded duplication)
+- F-A6-2 (UnlockFailed para rekey)
+- F-A6-3 (Threat model docs/11)
+- FU-A7-1 (ExportKeyAttempted FAILURE)
+- FU-A7-2 (last_export_at visibility)
+- FU-A7-3 (pino redact printableMasterKey)
+- O-PR43..O-PR46-O8 (11 obs Phase-17 hardening cycle)
+- O-PR45-W352-* (2 obs Phase-21 security audit)
+- performance-auditor markPrunedBatch (benchmark sintetico)
+- wire-schema cleanup `memoria_db` → `recall_db` (next major)
+- ADR-006 OS keychain (DEFERRED — no implementar en v0.5)
+
+**Plan para la proxima sesion (orden recomendado por dependencia +
+costo + severidad):**
+
+1. **Doc-only first (cheap, sin codigo):**
+   - F-A6-3: documentar threat model rekey en `docs/11`.
+   - Actualizar `docs/11` con secciones para los multi-key flows
+     (`recall add-key`, `recall rekey`, `recall export-key`) ahora que
+     existen.
+
+2. **Tactico-simple (1-2 archivos cada uno):**
+   - **FP-001 / W-Q4-CI-GATE**: anadir eslint rule
+     `no-restricted-syntax` en `code/eslint.config.js` con override
+     para el adapter audit log. Test: corre lint, verifica que un
+     `.toHex()` plantado fuera del adapter rompe.
+   - **FU-A7-3**: anadir `printableMasterKey` a `DEFAULT_REDACT_PATHS`
+     en `pino-logger.ts`. Trivial.
+   - **FP-A5-3**: tighten assert en integration test
+     (`>=1` → `===1`).
+
+3. **Investigacion paralela:**
+   - **F-A6-1**: verificar si `UnlockEncryptionUseCase` emite
+     `UnlockSucceeded` directamente al audit log (no solo eventos de
+     dominio buffereados). Si si: consolidar para evitar duplicacion
+     en el rekey chain.
+   - **F-A6-2** + **FP-A5-1** + **FU-A7-1**: patron repetido — emitir
+     `UnlockFailed` / `ExportKeyAttempted FAILURE` en
+     `CliAddKeyFacadeAdapter` / `CliRekeyFacadeAdapter` /
+     `CliExportKeyFacadeAdapter` ante Err del unlock. Cierra gap
+     forense vs brute-force.
+
+4. **Performance (require benchmark previo):**
+   - **W-3.3-PERF-M1/M2** + **W-3.4-PERF-M1/M2**: implementar
+     `db.prepare()` cache en hot path retrieval + curator. **Antes**:
+     correr benchmark sintetico para baseline. **Despues**: confirmar
+     mejora medible.
+   - `performance-auditor` benchmark markPrunedBatch (PR #69 cierre
+     fue sin benchmark).
+
+5. **Substantial cleanup:**
+   - **FP-A5-2 / FP-A5-5**: refactor Buffer end-to-end (`Prompt` port
+     → `Promise<Buffer>` + `Passphrase.fromBuffer`) + single
+     `withUnlockedKey` batch. Tocan A5 + A6 + A7 + A2 prompts.
+     Coordinar.
+
+6. **Cycle hardening cleanup:**
+   - O-PR43..O-PR46-O8 (11 obs Phase-17): batch en 1-2 PRs.
+   - O-PR45-W352-* (2 obs Phase-21): batch.
+
+7. **DECISION estrategica (postponer):**
+   - **swap-embedder-tar7** HIGH: cuando todos los demas esten
+     cerrados, decidir entre (a) esperar fastembed con tar@7
+     compatible, (b) swap a `@huggingface/transformers` (cambio
+     mayor con benchmark + invalidacion cache vectores).
+
+8. **CUANDO §8 OPEN HIGH+MEDIUM === 0**: evaluar corte
+   `release/0.1.3-beta.0` con material acumulado: iteracion 2 ADR-005
+   completa + hardening + bumps stack + perf H2/H3 cerrados + 5
+   medium-tier fixes (gate CI, audit gap closures, perf M1/M2).
+
+**Estimacion de esfuerzo proxima sesion (3-4 mas):**
+- Sesion 1 (doc-only + tactico-simple): F-A6-3 + FP-001 + FU-A7-3 +
+  FP-A5-3. ~6-8 PRs pequenos.
+- Sesion 2 (audit gaps): FP-A5-1 + F-A6-2 + FU-A7-1 + F-A6-1. Patron
+  similar al security-auditor de A5/A6/A7. ~4 PRs.
+- Sesion 3 (perf M1/M2): benchmark previo + cache implementation +
+  benchmark posterior. ~2 PRs.
+- Sesion 4 (FP-A5-2 Buffer refactor + obs Phase-17 batch): ~3-5 PRs.
+- Sesion 5 (decision estrategica tar/embedder + release cut si
+  procede): variable.
+
+**Resultado neto Phase-25.** §0 reconciliado contra realidad
+verificable. §6.30 documenta auditoria + plan ordenado. La siguiente
+sesion abre HANDOFF, lee §0 "Proximo paso" + §6.30 plan, y arranca el
+trabajo sin re-investigar el estado.
+
+**HEAD develop al cierre Phase-25 (pre-merge del propio doc):** `deea7a1`.
+**Develop vs main:** 70 commits ahead. Post-merge del PR Phase-25: ~71.
+
+**Commit-flow.** Branch `docs/handoff-phase-25-audit`, PR sobre develop.
+Sin codigo en `code/src/` — typecheck hook no se dispara.
 
 ---
 
