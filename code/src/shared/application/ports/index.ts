@@ -62,3 +62,5 @@ export type { IdGenerator } from "./id-generator.port.ts";
 export type { Embedder, RawEmbedding } from "./embedder.port.ts";
 
 export type { EventPublisher } from "./event-publisher.port.ts";
+
+export type { EncryptionAuditProbe } from "./encryption-audit-probe.port.ts";
