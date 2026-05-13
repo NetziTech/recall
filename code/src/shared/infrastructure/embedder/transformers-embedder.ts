@@ -265,7 +265,7 @@ export class TransformersEmbedder implements Embedder {
       return await pipeline("feature-extraction", this.modelName, {
         dtype: "fp32",
         local_files_only: this.localFilesOnly,
-        ...(this.cacheDir !== undefined ? { cache_dir: this.cacheDir } : {}),
+        ...(this.cacheDir === undefined ? {} : { cache_dir: this.cacheDir }),
       });
     } catch (cause: unknown) {
       throw EmbedderError.initialisationFailed(cause);
