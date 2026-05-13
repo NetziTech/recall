@@ -170,7 +170,16 @@ export class TransformersEmbedder implements Embedder {
   }
 
   public async embed(text: string): Promise<RawEmbedding> {
-    const [result] = await this.embedBatch([text]);
+    // Delegate to embedBatch. Its dimension-mismatch validation rules
+    // out the empty-output case at runtime (texts.length === 1 implies
+    // dims[0] must be 1, otherwise embedBatch throws before this line
+    // reads results[0]). The conditional below is therefore unreachable
+    // at runtime; it remains for `noUncheckedIndexedAccess` type-safety
+    // and as defence-in-depth against a future invariant regression in
+    // embedBatch.
+    const results = await this.embedBatch([text]);
+    const result = results[0];
+    /* istanbul ignore if -- unreachable: embedBatch invariant guarantees length === 1 */
     if (result === undefined) {
       throw EmbedderError.embedFailed(
         new Error(
@@ -236,7 +245,10 @@ export class TransformersEmbedder implements Embedder {
   /**
    * Returns the lazily-loaded transformers.js pipeline. Concurrent
    * first callers share the same promise so the model is loaded
-   * exactly once per adapter instance.
+   * exactly once per adapter instance. The catch block clears the
+   * cached promise on failure so a later call may retry (e.g. after
+   * the user fixes connectivity). `loadPipeline` already wraps every
+   * cause into an `EmbedderError`, so the catch only has to forward.
    */
   private async ensurePipeline(): Promise<FeatureExtractionPipeline> {
     this.pipelinePromise ??= this.loadPipeline();
@@ -244,8 +256,7 @@ export class TransformersEmbedder implements Embedder {
       return await this.pipelinePromise;
     } catch (cause: unknown) {
       this.pipelinePromise = null;
-      if (cause instanceof EmbedderError) throw cause;
-      throw EmbedderError.initialisationFailed(cause);
+      throw cause;
     }
   }
 
