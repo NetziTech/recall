@@ -16,6 +16,7 @@
 
 import type { Embedder as RawEmbedder } from "../../shared/application/ports/embedder.port.ts";
 import type { Clock } from "../../shared/application/ports/clock.port.ts";
+import type { EncryptionAuditProbe } from "../../shared/application/ports/encryption-audit-probe.port.ts";
 import type { EventPublisher } from "../../shared/application/ports/event-publisher.port.ts";
 import type { IdGenerator } from "../../shared/application/ports/id-generator.port.ts";
 import type { Logger } from "../../shared/application/ports/logger.port.ts";
@@ -87,6 +88,14 @@ export interface WorkspaceWiringOptions {
   readonly unlockEncryptionFacade: UnlockEncryptionFacade;
   readonly lockEncryptionFacade: LockEncryptionFacade;
   readonly destroyEncryptionFacade: DestroyEncryptionFacade;
+  /**
+   * Optional probe over `encryption_audit_log` used by
+   * `HealthCheckUseCase` to surface `last_export_at` (FU-A7-2). The
+   * container wires `SqliteEncryptionAuditProbe(options.database)`;
+   * tests that do not exercise the encryption module pass `null` and
+   * the health check skips the entry.
+   */
+  readonly encryptionAuditProbe?: EncryptionAuditProbe | null;
 }
 
 /**
@@ -174,6 +183,7 @@ export function buildWorkspaceWiring(
     databaseBootstrap,
     embedderProbe,
     options.logger,
+    options.encryptionAuditProbe ?? null,
   );
 
   return {
