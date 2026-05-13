@@ -4,12 +4,61 @@ import { EmbedderSpec } from "../../../../../src/modules/workspace/domain/value-
 import { InvalidInputError } from "../../../../../src/shared/domain/errors/invalid-input-error.ts";
 
 describe("EmbedderSpec.create", () => {
-  it("fastembed + canonical model: dim derived", () => {
+  it("transformers + canonical model: dim derived", () => {
+    const s = EmbedderSpec.create({
+      provider: "transformers",
+      model: "Xenova/bge-small-en-v1.5",
+    });
+    expect(s.provider).toBe("transformers");
+    expect(s.model).toBe("Xenova/bge-small-en-v1.5");
+    expect(s.dim).toBe(384);
+    expect(s.isTransformers()).toBe(true);
+    expect(s.isFastembed()).toBe(false);
+    expect(s.isVoyage()).toBe(false);
+    expect(s.isOpenAi()).toBe(false);
+  });
+
+  it("transformers canonical: matching explicit dim accepted", () => {
+    const s = EmbedderSpec.create({
+      provider: "transformers",
+      model: "Xenova/bge-base-en-v1.5",
+      dim: 768,
+    });
+    expect(s.dim).toBe(768);
+  });
+
+  it("transformers canonical: mismatched dim rejected", () => {
+    expect(() =>
+      EmbedderSpec.create({
+        provider: "transformers",
+        model: "Xenova/bge-small-en-v1.5",
+        dim: 512,
+      }),
+    ).toThrow(InvalidInputError);
+  });
+
+  it("transformers unknown model: dim is required", () => {
+    expect(() =>
+      EmbedderSpec.create({
+        provider: "transformers",
+        model: "Xenova/some-unknown-model",
+      }),
+    ).toThrow(InvalidInputError);
+    const s = EmbedderSpec.create({
+      provider: "transformers",
+      model: "Xenova/some-unknown-model",
+      dim: 256,
+    });
+    expect(s.dim).toBe(256);
+  });
+
+  it("fastembed + canonical model: dim derived (legacy back-compat)", () => {
     const s = EmbedderSpec.create({ provider: "fastembed", model: "BGESmallEN15" });
     expect(s.provider).toBe("fastembed");
     expect(s.model).toBe("BGESmallEN15");
     expect(s.dim).toBe(384);
     expect(s.isFastembed()).toBe(true);
+    expect(s.isTransformers()).toBe(false);
     expect(s.isVoyage()).toBe(false);
     expect(s.isOpenAi()).toBe(false);
   });

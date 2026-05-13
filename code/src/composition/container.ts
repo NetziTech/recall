@@ -194,7 +194,8 @@ export interface ContainerOptions {
     readonly protocolVersion: string;
   };
   /** Default embedder spec written into fresh `config.json` files.
-   *  Optional; defaults to `fastembed:BGESmallEN15` (384-dim). */
+   *  Optional; defaults to `transformers:Xenova/bge-small-en-v1.5`
+   *  (384-dim). */
   readonly defaultEmbedder?: EmbedderSpec;
   /**
    * Workspace id pinned at the boundary of the memory wiring. The
@@ -350,8 +351,8 @@ export function buildContainer(options: ContainerOptions): Container {
   const defaultEmbedder =
     options.defaultEmbedder ??
     EmbedderSpec.create({
-      provider: "fastembed",
-      model: "BGESmallEN15",
+      provider: "transformers",
+      model: "Xenova/bge-small-en-v1.5",
     });
   // The mcp-server facade adapters resolve the workspace id from
   // their constructor-injected default when the wire input omits
@@ -384,7 +385,7 @@ export function buildContainer(options: ContainerOptions): Container {
       new SqliteWorkspaceStateReader(options.database, logger),
       options.workspaceRoot,
       options.schemaVersion,
-      "fastembed:BGESmallEN15",
+      "transformers:Xenova/bge-small-en-v1.5",
       workspaceId,
     ),
   };

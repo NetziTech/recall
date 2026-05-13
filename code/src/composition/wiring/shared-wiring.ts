@@ -5,8 +5,16 @@
  *
  * Why this lives in `composition/wiring/`:
  * - The shared adapters are portable but their construction (cache
- *   directory for fastembed, log level, etc.) is environment-driven.
+ *   directory for the embedder, log level, etc.) is environment-driven.
  *   Hiding the construction here keeps the bootstrap entrypoint thin.
+ *
+ * Embedder backend:
+ * - `TransformersEmbedder` (`@huggingface/transformers`) is the sole
+ *   backend. The legacy `FastembedEmbedder` was removed in `v0.1.3`
+ *   because its transitive `tar@^6` carried 6 high-severity advisories
+ *   (`swap-embedder-tar7` follow-up). Dimension parity (384) and
+ *   L2-normalised output are preserved against `Xenova/bge-small-en-v1.5`
+ *   — see `HANDOFF.md` §6.32 for the POC parity report.
  *
  * What this file does NOT decide:
  * - The encryption key material: that flows from the encryption-wiring
@@ -24,9 +32,9 @@ import type { Embedder as RawEmbedder } from "../../shared/application/ports/emb
 import type { IdGenerator } from "../../shared/application/ports/id-generator.port.ts";
 import type { Logger } from "../../shared/application/ports/logger.port.ts";
 import {
-  FastembedEmbedder,
-  type FastembedEmbedderOptions,
-} from "../../shared/infrastructure/embedder/fastembed-embedder.ts";
+  TransformersEmbedder,
+  type TransformersEmbedderOptions,
+} from "../../shared/infrastructure/embedder/transformers-embedder.ts";
 import { SystemClock } from "../../shared/infrastructure/clock/system-clock.ts";
 import { UuidV7IdGenerator } from "../../shared/infrastructure/id-generator/uuid-v7-id-generator.ts";
 import {
@@ -49,13 +57,6 @@ export interface SharedAdapters {
   /** Retrieval-flavoured embedder (`EmbeddingVector`) for the
    *  retrieval use cases. Wraps `embedder`. */
   readonly retrievalEmbedder: RetrievalEmbedder;
-  /**
-   * Underlying `FastembedEmbedder` reference exposed for diagnostic
-   * paths (e.g. dimension lookup in `mem.health`). The interface
-   * surface is the `embedder` port; this field is for the rare
-   * subset of code that needs the concrete instance.
-   */
-  readonly fastembed: FastembedEmbedder;
 }
 
 /**
@@ -64,11 +65,11 @@ export interface SharedAdapters {
 export interface SharedAdaptersOptions {
   readonly logger: PinoLoggerOptions;
   /**
-   * fastembed-specific knobs. Defaults to
-   * `~/.cache/recall/models/` per `docs/03 §1` and the
-   * BGESmallENV15 model.
+   * transformers.js-specific knobs. When omitted, defaults to
+   * `~/.cache/recall/models/` and the curated default model
+   * (`Xenova/bge-small-en-v1.5`, 384-dim).
    */
-  readonly embedder?: FastembedEmbedderOptions | undefined;
+  readonly transformersEmbedder?: TransformersEmbedderOptions | undefined;
 }
 
 /**
@@ -78,7 +79,7 @@ export interface SharedAdaptersOptions {
  *                      level / pretty / redact path overrides.
  * - `clock`          → `SystemClock` (Date.now-backed).
  * - `idGenerator`    → `UuidV7IdGenerator` (uuid v7, time-ordered).
- * - `embedder`       → `FastembedEmbedder` lazy-loaded from
+ * - `embedder`       → `TransformersEmbedder` lazy-loaded from
  *                      `~/.cache/recall/models/` by default.
  * - `retrievalEmbedder`
  *                    → `RawEmbedderAdapter` wrapping the same
@@ -90,18 +91,18 @@ export function buildSharedAdapters(options: SharedAdaptersOptions): SharedAdapt
   const clock = new SystemClock();
   const idGenerator = new UuidV7IdGenerator();
 
-  const embedderOpts: FastembedEmbedderOptions = options.embedder ?? {
-    cacheDir: path.join(os.homedir(), ".cache", "recall", "models"),
+  const defaultCacheDir = path.join(os.homedir(), ".cache", "recall", "models");
+  const opts: TransformersEmbedderOptions = options.transformersEmbedder ?? {
+    cacheDir: defaultCacheDir,
   };
-  const fastembed = new FastembedEmbedder(embedderOpts);
-  const retrievalEmbedder = new RawEmbedderAdapter(fastembed);
+  const embedder: RawEmbedder = new TransformersEmbedder(opts);
+  const retrievalEmbedder = new RawEmbedderAdapter(embedder);
 
   return {
     logger,
     clock,
     idGenerator,
-    embedder: fastembed,
+    embedder,
     retrievalEmbedder,
-    fastembed,
   };
 }

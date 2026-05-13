@@ -18,8 +18,9 @@ import type {
  *     exception that aborts the rest of the health check.
  *
  * The probe is intentionally cheap: it reads the dimension. For
- * lazy adapters (the default fastembed implementation), reading the
- * dimension forces the model to load and surfaces I/O / model-cache
+ * lazy adapters (the default `TransformersEmbedder` implementation),
+ * reading the dimension is synchronous and does NOT force the model
+ * to load; the first `embed()` call surfaces I/O / model-cache
  * failures.
  */
 export class EmbedderPortProbe implements EmbedderProbe {

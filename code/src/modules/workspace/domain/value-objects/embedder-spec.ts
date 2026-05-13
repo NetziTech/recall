@@ -3,9 +3,18 @@ import { InvalidInputError } from "../../../../shared/domain/errors/invalid-inpu
 /**
  * Set of supported embedding providers.
  *
- * - `fastembed`: local ONNX runtime (default), see
- *   `docs/06-stack-tecnico.md` §8 (`fastembed-js`). Models are listed
- *   below in `FASTEMBED_MODEL_DIMENSIONS`.
+ * - `transformers`: local ONNX runtime via `@huggingface/transformers`
+ *   (the default since `v0.1.3`). Models are listed below in
+ *   `TRANSFORMERS_MODEL_DIMENSIONS`.
+ * - `fastembed`: legacy local ONNX runtime (removed as an adapter in
+ *   `v0.1.3` because its transitive `tar@^6` carried 6 high-severity
+ *   advisories). Kept here as a legal provider value so existing
+ *   `config.json` files written by `v0.1.x` (`provider: "fastembed"`)
+ *   are still parseable; the runtime no longer ships a `fastembed`
+ *   adapter, so any workspace that wants to keep its embeddings active
+ *   must re-embed with `transformers` (the dimension is preserved at
+ *   384 for the BGE-small-en-v1.5 model pair). Models below in
+ *   `FASTEMBED_MODEL_DIMENSIONS`.
  * - `voyage`: Voyage AI, opt-in cloud provider (requires API key via env
  *   var). Documented in `docs/06-stack-tecnico.md` §8 ("Alternativa
  *   cloud: Voyage AI").
@@ -20,20 +29,35 @@ import { InvalidInputError } from "../../../../shared/domain/errors/invalid-inpu
  * separate validation array (which could drift if a new variant was
  * added to one but not the other).
  */
-const EMBEDDER_PROVIDERS = ["fastembed", "voyage", "openai"] as const;
+const EMBEDDER_PROVIDERS = [
+  "transformers",
+  "fastembed",
+  "voyage",
+  "openai",
+] as const;
 
 export type EmbedderProvider = (typeof EMBEDDER_PROVIDERS)[number];
 
 /**
- * Canonical (model name -> dimension) table for fastembed. Mirrors the
- * matrix in `docs/06-stack-tecnico.md` §8 ("Modelos recomendados") and
- * the example workspace config in `docs/03-modelo-datos.md` §2 where
- * `embedder.model = "BGESmallEN15"` and `embedder.dimension = 384`.
- *
- * The table is intentionally exhaustive for the providers whose model
- * catalog is closed (`fastembed`); `voyage` and `openai` accept arbitrary
- * model strings because the upstream catalogs evolve faster than the
- * MCP can. The `dim` field is then required to disambiguate.
+ * Canonical (model name -> dimension) table for `transformers`
+ * (default backend since `v0.1.3`). The `Xenova/*` repos are the ONNX
+ * exports of the canonical model weights consumed by
+ * `@huggingface/transformers`'s `pipeline()` factory. Dimension parity
+ * with the fastembed catalog is intentional so a `v0.1.x` workspace's
+ * `embedding_metadata.dimension` value remains valid after the swap.
+ */
+const TRANSFORMERS_MODEL_DIMENSIONS: Readonly<Record<string, number>> =
+  Object.freeze({
+    "Xenova/bge-small-en-v1.5": 384,
+    "Xenova/bge-base-en-v1.5": 768,
+    "Xenova/all-MiniLM-L6-v2": 384,
+  });
+
+/**
+ * Canonical (model name -> dimension) table for the legacy `fastembed`
+ * provider. Kept for back-compat parsing of `v0.1.x` workspace
+ * `config.json` files; the runtime no longer constructs a `fastembed`
+ * adapter, so the entries here only validate dimensions during read.
  */
 const FASTEMBED_MODEL_DIMENSIONS: Readonly<Record<string, number>> = Object.freeze(
   {
@@ -54,16 +78,16 @@ const FASTEMBED_MODEL_DIMENSIONS: Readonly<Record<string, number>> = Object.free
  * embedder").
  *
  * Invariants:
- * - `provider` is one of `fastembed | voyage | openai`.
+ * - `provider` is one of `transformers | fastembed | voyage | openai`.
  * - `model` is a non-empty trimmed string.
  * - `dim` (when provided) is a positive finite integer.
- * - For `fastembed` with a model in the canonical table, `dim` (when
- *   provided) MUST match the table value. Inconsistent inputs are
- *   rejected so the runtime never opens a `vec0` table sized for the
- *   wrong vector length.
- * - For `fastembed` with a model NOT in the canonical table, `dim` is
- *   required (the runtime would otherwise have to ask the model loader
- *   for the dimension before it can size the vector index).
+ * - For local providers (`transformers` and `fastembed`) with a model
+ *   in the canonical table, `dim` (when provided) MUST match the table
+ *   value. Inconsistent inputs are rejected so the runtime never opens
+ *   a `vec0` table sized for the wrong vector length.
+ * - For local providers with a model NOT in the canonical table, `dim`
+ *   is required (the runtime would otherwise have to ask the model
+ *   loader for the dimension before it can size the vector index).
  * - For `voyage` and `openai`, `dim` is required: the catalogs are open
  *   and the dimension cannot be inferred from the model name.
  *
@@ -82,8 +106,9 @@ export class EmbedderSpec {
 
   /**
    * Builds an `EmbedderSpec` from raw fields. The factory derives the
-   * canonical dimension when possible (fastembed with a known model)
-   * and otherwise enforces that `dim` was supplied.
+   * canonical dimension when possible (local provider — `transformers`
+   * or `fastembed` — with a model in the canonical table) and
+   * otherwise enforces that `dim` was supplied.
    */
   public static create(raw: {
     provider: string;
@@ -94,6 +119,10 @@ export class EmbedderSpec {
     const model = EmbedderSpec.parseModel(raw.model);
     const dim = EmbedderSpec.resolveDimension(provider, model, raw.dim);
     return new EmbedderSpec(provider, model, dim);
+  }
+
+  public isTransformers(): boolean {
+    return this.provider === "transformers";
   }
 
   public isFastembed(): boolean {
@@ -142,7 +171,7 @@ export class EmbedderSpec {
     }
     if (!EmbedderSpec.isProvider(trimmed)) {
       throw new InvalidInputError(
-        `embedder provider must be one of "fastembed" | "voyage" | "openai" (got: "${raw}")`,
+        `embedder provider must be one of "transformers" | "fastembed" | "voyage" | "openai" (got: "${raw}")`,
         { field: "embedder.provider" },
       );
     }
@@ -174,22 +203,26 @@ export class EmbedderSpec {
       EmbedderSpec.assertValidDimension(explicit);
     }
 
-    if (provider === "fastembed") {
-      const canonical = FASTEMBED_MODEL_DIMENSIONS[model];
+    if (provider === "transformers" || provider === "fastembed") {
+      const catalog =
+        provider === "transformers"
+          ? TRANSFORMERS_MODEL_DIMENSIONS
+          : FASTEMBED_MODEL_DIMENSIONS;
+      const canonical = catalog[model];
       if (canonical !== undefined) {
         if (explicit !== undefined && explicit !== canonical) {
           throw new InvalidInputError(
-            `fastembed model "${model}" produces ${String(canonical)}-dim vectors, but dim=${String(explicit)} was provided`,
+            `${provider} model "${model}" produces ${String(canonical)}-dim vectors, but dim=${String(explicit)} was provided`,
             { field: "embedder.dim" },
           );
         }
         return canonical;
       }
-      // Unknown fastembed model: the user is opting into a custom
-      // model and must declare its dimension explicitly.
+      // Unknown local model: the user is opting into a custom model
+      // and must declare its dimension explicitly.
       if (explicit === undefined) {
         throw new InvalidInputError(
-          `fastembed model "${model}" is not in the canonical catalog; an explicit dim is required`,
+          `${provider} model "${model}" is not in the canonical catalog; an explicit dim is required`,
           { field: "embedder.dim" },
         );
       }
