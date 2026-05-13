@@ -283,7 +283,7 @@ describe("AddEnvelopeUseCase", () => {
     expect(audit.events).toHaveLength(0);
   });
 
-  it("throws KeyValidationFailedError when the current passphrase is wrong", async () => {
+  it("throws KeyValidationFailedError when the current passphrase is wrong and emits a single UnlockFailed audit row (FP-A5-1)", async () => {
     const { useCase, repo, audit } = build({ unlockOutcome: "wrong-passphrase" });
     await expect(
       useCase.addEnvelope({
@@ -294,7 +294,17 @@ describe("AddEnvelopeUseCase", () => {
       }),
     ).rejects.toBeInstanceOf(KeyValidationFailedError);
     expect(repo.saveCount).toBe(0);
-    expect(audit.events).toHaveLength(0);
+    // FP-A5-1 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row so brute-force passphrase attempts
+    // against the add-key flow are forensically observable.
+    expect(audit.events).toHaveLength(1);
+    const row = audit.events[0];
+    expect(row?.eventType).toBe("UnlockFailed");
+    expect(row?.outcome).toBe("FAILURE");
+    expect(row?.envelopeId).toBeNull();
+    expect(row?.masterKeyFingerprint).toBeNull();
+    expect(row?.actorHint.toString()).toBe("cli:add-key");
+    expect(row?.detailJson).toEqual({ reason: "invalid-passphrase" });
   });
 
   it("defensive: throws EncryptionLockedError if unlock returns a still-locked aggregate", async () => {

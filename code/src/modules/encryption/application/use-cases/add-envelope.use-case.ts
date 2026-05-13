@@ -6,6 +6,7 @@ import { isErr } from "../../../../shared/domain/types/result.ts";
 import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empty-string.ts";
 import type { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts";
 import { EncryptionLockedError } from "../../domain/errors/encryption-locked-error.ts";
+import { KeyValidationFailedError } from "../../domain/errors/key-validation-failed-error.ts";
 import type { EncryptionAuditLogRepository } from "../../domain/repositories/encryption-audit-log-repository.ts";
 import type { EncryptionConfigRepository } from "../../domain/repositories/encryption-config-repository.ts";
 import type { EnvelopeCipher } from "../../domain/services/envelope-cipher.ts";
@@ -23,6 +24,7 @@ import type {
 import type { UnlockEncryption } from "../ports/in/unlock-encryption.port.ts";
 import type { Kdf } from "../ports/out/kdf.port.ts";
 import type { RandomBytes } from "../ports/out/random-bytes.port.ts";
+import { appendUnlockFailedAudit } from "./_helpers/append-unlock-failed-audit.ts";
 
 /**
  * Length, in bytes, of the freshly generated salt for the new
@@ -107,6 +109,26 @@ export class AddEnvelopeUseCase implements AddEnvelope {
       passphrase: input.currentPassphrase,
     });
     if (isErr(unlockResult)) {
+      // FP-A5-1 (HANDOFF §8): emit a best-effort `UnlockFailed` audit
+      // row BEFORE re-throwing when the failure is a wrong passphrase
+      // (the brute-force signal we want to capture). The audit row is
+      // NOT emitted for `EncryptionNotInitializedError` (no config to
+      // unlock — the audit-log table semantically has nothing to
+      // record about a missing workspace). The audit append is wrapped
+      // in try/catch — if the audit infrastructure is itself broken,
+      // the original unlock error still surfaces to the caller (the
+      // forensic loss is documented on the port).
+      if (unlockResult.error instanceof KeyValidationFailedError) {
+        await appendUnlockFailedAudit({
+          auditLogRepository: this.auditLogRepository,
+          database: this.database,
+          idGenerator: this.idGenerator,
+          logger: this.logger,
+          occurredAt: this.clock.now(),
+          actorHint: ACTOR_HINT,
+          reason: "invalid-passphrase",
+        });
+      }
       throw unlockResult.error;
     }
     const config = unlockResult.value;
@@ -285,4 +307,5 @@ export class AddEnvelopeUseCase implements AddEnvelope {
     // observable to the caller.
     await Promise.all(promises);
   }
+
 }

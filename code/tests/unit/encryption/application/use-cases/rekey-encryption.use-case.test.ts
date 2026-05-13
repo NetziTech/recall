@@ -333,7 +333,7 @@ describe("RekeyEncryptionUseCase", () => {
     expect(db.transactionCalls).toBe(0);
   });
 
-  it("throws KeyValidationFailedError when the current passphrase is wrong", async () => {
+  it("throws KeyValidationFailedError when the current passphrase is wrong and emits a single UnlockFailed audit row (F-A6-2)", async () => {
     const { useCase, repo, audit, db } = build({
       unlockOutcome: "wrong-passphrase",
     });
@@ -346,8 +346,19 @@ describe("RekeyEncryptionUseCase", () => {
       }),
     ).rejects.toBeInstanceOf(KeyValidationFailedError);
     expect(repo.saveCount).toBe(0);
-    expect(audit.events).toHaveLength(0);
-    expect(db.transactionCalls).toBe(0);
+    // F-A6-2 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row attributed to `cli:rekey`. Distinct
+    // from `appendRekeyFailed`, which fires on POST-unlock errors.
+    expect(audit.events).toHaveLength(1);
+    const row = audit.events[0];
+    expect(row?.eventType).toBe("UnlockFailed");
+    expect(row?.outcome).toBe("FAILURE");
+    expect(row?.envelopeId).toBeNull();
+    expect(row?.masterKeyFingerprint).toBeNull();
+    expect(row?.actorHint.toString()).toBe("cli:rekey");
+    expect(row?.detailJson).toEqual({ reason: "invalid-passphrase" });
+    // One audit-append transaction (for UnlockFailed), no others.
+    expect(db.transactionCalls).toBe(1);
   });
 
   it("defensive: throws EncryptionLockedError if unlock returns a still-locked aggregate", async () => {

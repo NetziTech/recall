@@ -7,6 +7,7 @@ import { NonEmptyString } from "../../../../shared/domain/value-objects/non-empt
 import type { Timestamp } from "../../../../shared/domain/value-objects/timestamp.ts";
 import type { EncryptionConfig } from "../../domain/aggregates/encryption-config.ts";
 import { EncryptionLockedError } from "../../domain/errors/encryption-locked-error.ts";
+import { KeyValidationFailedError } from "../../domain/errors/key-validation-failed-error.ts";
 import type { EncryptionAuditLogRepository } from "../../domain/repositories/encryption-audit-log-repository.ts";
 import { EventId } from "../../domain/value-objects/event-id.ts";
 import { MasterKeyFingerprint } from "../../domain/value-objects/master-key-fingerprint.ts";
@@ -17,6 +18,7 @@ import type {
   ExportMasterKeyOutput,
 } from "../ports/in/export-master-key.port.ts";
 import type { UnlockEncryption } from "../ports/in/unlock-encryption.port.ts";
+import { appendUnlockFailedAudit } from "./_helpers/append-unlock-failed-audit.ts";
 
 /**
  * Canonical actor hint stored on the audit-log row emitted by this
@@ -90,6 +92,23 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
       passphrase: input.currentPassphrase,
     });
     if (isErr(unlockResult)) {
+      // FU-A7-1 (HANDOFF §8): emit a best-effort `UnlockFailed` audit
+      // row BEFORE re-throwing when the failure is a wrong passphrase
+      // (the brute-force signal we want to capture). The audit row is
+      // NOT emitted for `EncryptionNotInitializedError`. The actor-hint
+      // (`cli:export-key`) distinguishes export-failures from add-key
+      // / rekey failures in the audit log.
+      if (unlockResult.error instanceof KeyValidationFailedError) {
+        await appendUnlockFailedAudit({
+          auditLogRepository: this.auditLogRepository,
+          database: this.database,
+          idGenerator: this.idGenerator,
+          logger: this.logger,
+          occurredAt: this.clock.now(),
+          actorHint: ACTOR_HINT,
+          reason: "invalid-passphrase",
+        });
+      }
       throw unlockResult.error;
     }
     const config = unlockResult.value;
@@ -181,4 +200,5 @@ export class ExportMasterKeyUseCase implements ExportMasterKey {
     });
     await Promise.all(promises);
   }
+
 }

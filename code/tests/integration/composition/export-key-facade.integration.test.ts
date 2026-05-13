@@ -184,6 +184,31 @@ describe("integration / composition / CliExportKeyFacadeAdapter", () => {
       )
       .all() as ReadonlyArray<{ readonly event_type: string }>;
     expect(rows.length).toBe(0);
+
+    // FU-A7-1 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row attributed to `cli:export-key`. The
+    // event-type enum is frozen (ADR-005 Q4) so the export path
+    // re-uses `UnlockFailed` with the actor-hint discriminating it
+    // from add-key / rekey unlock failures.
+    interface FailedAuditRow extends AuditRow {
+      readonly detail_json: string | null;
+    }
+    const failedRows = ctx.database
+      .prepare(
+        `SELECT event_id, occurred_at_ms, event_type, envelope_id,
+                master_key_fp, actor_hint, outcome, detail_json
+         FROM encryption_audit_log
+         WHERE event_type = 'UnlockFailed'`,
+      )
+      .all() as readonly FailedAuditRow[];
+    expect(failedRows.length).toBe(1);
+    expect(failedRows[0]?.outcome).toBe("FAILURE");
+    expect(failedRows[0]?.envelope_id).toBeNull();
+    expect(failedRows[0]?.master_key_fp).toBeNull();
+    expect(failedRows[0]?.actor_hint).toBe("cli:export-key");
+    expect(
+      JSON.parse(failedRows[0]?.detail_json ?? "{}") as Record<string, unknown>,
+    ).toEqual({ reason: "invalid-passphrase" });
   });
 
   it("the export is read-only — config.json is byte-identical after the operation", async () => {

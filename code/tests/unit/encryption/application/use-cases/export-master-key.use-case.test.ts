@@ -209,7 +209,7 @@ describe("ExportMasterKeyUseCase", () => {
     expect(db.transactionCalls).toBe(0);
   });
 
-  it("throws KeyValidationFailedError when the current passphrase is wrong", async () => {
+  it("throws KeyValidationFailedError when the current passphrase is wrong and emits a single UnlockFailed audit row (FU-A7-1)", async () => {
     const { useCase, audit, db } = build({ unlockOutcome: "wrong-passphrase" });
     await expect(
       useCase.exportMasterKey({
@@ -217,10 +217,22 @@ describe("ExportMasterKeyUseCase", () => {
         currentPassphrase: Passphrase.from("incorrect-passphrase"),
       }),
     ).rejects.toBeInstanceOf(KeyValidationFailedError);
-    // No audit row emitted for a failed unlock — the master key was
-    // never observed in scope.
-    expect(audit.events).toHaveLength(0);
-    expect(db.transactionCalls).toBe(0);
+    // FU-A7-1 (HANDOFF §8): the failed unlock leaves a best-effort
+    // `UnlockFailed` audit row attributed to `cli:export-key`. The
+    // event-type enum is frozen so the export path re-uses
+    // `UnlockFailed` with the actor-hint discriminating it from
+    // add-key / rekey unlock failures. NO `ExportKeyEmitted` row is
+    // written (the master key was never observed in scope).
+    expect(audit.events).toHaveLength(1);
+    const row = audit.events[0];
+    expect(row?.eventType).toBe("UnlockFailed");
+    expect(row?.outcome).toBe("FAILURE");
+    expect(row?.envelopeId).toBeNull();
+    expect(row?.masterKeyFingerprint).toBeNull();
+    expect(row?.actorHint.toString()).toBe("cli:export-key");
+    expect(row?.detailJson).toEqual({ reason: "invalid-passphrase" });
+    // One audit-append transaction (for UnlockFailed), no others.
+    expect(db.transactionCalls).toBe(1);
   });
 
   it("the printable master key roundtrips through PrintableMasterKey.fromString to the same bytes", async () => {
