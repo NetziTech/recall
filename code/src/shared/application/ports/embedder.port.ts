@@ -31,9 +31,10 @@
  * "The composition root binds both names to the same adapter".
  *
  * Why `Float32Array` and not `readonly number[]`:
- * - `fastembed` and `sqlite-vec` both work in `Float32` precision
- *   (`docs/06-stack-tecnico.md` §6, §7); `number[]` would force a
- *   per-call copy and silently lose precision on quantised embedders.
+ * - `@huggingface/transformers` and `sqlite-vec` both work in `Float32`
+ *   precision (`docs/06-stack-tecnico.md` §6, §7); `number[]` would
+ *   force a per-call copy and silently lose precision on quantised
+ *   embedders.
  * - `Float32Array` carries its dimension on the buffer (`length`),
  *   which makes the consumer's shape-check trivial.
  *
@@ -45,17 +46,19 @@
  *   returned buffer after passing it to a downstream consumer; if
  *   ownership transfers, treat it as transferred.
  *
- * Implementation expectations (per Fase 2 task `2.2-shared-infrastructure`):
- * - `shared/infrastructure/embedder/fastembed-adapter.ts` is the
+ * Implementation expectations:
+ * - `shared/infrastructure/embedder/transformers-embedder.ts` is the
  *   default backend (`docs/06-stack-tecnico.md` §6), wrapping
- *   `fastembed` with a model-cache resolver pointed at
- *   `~/.cache/recall/models/`.
+ *   `@huggingface/transformers` with a model-cache resolver pointed at
+ *   `~/.cache/recall/models/`. The legacy `fastembed-adapter.ts` was
+ *   removed in `v0.1.3` because its transitive `tar@^6` carried 6
+ *   high-severity advisories.
  * - `shared/infrastructure/embedder/voyage-adapter.ts` is the
  *   opt-in cloud backend (`docs/06-stack-tecnico.md` §6 footnote),
  *   gated by `embedder.spec` in `config.json`.
- * - Both adapters expose the same `dimension()` value at construction
- *   so the workspace can persist it in `config.json` and reject a
- *   re-init that would change dimensions silently.
+ * - Adapters expose the same `dimension()` value at construction so
+ *   the workspace can persist it in `config.json` and reject a re-init
+ *   that would change dimensions silently.
  *
  * Test doubles (live in `tests/fixtures/`):
  * - `DeterministicFakeEmbedder(dimension)` returns a hash-based vector

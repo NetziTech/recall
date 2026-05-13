@@ -34,11 +34,11 @@ export type { MigrationsResult } from "./database/migrations-runner.ts";
 export { PinoLogger, DEFAULT_REDACT_PATHS } from "./logger/pino-logger.ts";
 export type { PinoLoggerOptions } from "./logger/pino-logger.ts";
 
-export { FastembedEmbedder } from "./embedder/fastembed-embedder.ts";
+export { TransformersEmbedder } from "./embedder/transformers-embedder.ts";
 export type {
-  FastembedEmbedderOptions,
-  FastembedModelName,
-} from "./embedder/fastembed-embedder.ts";
+  TransformersEmbedderOptions,
+  TransformersModelName,
+} from "./embedder/transformers-embedder.ts";
 
 export { SystemClock } from "./clock/system-clock.ts";
 export { FakeClock } from "./clock/fake-clock.ts";

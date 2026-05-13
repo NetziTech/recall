@@ -2,9 +2,9 @@
  * Integration-test container builder.
  *
  * The production composition root (`src/composition/container.ts`) wires
- * a `FastembedEmbedder` from `buildSharedAdapters`. That adapter is lazy
- * (no model download until `.embed()` is called), but several of our
- * end-to-end flows DO call recall, which would force the download.
+ * a `TransformersEmbedder` from `buildSharedAdapters`. That adapter is
+ * lazy (no model download until `.embed()` is called), but several of
+ * our end-to-end flows DO call recall, which would force the download.
  *
  * For integration tests we want:
  *   - The full DI graph (every wiring helper, every facade adapter, the

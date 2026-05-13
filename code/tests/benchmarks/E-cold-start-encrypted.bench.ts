@@ -60,8 +60,8 @@ await ctx.workspace.initializeWorkspace.initialize({
   mode: WorkspaceMode.encryptedMode(),
   displayName: DisplayName.create("bench-E"),
   embedder: EmbedderSpec.create({
-    provider: "fastembed",
-    model: "BGESmallEN15",
+    provider: "transformers",
+    model: "Xenova/bge-small-en-v1.5",
   }),
   passphrase: PASSPHRASE,
 });

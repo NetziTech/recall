@@ -3,8 +3,9 @@
  *
  * Why a dedicated class hierarchy:
  * - Adapters wrap third-party libraries (`better-sqlite3-multiple-ciphers`,
- *   `pino`, `fastembed`, `@noble/hashes`, `uuid`). Those libraries throw
- *   raw `Error` instances whose `message` is library-specific and whose
+ *   `pino`, `@huggingface/transformers`, `@noble/hashes`, `uuid`). Those
+ *   libraries throw raw `Error` instances whose `message` is
+ *   library-specific and whose
  *   stack does not point back to this codebase. Wrapping every external
  *   throw in a tagged subclass lets the application layer pattern-match
  *   on stable codes (e.g. `database.connection-failed`) without

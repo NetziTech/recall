@@ -8,7 +8,7 @@ export type EmbedderErrorCode =
 
 /**
  * Concrete error raised by embedder adapters (e.g.
- * `FastembedEmbedder`).
+ * `TransformersEmbedder`).
  *
  * Adapters lazy-load their underlying model on the first `embed()`
  * call; if a caller asks `dimension()` before the model is ready this

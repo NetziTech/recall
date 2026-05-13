@@ -12,7 +12,7 @@ import { resolveRootPath } from "./root-path.ts";
  * Recovery for B-MCP-7
  * ([issue #24](https://github.com/NetziTech/recall/issues/24)). The
  * worker prior to `0.1.2-beta.4` would mark items as permanent failure
- * during a fastembed cold-start; this command clears those items so the
+ * during an embedder cold-start; this command clears those items so the
  * fixed worker can re-try them.
  *
  * Output:

@@ -24,10 +24,10 @@ import { EmbeddingVector } from "../../domain/value-objects/embedding-vector.ts"
  *   end-to-end. No primitive obsession in the use cases.
  *
  * The composition root binds both names to the same backend (e.g. the
- * `FastembedEmbedder` from `shared/infrastructure/embedder/`):
+ * `TransformersEmbedder` from `shared/infrastructure/embedder/`):
  * ```typescript
- * const fastembed = await FastembedEmbedder.create({...});
- * const retrievalEmbedder = new RawEmbedderAdapter(fastembed);
+ * const raw = new TransformersEmbedder({...});
+ * const retrievalEmbedder = new RawEmbedderAdapter(raw);
  * ```
  *
  * Performance:

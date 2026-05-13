@@ -65,7 +65,7 @@ const MAX_ATTEMPTS = 5;
  * `.recall/config.json:embedder.model`). Default kept here as a
  * safety net.
  */
-const DEFAULT_EMBEDDER_MODEL_NAME = "fastembed/BGE-Small-EN-1.5";
+const DEFAULT_EMBEDDER_MODEL_NAME = "transformers/Xenova-bge-small-en-v1.5";
 
 /**
  * Use case: drain one batch of pending embeddings.
@@ -90,10 +90,10 @@ const DEFAULT_EMBEDDER_MODEL_NAME = "fastembed/BGE-Small-EN-1.5";
  *
  * Performance:
  * - The embedder typically costs 50–200 ms per item on the
- *   fastembed default; batches of 32 amortise the cost via the
- *   adapter's `embedBatch(...)` path. The hydration step is one
- *   round trip per batch (the projection repo's `loadProjections
- *   ByHits` is batched).
+ *   `transformers` default (after cold-start); batches of 32 amortise
+ *   the cost via the adapter's `embedBatch(...)` path. The hydration
+ *   step is one round trip per batch (the projection repo's
+ *   `loadProjectionsByHits` is batched).
  * - The use case is INTENTIONALLY blocking on the embedder call;
  *   the worker's outer loop is what gives the read path elbow room.
  *

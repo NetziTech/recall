@@ -45,8 +45,9 @@ export interface EmbeddingQueueItem {
  *
  * The queue exists because `mem.remember` returns sync (< 30 ms)
  * while the embedder is on the critical path of `mem.recall` (the
- * fastembed model takes 50–200 ms per call on cold start, see
- * `docs/06-stack-tecnico.md` §6). The flow:
+ * `@huggingface/transformers` model takes 50–200 ms per call after
+ * warm-up, plus a one-shot multi-second download on first call —
+ * see `docs/06-stack-tecnico.md` §6). The flow:
  *
  * 1. Memory module persists the row + enqueues a job
  *    (`enqueue(...)`).
@@ -164,7 +165,7 @@ export interface EmbeddingQueueRepository {
    *
    * Use case: B-MCP-7 recovery
    * ([issue #24](https://github.com/NetziTech/recall/issues/24)). When
-   * a fastembed cold-start fast-failed before the worker learned to
+   * an embedder cold-start fast-failed before the worker learned to
    * back off (in `<= 0.1.2-beta.3`), a workspace's queue could end up
    * with permanent-failure rows that will NEVER retry. The
    * `recall reset-queue` CLI command calls this method to give those
