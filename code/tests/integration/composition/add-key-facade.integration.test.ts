@@ -125,15 +125,24 @@ describe("integration / composition / CliAddKeyFacadeAdapter — multi-key add",
     const labels = (config.key_envelopes ?? []).map((env) => env.label ?? null);
     expect(labels).toContain("alice@laptop");
 
-    // SQLite assertion: the audit log contains exactly two rows from
+    // SQLite assertion: the audit log contains EXACTLY two rows from
     // this run, joined on a single master-key fingerprint, both with
-    // outcome=SUCCESS. The `UnlockSucceeded` event covers BOTH the
-    // facade's pre-unlock call and the use case's own audit append;
-    // ADR-005 Q4 currently allows the double-unlock row pattern (the
-    // facade unlocks once via `UnlockEncryption.unlock(...)` then the
-    // use case appends its own `UnlockSucceeded` row). The assertions
-    // below tolerate the redundancy by checking for AT LEAST one
-    // `UnlockSucceeded` + exactly one `KeyEnvelopeAdded`.
+    // outcome=SUCCESS. Flow (verified post-investigation F-A6-1):
+    //   - `CliAddKeyFacadeAdapter.add(...)` calls only
+    //     `AddEnvelopeUseCase.addEnvelope(...)`. It does NOT perform a
+    //     separate pre-unlock at the facade boundary.
+    //   - `AddEnvelopeUseCase.addEnvelope(...)` orchestrates unlock +
+    //     wrap + persist + audit. The audit step (`appendAuditPair`)
+    //     emits EXACTLY one `UnlockSucceeded` + one `KeyEnvelopeAdded`
+    //     atomically inside one SQLite transaction.
+    //   - `UnlockEncryptionUseCase.unlock(...)` does NOT write to the
+    //     audit log; it emits the `EncryptionUnlocked` domain event
+    //     which is unsubscribed in production (no double-row source).
+    // The asserts therefore demand exact counts, not floors. Closes
+    // FP-A5-3 + F-A6-1 (HANDOFF §8): tightening the assert from
+    // `>= 1` to `=== 1` traps a future regression that would emit a
+    // stray `UnlockSucceeded` (e.g. wiring the unlock use case to a
+    // hypothetical "log every unlock" subscriber).
     const rows = ctx.database
       .prepare(
         `SELECT event_id, occurred_at_ms, event_type, envelope_id,
@@ -144,7 +153,7 @@ describe("integration / composition / CliAddKeyFacadeAdapter — multi-key add",
       .all() as readonly AuditRow[];
     const unlockRows = rows.filter((r) => r.event_type === "UnlockSucceeded");
     const addedRows = rows.filter((r) => r.event_type === "KeyEnvelopeAdded");
-    expect(unlockRows.length).toBeGreaterThanOrEqual(1);
+    expect(unlockRows.length).toBe(1);
     expect(addedRows.length).toBe(1);
     expect(addedRows[0]?.envelope_id).toBe(out.keyId);
     expect(addedRows[0]?.outcome).toBe("SUCCESS");

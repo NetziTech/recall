@@ -164,10 +164,21 @@ describe("integration / composition / CliRekeyFacadeAdapter — multi-key rotati
     expect(config.key_envelopes?.[0]?.id).toBe(out.newKeyId);
     expect(config.key_envelopes?.[0]?.label).toBe("rotated@2026");
 
-    // SQLite assertion: the audit log contains the rotation chain.
-    // The add-key step contributed `UnlockSucceeded` +
-    // `KeyEnvelopeAdded` (handled by the add-key integration test);
-    // here we focus on the rekey-specific event types.
+    // SQLite assertion: the audit log contains the full rotation chain.
+    // Post-investigation (F-A6-1, HANDOFF §8) the contributors are
+    // exactly two: the prior `add-key` call and the `rekey` call.
+    // Neither the facade nor `UnlockEncryptionUseCase` emit extra
+    // `UnlockSucceeded` rows, so the totals are deterministic:
+    //   - add-key step:       1 UnlockSucceeded + 1 KeyEnvelopeAdded
+    //   - rekey step:         1 RekeyStarted + 1 UnlockSucceeded +
+    //                          1 KeyEnvelopeAdded + 2 KeyEnvelopeRemoved
+    //                          + 1 RekeyCompleted
+    //   - totals:             2 UnlockSucceeded + 2 KeyEnvelopeAdded +
+    //                          1 RekeyStarted + 1 RekeyCompleted +
+    //                          2 KeyEnvelopeRemoved
+    // Exact-count asserts trap a future regression that would emit a
+    // stray `UnlockSucceeded` (e.g. if the unlock use case starts
+    // writing directly to the audit log).
     const rows = ctx.database
       .prepare(
         `SELECT event_id, occurred_at_ms, event_type, envelope_id,
@@ -177,17 +188,17 @@ describe("integration / composition / CliRekeyFacadeAdapter — multi-key rotati
       )
       .all() as readonly AuditRow[];
 
+    const unlockRows = rows.filter((r) => r.event_type === "UnlockSucceeded");
     const rekeyStartedRows = rows.filter((r) => r.event_type === "RekeyStarted");
     const rekeyCompletedRows = rows.filter((r) => r.event_type === "RekeyCompleted");
     const removedRows = rows.filter((r) => r.event_type === "KeyEnvelopeRemoved");
     const addedRows = rows.filter((r) => r.event_type === "KeyEnvelopeAdded");
 
+    expect(unlockRows.length).toBe(2);
     expect(rekeyStartedRows.length).toBe(1);
     expect(rekeyCompletedRows.length).toBe(1);
     expect(removedRows.length).toBe(2);
-    // The KeyEnvelopeAdded count includes the add-key contribution
-    // PLUS the rekey contribution: AT LEAST 2.
-    expect(addedRows.length).toBeGreaterThanOrEqual(2);
+    expect(addedRows.length).toBe(2);
 
     // The trailing KeyEnvelopeAdded row carries the rekey's new
     // envelope id (rows are ordered by occurred_at_ms ASC, rowid ASC;
