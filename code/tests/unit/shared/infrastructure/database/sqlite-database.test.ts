@@ -433,6 +433,82 @@ describe("SqliteDatabase.close", () => {
   });
 });
 
+describe("SqliteDatabase prepare cache (W-3.3 + W-3.4 PERF-M1/M2)", () => {
+  it("returns the SAME wrapper for the same SQL text across calls", async () => {
+    const logger = newLogger();
+    const db = await SqliteDatabase.open({
+      path: ":memory:",
+      logger,
+      loadVectorExtension: false,
+    });
+    try {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+      const a = db.prepare("INSERT INTO t (name) VALUES (?)");
+      const b = db.prepare("INSERT INTO t (name) VALUES (?)");
+      // Same SQL string → cached wrapper returned, identity preserved.
+      // Note: the port contract says callers MUST NOT rely on `===`
+      // identity, but the adapter is allowed to provide it. This test
+      // pins the cache behavior so a future refactor that breaks the
+      // cache is observable here.
+      expect(a).toBe(b);
+      // Different SQL → fresh wrapper.
+      const c = db.prepare("SELECT name FROM t WHERE id = ?");
+      expect(c).not.toBe(a);
+      // Each cached wrapper still operates correctly.
+      a.run("first");
+      const row = c.get(1);
+      expect(row).toEqual({ name: "first" });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("the cache survives many distinct SQL strings without leaks across queries", async () => {
+    const logger = newLogger();
+    const db = await SqliteDatabase.open({
+      path: ":memory:",
+      logger,
+      loadVectorExtension: false,
+    });
+    try {
+      db.exec("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)");
+      // 30 distinct SQL strings — each stays in cache; reusing any of
+      // them returns the same wrapper.
+      const seen: unknown[] = [];
+      for (let i = 0; i < 30; i++) {
+        const stmt = db.prepare(`SELECT ${String(i)} AS v`);
+        seen.push(stmt);
+      }
+      // Re-request each by the same SQL — must return the cached one.
+      for (let i = 0; i < 30; i++) {
+        const stmt2 = db.prepare(`SELECT ${String(i)} AS v`);
+        expect(stmt2).toBe(seen[i]);
+        expect(stmt2.get()).toEqual({ v: i });
+      }
+    } finally {
+      db.close();
+    }
+  });
+
+  it("closing the connection invalidates the cache (new prepare on a closed db throws)", async () => {
+    const logger = newLogger();
+    const db = await SqliteDatabase.open({
+      path: ":memory:",
+      logger,
+      loadVectorExtension: false,
+    });
+    db.exec("CREATE TABLE t (k INTEGER)");
+    const before = db.prepare("SELECT k FROM t");
+    expect(before.all()).toEqual([]);
+    db.close();
+    // After close, a prepare for the SAME SQL must NOT return the
+    // cached wrapper (assertOpen would still throw first, but this
+    // pins the policy that closed connections cannot resurrect a
+    // statement from the cache).
+    expect(() => db.prepare("SELECT k FROM t")).toThrow(DatabaseError);
+  });
+});
+
 describe("SqliteDatabase encryption (SQLCipher)", () => {
   let tmp: string;
 

@@ -207,6 +207,47 @@ class SqliteStatement implements PreparedStatement {
 export class SqliteDatabase implements DatabaseConnection {
   private isClosed: boolean;
 
+  /**
+   * Cache of `SqliteStatement` wrappers keyed by SQL source text
+   * (W-3.3-PERF-M1/M2 + W-3.4-PERF-M1/M2 — HANDOFF §8).
+   *
+   * Why: `DatabaseConnection.prepare(sql)` is invoked on every read /
+   * write of the hot paths in retrieval (recall, context, bumpUsage)
+   * and curator (decay, prune). Each call was previously
+   * (a) allocating a fresh `SqliteStatement` wrapper and (b) crossing
+   * the better-sqlite3 internal cache lookup. With ~50 unique SQL
+   * literals in the codebase and 100s of calls per recall pulse, the
+   * per-call overhead accumulated to a measurable cache-miss line in
+   * the Phase-5 performance audit.
+   *
+   * Mechanics:
+   * - The keys are the SQL strings as supplied by the caller. The
+   *   port docs (`docs/12 §1 perf`) state every adapter MUST use
+   *   prepared statements, and the codebase keeps the SQL in
+   *   `const SQL_*` literals — so the key set is bounded, stable
+   *   across the connection's lifetime, and naturally cacheable
+   *   without an eviction policy. Worst case the cache holds one
+   *   `SqliteStatement` per unique SQL string the adapter ever sees.
+   * - The cache is `Map<string, SqliteStatement>` (not WeakMap)
+   *   because the underlying `BetterSqlite3Statement` MUST stay
+   *   alive as long as the connection is open; we WANT to retain it.
+   * - The cache is invalidated on {@link close} so a closed
+   *   connection cannot resurrect a statement via cache lookup
+   *   (`assertOpen` already guards that, but the explicit clear is
+   *   defense in depth).
+   *
+   * Idempotence:
+   * - The port contract (`docs/12 §1 perf`, port JSDoc) says
+   *   `prepare` is idempotent for the same SQL string within the
+   *   same connection. Returning the cached instance ALSO returns
+   *   the same `===` identity to callers — which is a SUPERSET of
+   *   the contract (the docs explicitly say callers MUST NOT rely
+   *   on identity, but we're allowed to provide it). No caller in
+   *   the codebase compares statements by reference, so this is
+   *   safe.
+   */
+  private readonly statementCache = new Map<string, SqliteStatement>();
+
   private constructor(private readonly db: BetterSqlite3Database) {
     this.isClosed = false;
   }
@@ -290,13 +331,23 @@ export class SqliteDatabase implements DatabaseConnection {
 
   public prepare(sql: string): PreparedStatement {
     this.assertOpen("prepare");
+    // Fast path: return the cached wrapper if the SQL string was
+    // previously compiled on this connection. This avoids both the
+    // `new SqliteStatement(...)` allocation and the (cheap but
+    // non-zero) `this.db.prepare(...)` internal cache lookup of
+    // better-sqlite3. Closing the connection clears the cache.
+    const cached = this.statementCache.get(sql);
+    if (cached !== undefined) return cached;
+
     let stmt: BetterSqlite3Statement;
     try {
       stmt = this.db.prepare(sql);
     } catch (cause: unknown) {
       throw DatabaseError.prepareFailed(sql, cause);
     }
-    return new SqliteStatement(stmt, sql);
+    const wrapper = new SqliteStatement(stmt, sql);
+    this.statementCache.set(sql, wrapper);
+    return wrapper;
   }
 
   public exec(sql: string): void {
@@ -334,6 +385,12 @@ export class SqliteDatabase implements DatabaseConnection {
   public close(): void {
     if (this.isClosed) return;
     this.isClosed = true;
+    // Drop the statement cache. The wrapped `BetterSqlite3Statement`
+    // instances are no longer usable once the connection closes
+    // (better-sqlite3 throws "The database connection is not open"
+    // on any statement method); freeing the wrappers lets V8 reclaim
+    // their memory without waiting for the next GC cycle.
+    this.statementCache.clear();
     SqliteDatabase.safeClose(this.db);
   }
 
