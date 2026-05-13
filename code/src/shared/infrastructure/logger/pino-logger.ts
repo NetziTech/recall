@@ -40,6 +40,12 @@ export const DEFAULT_REDACT_PATHS: readonly string[] = Object.freeze([
   "derivedKey",
   "encryptionKey",
   "salt",
+  // FU-A7-3: defense in depth against a future regression that would
+  // log the human-readable Bech32 encoding of the master key
+  // (`recall export-key` payload). The CLI never logs the field today,
+  // but adding it to the baseline ensures even a misrouted child
+  // logger or a test-helper print cannot leak it.
+  "printableMasterKey",
   // Wildcard variants — pino supports the `*` glob.
   "*.passphrase",
   "*.password",
@@ -54,6 +60,7 @@ export const DEFAULT_REDACT_PATHS: readonly string[] = Object.freeze([
   "*.derivedKey",
   "*.encryptionKey",
   "*.salt",
+  "*.printableMasterKey",
   // Two-level wildcards for request-style envelopes (e.g. headers).
   "*.headers.authorization",
   "*.headers.cookie",
