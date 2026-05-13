@@ -154,40 +154,41 @@ export class AddEnvelopeUseCase implements AddEnvelope {
     }
     const derivedKey = derivation.value;
 
-    // 4. AEAD-wrap the currently-unlocked master key. `withUnlockedKey`
-    //    refuses if the aggregate is locked (already enforced above)
-    //    and exposes the MasterKey VO; we delegate the wrap to the
-    //    cipher port without copying bytes around.
+    // 4 + 5 + 7. Single `withUnlockedKey` callback (FP-A5-5, HANDOFF
+    //             §8): AEAD-wrap, append-to-aggregate, and compute
+    //             fingerprint inside ONE master-key disclosure window.
+    //             The aggregate refuses if locked (already enforced
+    //             above) and exposes the MasterKey VO so the wrap
+    //             delegates to the cipher port without copying bytes.
+    //             Reusing the in-memory master key here (instead of
+    //             re-unwrapping the freshly-wrapped envelope) is
+    //             intentional:
+    //               - The aggregate's `addEnvelope` invariant polices
+    //                 "all envelopes wrap the SAME master key"; the
+    //                 in-memory key trivially satisfies it.
+    //               - Avoids a redundant AEAD operation.
+    //             Batching also reduces the audit surface from three
+    //             withUnlockedKey sites to one, matching the FP-A5-5
+    //             goal of containing master-key access.
     const occurredAt = this.clock.now();
-    const wrappedMasterKey = await config.withUnlockedKey((masterKey) =>
-      this.envelopeCipher.wrap(masterKey, derivedKey),
-    );
-
-    // 5. Build the new envelope VO and append via the aggregate.
-    //    The aggregate emits `KeyEnvelopeAdded` and enforces the
-    //    "all envelopes wrap the SAME master key" invariant via
-    //    `unwrappedMasterKey`. We re-use the in-memory master key
-    //    (NOT re-unwrap from the freshly-wrapped envelope) because:
-    //      - The semantic invariant the aggregate polices is "the
-    //        new envelope wraps the same master key the aggregate
-    //        currently holds". Passing that exact key satisfies the
-    //        invariant trivially.
-    //      - Re-unwrapping would be wasted CPU (two AEAD operations
-    //        when one suffices) and would obscure the intent.
     const newEnvelopeId = KeyId.from(this.idGenerator.generateString());
-    const envelope = KeyEnvelope.create({
-      keyId: newEnvelopeId,
-      encryptedMasterKey: wrappedMasterKey,
-      kdfParams,
-      createdAt: occurredAt,
-      label: input.label,
-    });
-    config.withUnlockedKey((masterKey) => {
+    const fingerprint = await config.withUnlockedKey(async (masterKey) => {
+      const wrapped = await this.envelopeCipher.wrap(masterKey, derivedKey);
+      const envelope = KeyEnvelope.create({
+        keyId: newEnvelopeId,
+        encryptedMasterKey: wrapped,
+        kdfParams,
+        createdAt: occurredAt,
+        label: input.label,
+      });
       config.addEnvelope({
         envelope,
         unwrappedMasterKey: masterKey,
         occurredAt,
       });
+      return masterKey.withBytes((bytes) =>
+        MasterKeyFingerprint.fromMasterKey(bytes),
+      );
     });
 
     // 6. Persist the aggregate (JSON file). If this throws, the
@@ -195,18 +196,6 @@ export class AddEnvelopeUseCase implements AddEnvelope {
     //    visible to disk so the audit trail correctly remains
     //    silent.
     await this.configRepository.save(config);
-
-    // 7. Compute the master-key fingerprint of the currently-unlocked
-    //    key. Stored on BOTH audit rows so a reader can join
-    //    `UnlockSucceeded` with the following `KeyEnvelopeAdded`
-    //    on the fingerprint column. The fingerprint VO never
-    //    surfaces outside the audit adapter (see
-    //    `MasterKeyFingerprint` security invariants).
-    const fingerprint = config.withUnlockedKey((masterKey) =>
-      masterKey.withBytes((bytes) =>
-        MasterKeyFingerprint.fromMasterKey(bytes),
-      ),
-    );
 
     // 8. Append the audit pair atomically.
     const unlockEventId = EventId.from(this.idGenerator.generateString());

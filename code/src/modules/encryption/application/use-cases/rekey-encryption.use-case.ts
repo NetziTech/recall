@@ -247,36 +247,47 @@ export class RekeyEncryptionUseCase implements RekeyEncryption {
     }
     const derivedKey = derivation.value;
 
-    const wrappedMasterKey = await input.config.withUnlockedKey((masterKey) =>
-      this.envelopeCipher.wrap(masterKey, derivedKey),
+    // FP-A5-5 (HANDOFF §8): batch the AEAD wrap + the aggregate
+    // `addEnvelope` invariant check inside ONE `withUnlockedKey`
+    // callback. The smoke-verify (ADR-005 Q2 defence-in-depth) runs
+    // OUTSIDE the master-key window because it operates only on the
+    // already-wrapped ciphertext + `derivedKey`; running it inside
+    // would expand the master-key disclosure surface for zero
+    // security benefit.
+    const newEnvelopeId = KeyId.from(this.idGenerator.generateString());
+    const { envelope, wrappedMasterKey } = await input.config.withUnlockedKey(
+      async (masterKey) => {
+        const wrapped = await this.envelopeCipher.wrap(masterKey, derivedKey);
+        const fresh = KeyEnvelope.create({
+          keyId: newEnvelopeId,
+          encryptedMasterKey: wrapped,
+          kdfParams,
+          createdAt: input.occurredAt,
+          label: input.newPassphraseInput.label,
+        });
+        input.config.addEnvelope({
+          envelope: fresh,
+          unwrappedMasterKey: masterKey,
+          occurredAt: input.occurredAt,
+        });
+        return { envelope: fresh, wrappedMasterKey: wrapped };
+      },
     );
 
-    // Smoke-verify (ADR-005 Q2 defence-in-depth): roundtrip the fresh
-    // envelope by unwrapping it under `derivedKey`. A buggy cipher
-    // (regression, AEAD mismatch, future implementation drift) that
-    // wraps without an immediately-unwrappable result would otherwise
-    // cause the rekey to remove the prior envelopes and leave the
-    // workspace unrecoverable. Failing-fast here keeps the prior
-    // envelopes intact so the user can still unlock with the previous
+    // Smoke-verify: roundtrip the fresh envelope by unwrapping it
+    // under `derivedKey`. A buggy cipher (regression, AEAD mismatch,
+    // future implementation drift) that wraps without an
+    // immediately-unwrappable result would otherwise cause the rekey
+    // to remove the prior envelopes and leave the workspace
+    // unrecoverable. Failing-fast here keeps the prior envelopes
+    // intact so the user can still unlock with the previous
     // passphrase. The unwrap result is discarded — we only assert
-    // success.
+    // success. Note: if this throws, the new envelope WAS already
+    // appended to the in-memory aggregate. The caller's outer
+    // try/catch in `rekey(...)` rolls back the in-memory state by
+    // never calling `repository.save(config)`; the on-disk JSON
+    // therefore stays at the pre-rekey snapshot.
     await this.envelopeCipher.unwrap(wrappedMasterKey, derivedKey);
-
-    const newEnvelopeId = KeyId.from(this.idGenerator.generateString());
-    const envelope = KeyEnvelope.create({
-      keyId: newEnvelopeId,
-      encryptedMasterKey: wrappedMasterKey,
-      kdfParams,
-      createdAt: input.occurredAt,
-      label: input.newPassphraseInput.label,
-    });
-    input.config.withUnlockedKey((masterKey) => {
-      input.config.addEnvelope({
-        envelope,
-        unwrappedMasterKey: masterKey,
-        occurredAt: input.occurredAt,
-      });
-    });
 
     return { envelope, newEnvelopeId };
   }
