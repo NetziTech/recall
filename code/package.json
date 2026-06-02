@@ -63,7 +63,7 @@
     "@noble/hashes": "^2.0.0",
     "bech32": "^2.0.0",
     "better-sqlite3-multiple-ciphers": "^12.0.0",
-    "commander": "^14.0.3",
+    "commander": "^15.0.0",
     "pino": "^10.0.0",
     "sqlite-vec": "^0.1.6",
     "tiktoken": "^1.0.0",
